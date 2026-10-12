@@ -1,0 +1,17 @@
+Pulso Bateria 0.1.0-alpha.6 / versionCode 6
+
+core Kotlin (55 testes): PASS (55 passed, 0 failed)
+Ferramenta: kotlinc do ambiente + executor local com classes de asserção equivalentes a JUnit.
+Nao foi execucao via Gradle/JUnit oficial.
+
+SQLite (Python sqlite3): PASS
+- Retencao do registro antigo na migracao de schema 1 para 2;
+- Criacao de tabela, indice e chave estrangeira com ON DELETE CASCADE;
+- Insercao de 1.500 pontos e retencao de 480 (primeiro + 479 ultimos);
+- Exclusao da sessao elimina pontos associados.
+
+Kotlin PSI: PASS (8 fontes Android + 2 fontes core)
+Estrutura: PASS tools/validate_source.py
+Gradle: INCONCLUSIVO (UnknownHostException services.gradle.org antes de executar tarefas)
+Android APK: NAO COMPILADO NESTE AMBIENTE
+Teste fisico, migracao pelo Room e schema exportado: PENDENTES

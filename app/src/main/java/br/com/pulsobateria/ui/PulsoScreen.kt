@@ -93,12 +93,12 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
      Mode.DISCHARGING -> DischargingScreen(reading,settings,Modifier.padding(padding)) { limitations=true }
      else -> MonitorScreen(reading,settings,Modifier.padding(padding),"Visão da bateria",onLimitations={limitations=true})
     }
-    1 -> History(sessions,settings,Modifier.padding(padding))
+    1 -> History(sessions,settings,vm,Modifier.padding(padding))
     else -> SettingsPage(settings,active,error,vm,onMonitor,{limitations=true},Modifier.padding(padding))
    }
   }
   if(limitations) AlertDialog(onDismissRequest={limitations=false},confirmButton={TextButton(onClick={limitations=false}){Text("Entendi")}},title={Text("Sobre as medições")},text={
-   Text("Os dados vêm do Android e dependem do sensor e do fabricante. Corrente positiva indica entrada na bateria; negativa indica saída. Leituras com sinal contraditório ficam indisponíveis. Estar conectado não garante carga.\n\nTaxa e autonomia exigem pelo menos 5 minutos e 2 pontos percentuais de variação consistente. São estimativas, não garantias. A previsão do sistema tem prioridade durante a carga.\n\nSem monitoramento contínuo, só registramos com o app visível. Pausas de até 90 segundos podem retomar a mesma sessão se estado e porcentagem permanecerem iguais; o tempo parado não entra na duração. Lacunas de coleta acima de 3 minutos criam outra sessão. O Android pode suspender o serviço. Não há coleta durante desligamento nem recuperação de intervalos perdidos. Temperatura é da bateria, não da CPU. Corrente não é potência nem capacidade em mAh.")
+   Text("Os dados vêm do Android e dependem do sensor e do fabricante. Corrente positiva indica entrada na bateria; negativa indica saída. Leituras com sinal contraditório ficam indisponíveis. Estar conectado não garante carga.\n\nTaxa e autonomia exigem pelo menos 5 minutos e 2 pontos percentuais de variação consistente. São estimativas, não garantias. A previsão do sistema só é aceita durante a carga quando compatível com a tendência medida.\n\nSem monitoramento contínuo, só registramos com o app visível. Pausas de até 90 segundos podem retomar a mesma sessão se estado e porcentagem permanecerem iguais; o tempo parado não entra na duração. Lacunas de coleta acima de 3 minutos criam outra sessão. O Android pode suspender o serviço. Não há coleta durante desligamento nem recuperação de intervalos perdidos. Temperatura é da bateria, não da CPU. Corrente não é potência nem capacidade em mAh.")
   })
  }
 }
@@ -280,32 +280,169 @@ private fun Chart(points: List<Point>,accent: Color) {
  }
 }
 @Composable
-private fun History(sessions: List<Session>,settings: Settings,modifier: Modifier) {
+private fun History(sessions: List<Session>, settings: Settings, vm: PulsoViewModel, modifier: Modifier) {
  var filter by rememberSaveable { mutableIntStateOf(0) }
- val filtered=sessions.filter { filter==0 || it.mode==(if(filter==1) Mode.CHARGING.name else Mode.DISCHARGING.name) }
- LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-  item { Text("Sessões com amostras reais. Pausas curtas podem retomar o mesmo registro; guardamos as 500 mais recentes.",color=MaterialTheme.colorScheme.onSurfaceVariant) }
-  item { Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { listOf("Todas","Carga","Descarga").forEachIndexed { i,label -> FilterChip(selected=filter==i,onClick={filter=i},label={Text(label)}) } } }
-  if(filtered.isEmpty()) item { Metric("Nenhuma sessão por aqui","Seu histórico começa agora","Use o app ou ative o monitoramento contínuo.",Modifier.fillMaxWidth()) }
-  items(filtered,key={it.id}) { session ->
-   val mode=runCatching { Mode.valueOf(session.mode) }.getOrDefault(Mode.UNKNOWN)
-   val date=remember { SimpleDateFormat("dd/MM/yyyy 'às' HH:mm",Locale.forLanguageTag("pt-BR")) }
-   Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
-    Column(Modifier.fillMaxWidth().padding(18.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-     Text(mode.label,style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.primary,fontWeight=FontWeight.Bold)
-     Text("${session.initial}% → ${session.final}%",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold)
-     val delta=session.final-session.initial
-     Text("${if(delta>0) "+" else ""}$delta p.p. • ${durationText(session.durationMs)}",style=MaterialTheme.typography.bodyMedium)
-     Text("Início: ${date.format(Date(session.started))}\n${if(session.closed) "Fim" else "Última leitura"}: ${date.format(Date(session.ended))}",style=MaterialTheme.typography.bodySmall)
-     val average=BatteryMath.sessionRate(session.initial,session.final,session.durationMs,session.samples)
-     val rateLabel=if(average==null && (session.closed || mode==Mode.FULL || mode==Mode.IDLE)) "Indisponível" else rateText(average)
-     Text("Média: $rateLabel • ${temperatureText(BatteryMath.averageTemperature(session.temperatureSum,session.temperatureCount),settings.fahrenheit)}",style=MaterialTheme.typography.bodySmall)
-     Text("Sessão #${session.id} • ${session.reason}",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+ var showInfo by rememberSaveable { mutableStateOf(false) }
+ val filtered = remember(sessions,filter) {
+  sessions.filter { filter==0 || it.mode==(if(filter==1) Mode.CHARGING.name else Mode.DISCHARGING.name) }
+ }
+ val locale = remember { Locale.forLanguageTag("pt-BR") }
+ // O DAO já retorna as sessões mais recentes primeiro. Nenhuma data é inventada.
+ val groups = remember(filtered) {
+  val day = SimpleDateFormat("yyyy-MM-dd",locale)
+  filtered.groupBy { day.format(Date(it.started)) }
+ }
+ LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+  item(key="history-header") {
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+    Text("Histórico de bateria",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
+    IconButton(onClick={showInfo=true}) { Icon(Icons.Default.Info,"Como funcionam as sessões") }
+   }
+  }
+  item(key="history-filters") {
+   SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+    listOf("Todas","Carga","Descarga").forEachIndexed { index,label ->
+     SegmentedButton(selected=filter==index,onClick={filter=index},shape=SegmentedButtonDefaults.itemShape(index,3),label={
+      Text(label,style=MaterialTheme.typography.labelMedium,maxLines=1,overflow=TextOverflow.Ellipsis)
+     })
     }
+   }
+  }
+  if(filtered.isEmpty()) item(key="history-empty") {
+   Card(colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface),shape=RoundedCornerShape(20.dp)) {
+    Column(Modifier.fillMaxWidth().padding(20.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+     Text(if(filter==1) "Nenhuma carga registrada" else if(filter==2) "Nenhuma descarga registrada" else "Nenhuma sessão registrada",fontWeight=FontWeight.SemiBold)
+     Text("As sessões aparecem depois de leituras reais, com o aplicativo aberto ou o monitoramento contínuo ativo.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+   }
+  }
+  groups.forEach { (dayKey, dailySessions) ->
+   item(key="day-$dayKey") {
+    val dayTitle = remember(dayKey) { SimpleDateFormat("dd 'de' MMMM 'de' yyyy",locale).format(Date(dailySessions.first().started)) }
+    Text(dayTitle,style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.SemiBold,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(top=8.dp,bottom=2.dp))
+   }
+   items(dailySessions,key={ "session-${it.id}" }) { session -> SessionHistoryCard(session,settings,vm) }
+  }
+ }
+ if(showInfo) AlertDialog(onDismissRequest={showInfo=false},title={Text("Sobre as sessões")},text={
+  Text("As sessões guardam leituras reais e são separadas por estado da bateria. Pausas curtas podem manter um registro, sem contar o tempo não observado. Guardamos os 500 resumos mais recentes.\n\nA partir desta versão, também salvamos pontos para gráficos individuais, até 480 por sessão. Sessões antigas preservam seus resumos, mas não têm gráficos retroativos. Valores médios só aparecem quando os dados são suficientes.")
+ },confirmButton={TextButton(onClick={showInfo=false}){Text("Entendi")}})
+}
+
+@Composable
+private fun SessionHistoryCard(session: Session,settings: Settings,vm: PulsoViewModel) {
+ var expanded by rememberSaveable(session.id) { mutableStateOf(false) }
+ val mode = remember(session.mode) { runCatching { Mode.valueOf(session.mode) }.getOrDefault(Mode.UNKNOWN) }
+ val delta = session.final-session.initial
+ val active = !session.closed
+ val paused = active && session.reason.startsWith("Pausada")
+ val stateText = when { paused -> "Pausada"; active -> "Em andamento"; else -> "Finalizada" }
+ val accent = if(mode==Mode.CHARGING) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+ val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy 'às' HH:mm",Locale.forLanguageTag("pt-BR")) }
+ val timeFormat = remember { SimpleDateFormat("HH:mm",Locale.forLanguageTag("pt-BR")) }
+ val average = BatteryMath.sessionRate(session.initial,session.final,session.durationMs,session.samples)
+ val rateLabel = when { average!=null -> rateText(average); active && (mode==Mode.CHARGING || mode==Mode.DISCHARGING) -> "Calculando…"; else -> "Indisponível" }
+ Card(onClick={expanded=!expanded},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
+  Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=14.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+    Text(mode.label,fontWeight=FontWeight.SemiBold,color=accent,style=MaterialTheme.typography.titleSmall)
+    Surface(shape=RoundedCornerShape(50),color=accent.copy(alpha=.10f)) {
+     Text(stateText,modifier=Modifier.padding(horizontal=9.dp,vertical=4.dp),style=MaterialTheme.typography.labelSmall,color=accent)
+    }
+   }
+   BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val narrow = maxWidth < 288.dp || LocalDensity.current.fontScale > 1.2f
+    if(narrow) {
+     Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
+      Text("${session.initial}% → ${session.final}%",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold)
+      Text("${if(delta>0) "+" else ""}$delta p.p. • ${durationText(session.durationMs)}",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+      Text("${timeFormat.format(Date(session.started))} → ${timeFormat.format(Date(session.ended))}",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     }
+    } else {
+     Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
+      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
+       Text("${session.initial}% → ${session.final}%",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold)
+       Text("${if(delta>0) "+" else ""}$delta p.p.",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+      }
+      Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+       Text(durationText(session.durationMs),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+       Text("${timeFormat.format(Date(session.started))} → ${timeFormat.format(Date(session.ended))}",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+      }
+     }
+    }
+   }
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+    Text("Média: $rateLabel",style=MaterialTheme.typography.labelMedium,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
+    Text(if(expanded) "Ocultar detalhes  ▲" else "Ver detalhes  ▼",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary,maxLines=1)
+   }
+   if(expanded) {
+    HorizontalDivider(color=MaterialTheme.colorScheme.surfaceVariant)
+    SessionDetailRow("Início",dateFormat.format(Date(session.started)))
+    SessionDetailRow(if(session.closed) "Fim" else "Última leitura",dateFormat.format(Date(session.ended)))
+    SessionDetailRow("Ritmo médio",rateLabel)
+    SessionDetailRow("Temperatura média",temperatureText(BatteryMath.averageTemperature(session.temperatureSum,session.temperatureCount),settings.fahrenheit))
+    SessionDetailRow("Amostras coletadas",session.samples.toString())
+    SessionDetailRow("Motivo",session.reason)
+    Text("Evolução da bateria",style=MaterialTheme.typography.titleSmall,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(top=4.dp))
+    val sampleFlow = remember(session.id) { vm.sessionSamples(session.id) }
+    val savedSamples by sampleFlow.collectAsStateWithLifecycle(initialValue=emptyList())
+    SessionHistoryChart(savedSamples,accent)
+    Text("Sessão #${session.id} • Pontos reais armazenados",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
    }
   }
  }
 }
+
+@Composable
+private fun SessionDetailRow(label: String,value: String) {
+ Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top) {
+  Text(label,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.weight(1f))
+  Spacer(Modifier.width(8.dp))
+  Text(value,style=MaterialTheme.typography.bodySmall,modifier=Modifier.weight(1.4f),textAlign=androidx.compose.ui.text.style.TextAlign.End)
+ }
+}
+
+@Composable
+private fun SessionHistoryChart(samples: List<SessionSample>,accent: Color) {
+ val points = remember(samples) { samples.map { Point(it.timestamp,it.percent) } }
+ val range = remember(points) { BatteryMath.chartRange(points) }
+ when {
+  points.isEmpty() || range==null -> Text("Aguardando pontos salvos. Sessões anteriores à alpha.6 possuem apenas o resumo.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  else -> {
+   val first=points.first()
+   val last=points.last()
+   val span=(last.elapsed-first.elapsed).coerceAtLeast(1L)
+   val bottom=range.first
+   val rangeSize=(range.last-bottom).coerceAtLeast(1)
+   val grid=MaterialTheme.colorScheme.surfaceVariant
+   Row(Modifier.fillMaxWidth().height(124.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxHeight(),verticalArrangement=Arrangement.SpaceBetween) {
+     Text("${range.last}%",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     Text("$bottom%",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    Canvas(Modifier.weight(1f).fillMaxHeight().semantics { contentDescription="${points.size} amostras de ${first.percent} a ${last.percent} por cento, escala $bottom a ${range.last} por cento" }) {
+     for (i in 0..4) drawLine(grid,Offset(0f,size.height*i/4),Offset(size.width,size.height*i/4),1.dp.toPx())
+     fun xy(point: Point): Offset = Offset(
+      ((point.elapsed-first.elapsed).toDouble()/span*size.width).toFloat().coerceIn(0f,size.width),
+      size.height*(1-(point.percent-bottom).toFloat()/rangeSize)
+     )
+     points.zipWithNext().forEach { (a,b) ->
+      if(BatteryMath.chartSamplesConnect(a,b)) drawLine(accent,xy(a),xy(b),strokeWidth=3.dp.toPx(),cap=StrokeCap.Round)
+     }
+     drawCircle(accent,3.dp.toPx(),xy(last))
+     if(points.size==1) drawCircle(accent,3.dp.toPx(),xy(first))
+    }
+   }
+   val time = remember { SimpleDateFormat("HH:mm",Locale.forLanguageTag("pt-BR")) }
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+    Text(time.format(Date(first.elapsed)),style=MaterialTheme.typography.labelSmall)
+    Text(time.format(Date(last.elapsed)),style=MaterialTheme.typography.labelSmall)
+   }
+   Text("${points.size} pontos salvos • intervalos sem observação não são conectados",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  }
+ }
+}
+
 @Composable
 private fun SettingsPage(s: Settings,active: Boolean,error: String?,vm: PulsoViewModel,onMonitor: (Boolean)->Unit,onLimitations: ()->Unit,modifier: Modifier) {
  LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {

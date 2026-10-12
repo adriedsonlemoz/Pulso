@@ -22,8 +22,8 @@ permissions={x.attrib[ns+'name'] for x in manifest.findall('uses-permission')}
 assert permissions == {'android.permission.POST_NOTIFICATIONS','android.permission.FOREGROUND_SERVICE','android.permission.FOREGROUND_SERVICE_SPECIAL_USE'}
 gradle=(root/'app/build.gradle.kts').read_text()
 version=re.search(r'versionName = "([^"]+)"',gradle).group(1)
-assert version == '0.1.0-alpha.5'
-assert re.search(r'versionCode = 5\b',gradle)
+assert version == '0.1.0-alpha.6'
+assert re.search(r'versionCode = 6\b',gradle)
 for file in ['README.md','CHANGELOG.md','RELEASE_NOTES.md','docs/VERSIONING.md','.github/workflows/android.yml']:
  assert version in (root/file).read_text(), f'Version mismatch: {file}'
 jar=root/'gradle/wrapper/gradle-wrapper.jar'
@@ -32,4 +32,9 @@ with zipfile.ZipFile(jar) as archive:
  assert archive.testzip() is None
  assert 'org/gradle/wrapper/GradleWrapperMain.class' in archive.namelist()
 assert 'distributionSha256Sum=f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6' in (root/'gradle/wrapper/gradle-wrapper.properties').read_text()
+store=(root/'app/src/main/java/br/com/pulsobateria/data/Store.kt').read_text()
+assert 'version = 2' in store and 'MIGRATION_1_2' in store
+assert '.addMigrations(BatteryDatabase.MIGRATION_1_2)' in (root/'app/src/main/java/br/com/pulsobateria/PulsoApp.kt').read_text()
+workflow=(root/'.github/workflows/android.yml').read_text()
+assert f'Pulso-Bateria-v{version}-debug.apk' in workflow
 print(f'PASS: {len(required)} required files, {len(xmls)} XMLs, permissions, version references and official Wrapper SHA-256/CRC.')

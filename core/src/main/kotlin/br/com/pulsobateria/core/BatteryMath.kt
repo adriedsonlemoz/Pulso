@@ -10,6 +10,16 @@ enum class Mode(val label: String) {
 data class Point(val elapsed: Long, val percent: Int)
 object BatteryMath {
  const val PAUSE_GRACE_MS = 90_000L
+ // Persistir a primeira leitura, mudanças de percentual e, com nível estável,
+ // no máximo uma amostra por minuto. O histórico continua sendo observacional.
+ fun shouldStoreSessionSample(previousTime: Long?, previousPercent: Int?, now: Long, percent: Int): Boolean {
+  if (now < 0 || percent !in 0..100) return false
+  if (previousTime == null || previousPercent == null) return true
+  if (now <= previousTime) return false
+  return percent != previousPercent || now - previousTime >= 60_000L
+ }
+ fun chartSamplesConnect(a: Point, b: Point): Boolean =
+  a.percent in 0..100 && b.percent in 0..100 && b.elapsed > a.elapsed && b.elapsed-a.elapsed <= 180_000L
  fun observedDuration(previous: Long, lastElapsed: Long, elapsed: Long, paused: Boolean, samples: Int): Long {
   val interval = elapsed-lastElapsed
   return previous.coerceAtLeast(0)+(if (!paused && samples > 0 && lastElapsed > 0 && interval in 1..180_000L) interval else 0)

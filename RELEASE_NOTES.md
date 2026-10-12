@@ -1,13 +1,11 @@
-# Pulso Bateria 0.1.0-alpha.5
+# Pulso Bateria 0.1.0-alpha.6
 
-versionCode: 5. Android 8.0+.
+versionCode: 6. Android 8.0+.
 
-**Correção da estimativa de carga:** a versão anterior podia mostrar “2 min até 100%” mesmo com a bateria em 58%, porque aceitava a previsão positiva do Android sem verificação. A Alpha 5 só aceita o tempo fornecido pelo Android quando o próprio aplicativo já mediu variação suficiente, compara o tempo informado com a taxa observada e rejeita valores incompatíveis. Se necessário, usa a projeção local; sem dados válidos exibe “Calculando…”.
+**Sessões redesenhadas:** cartões compactos e expansíveis, filtros Todas/Carga/Descarga, agrupamento por data, identificação de sessão Em andamento/Pausada/Finalizada e detalhes técnicos sem poluir a lista.
 
-Os filtros são heurísticas para evitar previsões claramente incoerentes, não garantias de precisão. A carga pode desacelerar perto de 100%, e o Android/fabricante não garante uma estimativa estável. A notificação utiliza a mesma previsão validada.
+**Gráficos por sessão nova:** os pontos de percentual passam a ser preservados no banco local quando a leitura muda ou a cada minuto, com máximo de 480 pontos por sessão. Sessões antigas mantêm os resumos, mas não ganham gráficos artificiais. As curvas não unem intervalos longos sem observação.
 
-O layout compacto e o gráfico da Alpha 4 permanecem. Não houve alterações nas sessões Room, permissões ou monitoramento. Consulte `docs/VALIDATION.md` para o alcance dos testes.
+**Migração de dados:** Room passa de versão 1 para 2 com migração explícita que mantém as sessões existentes. O app continua offline e sem permissões adicionais. Mantidas as proteções contra estimativas absurdas da Alpha 5.
 
-Após aprovação do workflow, baixe `Pulso-Bateria-v0.1.0-alpha.5-debug.apk` na Release ou pelo link do resumo. Só o APK Debug será publicado; assinatura Debug de runners diferentes pode impedir atualização direta sobre APK anterior.
-
-A compilação Android e os testes físicos continuam dependentes da execução no GitHub Actions e em aparelho.
+Quando o workflow for aprovado, baixe `Pulso-Bateria-v0.1.0-alpha.6-debug.apk` na Release ou pelo link no resumo. Apenas o APK Debug é publicado. A compilação Android e o teste físico devem ser confirmados no GitHub Actions e no dispositivo; consulte `docs/VALIDATION.md`.

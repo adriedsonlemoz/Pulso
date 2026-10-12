@@ -1,18 +1,22 @@
-# Validação — Pulso Bateria 0.1.0-alpha.5 (5)
+# Validação — Pulso Bateria 0.1.0-alpha.6 (6)
 
-## Verificações executadas
+## Verificações executadas neste ambiente
 
-- Origem do problema confirmada na Alpha 4: `BatteryRepository.sample()` aceitava `computeChargeTimeRemaining()` em qualquer valor de 1 a 604.800.000 ms, dando prioridade ao sistema mesmo antes de 5 minutos de observação.
-- Alteração: `BatteryMath.validatedSystemChargeTimeMs()` exige uma taxa local válida, verifica limites de tempo, velocidade implícita e consistência com a extrapolação local; a tela e a notificação usam exclusivamente o ETA validado ou o ETA local.
-- **51/51 testes do módulo `core` aprovados** com `kotlinc` 1.9.0 (JVM) e executor local que fornece asserções compatíveis com JUnit. São os 43 testes da Alpha 4 mais 8 testes de validação de ETA. **Não é execução real do JUnit via Gradle.** Log: `docs/test-results/alpha.5-local-tests.txt`.
-- `python tools/validate_source.py` passou: 14 arquivos obrigatórios, 7 XMLs, permissões, versões e hashes/CRC do Gradle Wrapper.
-- PSI de sintaxe Kotlin nos quatro arquivos alterados passou sem erro. Isso não comprova resolução de APIs Android/Compose.
-- Tentativa de `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon --stacktrace` falhou **antes do build**, por `UnknownHostException: services.gradle.org` ao baixar Gradle 8.11.1. Não foi gerado APK no ambiente. A compilação Android, Android Lint e teste em dispositivo continuam pendentes.
+- **55/55 testes do módulo `core` aprovados**, compilados com `kotlinc` e executados com um executor JVM e classes de asserção compatíveis com JUnit. Incluem 51 testes já existentes e quatro novos para seleção de amostras, rejeição de relógios inválidos e quebra de linhas em lacunas acima de três minutos. **Não equivale à execução de JUnit via Gradle.**
+- **Teste SQLite em memória aprovado**: simulada tabela v1 com registro real, executado o SQL de criação v2 documentado, verificada preservação da sessão antiga, FK de cascata, limite de 480 pontos (primeiro + 479 mais recentes) e remoção dos pontos ao apagar o registro da sessão. Teste do SQL com sqlite3, **não é teste de migração Room gerada/validada no Android**.
+- **PSI de sintaxe Kotlin sem erros** nos oito fontes do app e dois arquivos Kotlin do módulo `core`. Isso não verifica tipos, Compose, Android nem KSP.
+- `python tools/validate_source.py`: arquivos obrigatórios, 7 XML, permissões, versão e Wrapper SHA-256/CRC aprovados.
+- Workflow, nomes de arquivo, README, CHANGELOG, notas de versão, AGENTS e regras de versionamento sincronizados com Alpha 6 / versionCode 6.
+- `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon --stacktrace`: tentado, interrompido **antes do build** por `UnknownHostException: services.gradle.org` ao buscar Gradle 8.11.1. Não foi gerado APK neste ambiente.
 
-## Verificações ainda necessárias em aparelho
+## Riscos e verificações pendentes
 
-1. Com 58% e carregador conectado, se Android informar 2 min antes de 5 min e 2 p.p. observados, ver “Calculando…” e texto de amostragem. Nunca exibir o valor do Android diretamente nessas condições.
-2. Após variação observada suficiente, verificar ETA local com fonte identificada; valores do Android discrepantes devem ser ignorados, sem oscilações absurdas. Acompanhar aproximação até 100% e desaceleração.
-3. Testar aparelho sem leitura de `BATTERY_PROPERTY_CURRENT_NOW`: o ETA por porcentagem deve funcionar mesmo com corrente indisponível. Conferir notificação e interface iguais.
-4. Regressão: estado descarregando/cheia/pausada, sessões Room sem perda, gráfico, fundo/notificação, três cartões e tela estreita.
-5. Confirmar publicação `Pulso-Bateria-v0.1.0-alpha.5-debug.apk` no workflow e assinatura no Android.
+1. Executar build completo no GitHub Actions, incluindo Room/KSP (geração do schema v2), Kotlin/Compose, Lint e APK Debug.
+2. Instalar o APK Alpha 6 **sobre a Alpha 5 com sessões existentes** e confirmar a migração Room 1→2 sem apagar o banco ou as preferências. Validar schema gerado pelo Room e versionar o JSON oficial.
+3. Observar uma sessão nova com porcentagem estável por pelo menos dois minutos, abri-la, conferir pontos reais e gráfico individual. Alterações de percentual devem criar pontos adicionais, respeitando o limite e lacunas.
+4. Na aba Sessões, testar filtros, agrupamento por dias, expandir/recolher, estados ativo/pausado/finalizado e sessões antigas sem curva. Verificar layout com letras grandes, AMOLED e telas estreitas.
+5. Encerrar uma sessão e reabrir o app para conferir que os pontos persistiram; remover resumos mais antigos ao superar 500, verificando cascata. Testar carga, descarga e retomada de pausa de até 90 s.
+6. Confirmar que a previsão absurda de 2 min em 58% não voltou e que notificação, consumo e monitoramento não tiveram regressão.
+7. Confirmar publicação `Pulso-Bateria-v0.1.0-alpha.6-debug.apk` na Release e assinatura no Android.
+
+Nenhuma medição real foi inventada. Gráficos de versões anteriores permanecem indisponíveis por falta de pontos armazenados. Não houve verificação física em Android nesta entrega.

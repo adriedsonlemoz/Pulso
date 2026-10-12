@@ -4,6 +4,27 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class BatteryMathTest {
+ @Test fun sessionSampleKeepsFirstAndPercentChanges() {
+  assertTrue(BatteryMath.shouldStoreSessionSample(null,null,1000,55))
+  assertTrue(BatteryMath.shouldStoreSessionSample(1000,55,1001,56))
+  assertFalse(BatteryMath.shouldStoreSessionSample(1000,55,1001,55))
+ }
+ @Test fun sessionSampleThrottlesUnchangedReadings() {
+  assertFalse(BatteryMath.shouldStoreSessionSample(1000,55,60_999,55))
+  assertTrue(BatteryMath.shouldStoreSessionSample(1000,55,61_000,55))
+ }
+ @Test fun sessionSampleRejectsBadClockAndBatteryValues() {
+  assertFalse(BatteryMath.shouldStoreSessionSample(1000,55,999,55))
+  assertFalse(BatteryMath.shouldStoreSessionSample(1000,55,1000,56))
+  assertFalse(BatteryMath.shouldStoreSessionSample(null,null,100,-1))
+  assertFalse(BatteryMath.shouldStoreSessionSample(null,null,-1,55))
+ }
+ @Test fun chartDoesNotJoinUnobservedGaps() {
+  assertTrue(BatteryMath.chartSamplesConnect(Point(1000,55),Point(2000,56)))
+  assertFalse(BatteryMath.chartSamplesConnect(Point(1000,55),Point(200_000,56)))
+  assertFalse(BatteryMath.chartSamplesConnect(Point(1000,55),Point(999,56)))
+  assertFalse(BatteryMath.chartSamplesConnect(Point(1000,55),Point(2000,101)))
+ }
  private fun points(start: Int=50, sign: Int=1) = (0..10).map { Point(it*60_000L,start+sign*(it/2)) }
  @Test fun chartRangeShowsFlatBatteryWithoutFakeVariation() { assertEquals(53..57,BatteryMath.chartRange(listOf(Point(100,55),Point(200,55)))) }
  @Test fun chartRangeRespectsBatteryBounds() {

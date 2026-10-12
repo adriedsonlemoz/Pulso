@@ -13,7 +13,7 @@ class PulsoApp: Application() {
  override fun onCreate() {
   super.onCreate()
   settings = SettingsStore(this)
-  val database = Room.databaseBuilder(this, BatteryDatabase::class.java, "pulso.db").build()
+  val database = Room.databaseBuilder(this, BatteryDatabase::class.java, "pulso.db").addMigrations(BatteryDatabase.MIGRATION_1_2).build()
   repository = BatteryRepository(this, database.sessions(), settings, scope)
  }
 }

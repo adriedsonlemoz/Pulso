@@ -24,6 +24,7 @@ class BatteryRepository(
  private val mutable = MutableStateFlow(Reading())
  val reading = mutable.asStateFlow()
  val sessions = dao.observe()
+ fun sessionSamples(id: Long): Flow<List<SessionSample>> = dao.observeSamples(id)
  val serviceActive = MutableStateFlow(false)
  val serviceError = MutableStateFlow<String?>(null)
  private val preferences = settings.flow.stateIn(scope, SharingStarted.Eagerly, Settings())
@@ -36,6 +37,8 @@ class BatteryRepository(
  private var lastWall = 0L
  private var lastMode = Mode.UNKNOWN
  private val points = mutableListOf<Point>()
+ private var lastStoredTimestamp: Long? = null
+ private var lastStoredPercent: Int? = null
  private val receiver = object: BroadcastReceiver() {
   override fun onReceive(c: Context?, intent: Intent?) { commands.trySend("read") }
  }
@@ -84,6 +87,7 @@ class BatteryRepository(
  private suspend fun close(reason: String) {
   active?.let { dao.update(it.copy(closed = true, reason = reason)) }
   active = null
+  lastStoredTimestamp = null; lastStoredPercent = null
  }
  private suspend fun sample() {
   val now = SystemClock.elapsedRealtime()
@@ -118,10 +122,18 @@ class BatteryRepository(
     val session = Session(mode=mode.name, started=wall, ended=wall, durationMs=0, initial=level, final=level,
      temperatureSum=0.0, temperatureCount=0, samples=0)
     active = session.copy(id=dao.insert(session)); dao.trim()
+    lastStoredTimestamp = null; lastStoredPercent = null
    }
    active = active?.copy(ended=wall, durationMs=BatteryMath.observedDuration(active!!.durationMs,lastElapsed,now,paused,active!!.samples), final=level,
     temperatureSum=active!!.temperatureSum+(temperature ?: 0.0), temperatureCount=active!!.temperatureCount+(if(temperature != null) 1 else 0), samples=active!!.samples+1, reason="Em observação")
-   active?.let { dao.update(it) }
+   active?.let { session ->
+    dao.update(session)
+    if (BatteryMath.shouldStoreSessionSample(lastStoredTimestamp,lastStoredPercent,wall,level)) {
+     dao.insertSample(SessionSample(sessionId=session.id,timestamp=wall,percent=level))
+     dao.trimSamples(session.id)
+     lastStoredTimestamp = wall; lastStoredPercent = level
+    }
+   }
    points.add(Point(now,level))
    points.removeAll { now-it.elapsed > 30*60*1000L }
   }

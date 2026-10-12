@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.6 (6) — 2026-10-12
+
+- Histórico reorganizado: cabeçalho compacto com ajuda, filtros horizontais, sessões agrupadas por data e cartões responsivos expansíveis.
+- Estados Em andamento, Pausada ou Finalizada; resumo de percentuais, delta, tempo observado, horário e média. Detalhes mostram datas completas, temperatura média, número de amostras e motivo do encerramento.
+- Persistência real de amostras de sessão em Room 2: nova tabela `session_samples` com chave estrangeira e exclusão em cascata; migração 1→2 preserva as sessões existentes. Sessões antigas continuam sem curva pois não havia pontos salvos.
+- Novos pontos: primeira leitura, mudanças de porcentagem ou a cada 60 s com porcentagem estável; limite de 480 pontos por sessão, preservando o primeiro e os 479 mais recentes. Gráfico ajusta escala e não liga lacunas acima de 3 min.
+- Testes do núcleo para a política de armazenamento e desenho sem conectar lacunas; permissões, identificador e medição original preservados.
+
+
 ## 0.1.0-alpha.5 (5) — 2026-10-12
 
 - Corrige previsão até 100% que aceitava qualquer valor positivo retornado pelo Android, incluindo 2 min com bateria em 58%.

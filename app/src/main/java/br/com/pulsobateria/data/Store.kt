@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.*
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.*
 import java.io.IOException
 
@@ -31,13 +33,48 @@ data class Session(
  val samples: Int, val closed: Boolean = false,
  val reason: String = "Em observação"
 )
+@Entity(
+ tableName = "session_samples",
+ foreignKeys = [ForeignKey(entity = Session::class, parentColumns = ["id"], childColumns = ["sessionId"], onDelete = ForeignKey.CASCADE)],
+ indices = [Index("sessionId")]
+)
+data class SessionSample(
+ @PrimaryKey(autoGenerate = true) val id: Long = 0,
+ val sessionId: Long, val timestamp: Long, val percent: Int
+)
+
 @Dao
 interface SessionDao {
  @Query("SELECT * FROM sessions ORDER BY id DESC LIMIT 500") fun observe(): Flow<List<Session>>
  @Query("UPDATE sessions SET closed = 1, reason = 'Observação interrompida' WHERE closed = 0") suspend fun closeInterrupted()
+ @Query("SELECT * FROM session_samples WHERE sessionId = :sessionId ORDER BY timestamp ASC, id ASC")
+ fun observeSamples(sessionId: Long): Flow<List<SessionSample>>
+ @Insert suspend fun insertSample(sample: SessionSample)
+ // Manter o primeiro ponto e os 479 mais recentes evita crescimento sem limite por sessão.
+ @Query("""DELETE FROM session_samples WHERE sessionId = :sessionId
+ AND id != (SELECT MIN(id) FROM session_samples WHERE sessionId = :sessionId)
+ AND id NOT IN (SELECT id FROM session_samples WHERE sessionId = :sessionId ORDER BY id DESC LIMIT 479)""")
+ suspend fun trimSamples(sessionId: Long)
  @Insert suspend fun insert(session: Session): Long
  @Update suspend fun update(session: Session)
  @Query("DELETE FROM sessions WHERE id NOT IN (SELECT id FROM sessions ORDER BY id DESC LIMIT 500)") suspend fun trim()
 }
-@Database(entities = [Session::class], version = 1, exportSchema = true)
-abstract class BatteryDatabase: RoomDatabase() { abstract fun sessions(): SessionDao }
+@Database(entities = [Session::class, SessionSample::class], version = 2, exportSchema = true)
+abstract class BatteryDatabase: RoomDatabase() {
+ abstract fun sessions(): SessionDao
+ companion object {
+  // Acrescenta apenas a tabela nova. Os resumos da v1 permanecem intocados.
+  val MIGRATION_1_2 = object : Migration(1, 2) {
+   override fun migrate(db: SupportSQLiteDatabase) {
+    db.execSQL("""CREATE TABLE IF NOT EXISTS `session_samples` (
+      `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+      `sessionId` INTEGER NOT NULL,
+      `timestamp` INTEGER NOT NULL,
+      `percent` INTEGER NOT NULL,
+      FOREIGN KEY(`sessionId`) REFERENCES `sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+     )""")
+    db.execSQL("CREATE INDEX IF NOT EXISTS `index_session_samples_sessionId` ON `session_samples` (`sessionId`)")
+   }
+  }
+ }
+}
