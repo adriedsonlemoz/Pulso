@@ -1,0 +1,66 @@
+Kotlin 2.1.20 / JVM target 17 / JUnit 4.13.2
+Source tree: baseline ; test classes: br.com.pulsobateria.core.AuditRegressionTest
+JUnit version 4.13.2
+.E.E.E.E.E.E.E.E
+Time: 0.028
+There were 8 failures:
+1) implausibleCounterStepMustNotBeDiluted(br.com.pulsobateria.core.AuditRegressionTest)
+java.lang.AssertionError: expected null, but was:<3995.6043956043954>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotNull(Assert.java:756)
+	at org.junit.Assert.assertNull(Assert.java:738)
+	at org.junit.Assert.assertNull(Assert.java:748)
+	at br.com.pulsobateria.core.AuditRegressionTest.implausibleCounterStepMustNotBeDiluted(AuditRegressionTest.kt:33)
+2) fullBatteryCanReportCurrent(br.com.pulsobateria.core.AuditRegressionTest)
+java.lang.AssertionError: expected:<-100.0> but was:<NaN>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:555)
+	at org.junit.Assert.assertEquals(Assert.java:685)
+	at br.com.pulsobateria.core.AuditRegressionTest.fullBatteryCanReportCurrent(AuditRegressionTest.kt:20)
+3) currentConversionMustNotImposeConnectionSign(br.com.pulsobateria.core.AuditRegressionTest)
+java.lang.AssertionError: expected:<-100.0> but was:<NaN>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:555)
+	at org.junit.Assert.assertEquals(Assert.java:685)
+	at br.com.pulsobateria.core.AuditRegressionTest.currentConversionMustNotImposeConnectionSign(AuditRegressionTest.kt:23)
+4) chargeCounterCanExposeNetDischargeWhileConnected(br.com.pulsobateria.core.AuditRegressionTest)
+java.lang.AssertionError: expected:<-1500.0> but was:<NaN>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:555)
+	at org.junit.Assert.assertEquals(Assert.java:685)
+	at br.com.pulsobateria.core.AuditRegressionTest.chargeCounterCanExposeNetDischargeWhileConnected(AuditRegressionTest.kt:28)
+5) netDischargeIsNotFlippedByChargingStatusAlone(br.com.pulsobateria.core.AuditRegressionTest)
+java.lang.AssertionError: expected:<-1500.0> but was:<1500.0>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:555)
+	at org.junit.Assert.assertEquals(Assert.java:685)
+	at br.com.pulsobateria.core.AuditRegressionTest.netDischargeIsNotFlippedByChargingStatusAlone(AuditRegressionTest.kt:14)
+6) zeroIsAReadingRatherThanASentinel(br.com.pulsobateria.core.AuditRegressionTest)
+java.lang.AssertionError: expected:<0.0> but was:<NaN>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:555)
+	at org.junit.Assert.assertEquals(Assert.java:685)
+	at br.com.pulsobateria.core.AuditRegressionTest.zeroIsAReadingRatherThanASentinel(AuditRegressionTest.kt:17)
+7) smallOfficialMicroampReadingIsUsable(br.com.pulsobateria.core.AuditRegressionTest)
+java.lang.AssertionError: expected:<1.6> but was:<NaN>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:555)
+	at org.junit.Assert.assertEquals(Assert.java:685)
+	at br.com.pulsobateria.core.AuditRegressionTest.smallOfficialMicroampReadingIsUsable(AuditRegressionTest.kt:9)
+8) instantaneousDropIsNotComparedToHistoricalMeanToChangeUnits(br.com.pulsobateria.core.AuditRegressionTest)
+java.lang.AssertionError: expected:<NOW> but was:<COUNTER>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:120)
+	at org.junit.Assert.assertEquals(Assert.java:146)
+	at br.com.pulsobateria.core.AuditRegressionTest.instantaneousDropIsNotComparedToHistoricalMeanToChangeUnits(AuditRegressionTest.kt:39)
+
+FAILURES!!!
+Tests run: 8,  Failures: 8
+

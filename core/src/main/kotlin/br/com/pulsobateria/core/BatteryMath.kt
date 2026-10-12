@@ -26,7 +26,7 @@ object BatteryMath {
  }
  fun canResumePause(previous: Mode, next: Mode, before: Int, after: Int, lastElapsed: Long, elapsed: Long, lastWall: Long, wall: Long): Boolean =
   previous != Mode.UNKNOWN && previous == next && before in 0..100 && before == after &&
-   elapsed > lastElapsed && elapsed-lastElapsed <= PAUSE_GRACE_MS &&
+   wall > lastWall && elapsed > lastElapsed && elapsed-lastElapsed <= PAUSE_GRACE_MS &&
    abs((wall-lastWall)-(elapsed-lastElapsed)) <= 60_000
 
  fun sessionRate(initial: Int, final: Int, durationMs: Long, samples: Int): Double? {
@@ -38,17 +38,9 @@ object BatteryMath {
  fun percent(level: Int, scale: Int): Int? =
   if (scale <= 0 || level < 0 || level > scale) null else (100.0 * level / scale).roundToInt()
  fun temperature(tenths: Int?): Double? = tenths?.takeIf { it in -400..1000 }?.div(10.0)
- // Preserve Android's net-current sign; contradictory OEM readings are not silently flipped.
- fun currentMa(microamps: Int, mode: Mode): Double? {
-  if (microamps == Int.MIN_VALUE || microamps == Int.MAX_VALUE || abs(microamps.toLong()) > 30_000_000L) return null
-  val value = microamps / 1000.0
-  return when {
-   mode == Mode.DISCHARGING && value > 0 -> null
-   mode == Mode.CHARGING && value < 0 -> null
-   mode == Mode.UNKNOWN -> null
-   else -> value
-  }
- }
+ // Conversão do contrato Android, sem inferir sinal pelo status de conexão.
+ fun currentMa(microamps: Int, mode: Mode): Double? =
+  microamps.takeIf { validRawCurrent(it) && mode != Mode.UNKNOWN }?.div(1000.0)
  // Esta é uma corrente MÉDIA aproximada de sessão, não uma leitura do carregador.
  // Não estimar mA sem capacidade informada pelo usuário e taxa percentual válida.
  fun estimatedCurrentMa(ratePercentHour: Double?, capacityMah: Int?, mode: Mode): Double? {
@@ -97,5 +89,5 @@ object BatteryMath {
   return platformMs.takeIf { relativeTime in 0.5..4.0 }
  }
  fun startsNewSession(previous: Mode, next: Mode, lastElapsed: Long, elapsed: Long, lastWall: Long, wall: Long): Boolean =
-  previous != next || elapsed <= lastElapsed || elapsed-lastElapsed > 180_000 || abs((wall-lastWall)-(elapsed-lastElapsed)) > 60_000
+  previous != next || wall <= lastWall || elapsed <= lastElapsed || elapsed-lastElapsed > 180_000 || abs((wall-lastWall)-(elapsed-lastElapsed)) > 60_000
 }

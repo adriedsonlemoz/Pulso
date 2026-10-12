@@ -1,6 +1,7 @@
 package br.com.pulsobateria.data
 
 import android.content.Context
+import br.com.pulsobateria.core.HistoryValidation
 import android.net.Uri
 import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
@@ -106,13 +107,14 @@ class BackupManager(
   }
   require(sessions.map { it.id }.toSet().size==sessions.size && sessions.all {
    it.id>0 && it.mode in setOf("CHARGING","DISCHARGING","FULL","IDLE","UNKNOWN") &&
-   it.started>=0 && it.ended>=it.started && it.durationMs>=0 &&
+   HistoryValidation.validSession(it.started,it.ended,it.durationMs,it.samples,it.temperatureCount,it.temperatureSum) &&
    it.initial in 0..100 && it.final in 0..100 && it.samples>=0 && it.temperatureCount>=0 &&
    it.temperatureSum.isFinite() && it.reason.length<=256
   }) { "Sessão inválida ou ID repetido." }
   val arr=payload.getJSONArray("points")
   require(arr.length()<=240_000) { "Número de pontos inválido." }
-  val sessionIds=sessions.map { it.id }.toHashSet()
+  val sessionsById=sessions.associateBy { it.id }
+  val sessionIds=sessionsById.keys
   val points=(0 until arr.length()).map { i ->
    val pt=arr.getJSONObject(i)
    SessionSample(id=pt.getLong("id"),sessionId=pt.getLong("sessionId"),timestamp=pt.getLong("timestamp"),
@@ -124,6 +126,7 @@ class BackupManager(
   val pointsBySession=points.groupingBy { it.sessionId }.eachCount()
   require(points.map { it.id }.toSet().size==points.size && points.all {
    it.id>0 && it.sessionId in sessionIds && it.timestamp>=0 && it.percent in 0..100 &&
+   sessionsById[it.sessionId]?.let { session -> HistoryValidation.sampleWithinSession(it.timestamp,session.started,session.ended) } == true &&
    (it.currentMa==null || it.currentMa.isFinite() && kotlin.math.abs(it.currentMa)<=30_000) &&
    (it.temperatureC==null || it.temperatureC.isFinite() && it.temperatureC in -40.0..100.0) &&
    (it.currentSource==null || it.currentSource.length<=48)

@@ -8,6 +8,13 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.*
 import java.io.IOException
+import android.os.Build
+import android.util.AtomicFile
+import java.io.File
+import java.security.MessageDigest
+import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private val Context.preferences by preferencesDataStore("settings")
 data class Settings(val theme: String = "system", val interval: Int = 30, val fahrenheit: Boolean = false, val continuous: Boolean = false, val capacityMah: Int? = null, val calibration: String? = null)
@@ -21,6 +28,18 @@ class SettingsStore(private val context: Context) {
  val flow = context.preferences.data.catch { if (it is IOException) emit(emptyPreferences()) else throw it }.map {
   Settings(it[theme] ?: "system", (it[interval] ?: 30).coerceIn(15,60), it[fahrenheit] ?: false, it[continuous] ?: false,
    it[capacity]?.takeIf { mah -> mah in 500..30_000 }, it[calibration])
+ }
+ /** Identidade local excluída de backup + firmware: não confundir ajuste entre instalações. */
+ suspend fun calibrationScope(): String = withContext(Dispatchers.IO) {
+  val file=AtomicFile(File(context.noBackupFilesDir,"current-calibration-id"))
+  val existing=runCatching { file.readFully().toString(Charsets.UTF_8) }.getOrNull()
+  val id=existing?.takeIf { runCatching { UUID.fromString(it) }.isSuccess } ?: UUID.randomUUID().toString().also { value ->
+   val output=file.startWrite()
+   try { output.write(value.toByteArray(Charsets.UTF_8)); file.finishWrite(output) }
+   catch (e: Exception) { file.failWrite(output); throw e }
+  }
+  MessageDigest.getInstance("SHA-256").digest((id+"|"+Build.FINGERPRINT).toByteArray(Charsets.UTF_8))
+   .joinToString("") { "%02x".format(it) }
  }
  suspend fun theme(value: String) { context.preferences.edit { it[theme] = value } }
  suspend fun interval(value: Int) { context.preferences.edit { it[interval] = value.coerceIn(15,60) } }
@@ -68,6 +87,14 @@ interface SessionDao {
  @Query("UPDATE sessions SET closed = 1, reason = 'Observação interrompida' WHERE closed = 0") suspend fun closeInterrupted()
  @Query("SELECT * FROM session_samples WHERE sessionId = :sessionId ORDER BY timestamp ASC, id ASC")
  fun observeSamples(sessionId: Long): Flow<List<SessionSample>>
+ /** Resumo, amostra e retenção são confirmados juntos, ou revertidos juntos. */
+ @Transaction
+ suspend fun saveObservation(session: Session, sample: SessionSample?): Session {
+  val stored=if(session.id==0L) session.copy(id=insert(session)) else session.also { update(it) }
+  if(sample!=null) { insertSample(sample.copy(sessionId=stored.id)); trimSamples(stored.id) }
+  if(session.id==0L) trim()
+  return stored
+ }
  @Insert suspend fun insertSample(sample: SessionSample)
  @Insert suspend fun insertSamples(samples: List<SessionSample>)
  @Query("SELECT * FROM sessions ORDER BY id ASC") suspend fun exportSessions(): List<Session>

@@ -1,0 +1,8 @@
+Kotlin 2.1.20 / JVM target 17 / JUnit 4.13.2
+Source tree: pulso ; test classes: br.com.pulsobateria.core.AuditRegressionTest, br.com.pulsobateria.core.HistoryValidationTest, br.com.pulsobateria.core.CurrentTrackingTest, br.com.pulsobateria.core.BatteryMathTest, br.com.pulsobateria.monitor.NotificationTextTest
+JUnit version 4.13.2
+....................................................................................................................................
+Time: 0.113
+
+OK (132 tests)
+

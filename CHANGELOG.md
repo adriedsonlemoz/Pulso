@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.0-alpha.12 (12)
+
+- Auditoria profunda registrada em `docs/AUDIT-alpha.11-to-alpha.12.md`.
+- Corrige descarte de pequenas correntes e zero, inversão por status e comparação indevida entre leitura pontual e média histórica.
+- Ajuste OEM da instantânea com integração trapezoidal, três blocos sem sobreposição e evidência do contador; média do hardware permanece na escala oficial.
+- Calibração v2 vinculada à instalação/firmware, carregamento real do DataStore, expiração e revalidação.
+- Expõe média Android separada, janela do contador, sentinelas e horário no diagnóstico.
+- Transação Room para resumo/amostra/retenção; restauração propaga falhas de congelamento; backup valida limites de sessão e contagens de temperatura.
+- Interrompe sessões ao regredir o relógio civil; preserva duração monotônica.
+- Arredonda horário previsto para cima e usa instante da medição.
+- 132 testes Kotlin/JUnit e 8 SQLite aprovados. Oito novos testes falham contra a alpha.11 e passam na alpha.12. Build Android/instrumentação pendentes.
+- Sem mudança de Room v3, formato de backup v1, assinatura ou permissões.
 
 ## 0.1.0-alpha.11 (11) — 2026-10-12
 

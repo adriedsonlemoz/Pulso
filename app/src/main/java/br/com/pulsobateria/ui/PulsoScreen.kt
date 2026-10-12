@@ -29,7 +29,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
-import kotlin.math.roundToInt
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -111,7 +110,7 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
    }
   }
   if(limitations) AlertDialog(onDismissRequest={limitations=false},confirmButton={TextButton(onClick={limitations=false}){Text("Entendi")}},title={Text("Sobre as medições")},text={
-   Text("Os dados vêm do Android e dependem do sensor e do fabricante. Corrente positiva indica entrada líquida na bateria; negativa indica saída. O app tenta calibrar inversões de sinal com várias amostras; unidades ambíguas exigem comparação com o contador de carga. Estar conectado não garante carga.\n\nTaxa e autonomia exigem pelo menos 5 minutos e 2 pontos percentuais de variação consistente. São estimativas, não garantias. A previsão do sistema só é aceita durante a carga quando compatível com a tendência medida.\n\nSem monitoramento contínuo, só registramos com o app visível. Pausas de até 90 segundos podem retomar a mesma sessão se estado e porcentagem permanecerem iguais; o tempo parado não entra na duração. Lacunas de coleta acima de 3 minutos criam outra sessão. O Android pode suspender o serviço. Não há coleta durante desligamento nem recuperação de intervalos perdidos. Temperatura é da bateria, não da CPU. Corrente não é potência nem capacidade em mAh.")
+   Text("Os dados vêm do Android e dependem do sensor e do fabricante. Corrente positiva indica entrada líquida na bateria; negativa indica saída. O app usa µA e sinal Android. Ajustes da corrente instantânea exigem três janelas estáveis comparadas ao contador; isso não substitui calibração com instrumento. A média Android usa a janela desconhecida do hardware. Estar conectado não garante carga.\n\nTaxa e autonomia exigem pelo menos 5 minutos e 2 pontos percentuais de variação consistente. São estimativas, não garantias. A previsão do sistema só é aceita durante a carga quando compatível com a tendência medida.\n\nSem monitoramento contínuo, só registramos com o app visível. Pausas de até 90 segundos podem retomar a mesma sessão se estado e porcentagem permanecerem iguais; o tempo parado não entra na duração. Lacunas de coleta acima de 3 minutos criam outra sessão. O Android pode suspender o serviço. Não há coleta durante desligamento nem recuperação de intervalos perdidos. Temperatura é da bateria, não da CPU. Corrente não é potência nem capacidade em mAh.")
   })
  }
 }
@@ -136,7 +135,7 @@ private fun MonitorScreen(r: Reading, s: Settings, modifier: Modifier, pageTitle
  val measuring = charging || r.mode==Mode.DISCHARGING
  var metricDetails by remember { mutableStateOf<Pair<String,String>?>(null) }
  val currentLabel = if(charging) "Corrente" else "Consumo"
- val currentValue = r.current?.let { "${if(it>0) "+" else ""}${it.roundToInt()}" } ?: "—"
+ val currentValue = r.current?.let { currentText(it).removeSuffix(" mA") } ?: "—"
  val currentUnit = when(r.currentInfo.source) {
   CurrentSource.CAPACITY -> "mA • estim."
   CurrentSource.COUNTER, CurrentSource.AVERAGE -> "mA • média"
@@ -197,8 +196,8 @@ private fun MonitorScreen(r: Reading, s: Settings, modifier: Modifier, pageTitle
      Text(when {
       !measuring -> "Sem previsão para este estado da bateria"
       r.remaining == null -> "Aguardando 5 min e variação de 2 pontos percentuais"
-      r.systemEstimate -> "Estimativa do Android conferida com a tendência observada"
-      else -> "Estimativa pela variação observada • pode mudar"
+      r.systemEstimate -> "Aproximação do Android compatível com a tendência • pode mudar"
+      else -> "Extrapolação do percentual • não modela temperatura nem redução de carga"
      },style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     }
    }
@@ -222,6 +221,12 @@ private fun MonitorScreen(r: Reading, s: Settings, modifier: Modifier, pageTitle
     }
    }
   }
+  item { SettingsCard("Médias de corrente") {
+   SessionDetailRow("Média Android",currentText(r.currentInfo.androidAverageMa))
+   Text("Janela definida pelo hardware, não informada pelo Android.",style=MaterialTheme.typography.bodySmall)
+   SessionDetailRow("Média pelo contador",currentText(r.currentInfo.counterMeanMa))
+   r.currentInfo.counterWindowMs?.let { Text("Intervalo observado: ${it/1000} s. Calculada por variação de µAh.",style=MaterialTheme.typography.bodySmall) }
+  } }
   item { Chart(r.points,accent) }
   if(r.error!=null) item { Text(r.error,color=MaterialTheme.colorScheme.error) }
   item { TextButton(onClick=onLimitations) { Icon(Icons.Default.Info,null); Spacer(Modifier.width(8.dp)); Text("Entenda as medições") } }
@@ -398,7 +403,7 @@ private fun SessionHistoryCard(session: Session,settings: Settings,vm: PulsoView
     SessionDetailRow("Início",dateFormat.format(Date(session.started)))
     SessionDetailRow(if(session.closed) "Fim" else "Última leitura",dateFormat.format(Date(session.ended)))
     SessionDetailRow("Ritmo médio",rateLabel)
-    SessionDetailRow("Temperatura média",temperatureText(BatteryMath.averageTemperature(session.temperatureSum,session.temperatureCount),settings.fahrenheit))
+    SessionDetailRow("Temperatura média (amostras)",temperatureText(BatteryMath.averageTemperature(session.temperatureSum,session.temperatureCount),settings.fahrenheit))
     SessionDetailRow("Amostras coletadas",session.samples.toString())
     SessionDetailRow("Motivo",session.reason)
     Text("Evolução da bateria",style=MaterialTheme.typography.titleSmall,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(top=4.dp))
@@ -530,13 +535,16 @@ private fun SettingsPage(s: Settings,r: Reading,active: Boolean,error: String?,v
    Text(r.currentInfo.note,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
    TextButton(onClick={expanded=!expanded}) { Text(if(expanded) "Ocultar dados brutos" else "Mostrar dados brutos") }
    if(expanded) {
+    if(r.updated>0) SessionDetailRow("Horário da leitura",SimpleDateFormat("dd/MM/yyyy HH:mm:ss",Locale.forLanguageTag("pt-BR")).format(Date(r.updated)))
     SessionDetailRow("CURRENT_NOW",r.currentInfo.rawNow?.let { "$it (µA declarados)" } ?: "Indisponível")
     SessionDetailRow("CURRENT_AVERAGE",r.currentInfo.rawAverage?.let { "$it (µA declarados)" } ?: "Indisponível")
     SessionDetailRow("CHARGE_COUNTER",r.currentInfo.rawCounter?.let { "$it µAh" } ?: "Indisponível")
+    SessionDetailRow("Média Android convertida",currentText(r.currentInfo.androidAverageMa))
     SessionDetailRow("Média pelo contador",currentText(r.currentInfo.counterMeanMa))
     SessionDetailRow("Calibração instantânea",r.currentInfo.nowAdjustment)
     SessionDetailRow("Calibração média",r.currentInfo.averageAdjustment)
-    Text("Calibrações confirmadas são guardadas por até 7 dias e conferidas novamente com os sensores. Após trocar o aparelho ou atualizar o Android, use Recalibrar.",style=MaterialTheme.typography.bodySmall)
+    Text(r.currentInfo.comparison,style=MaterialTheme.typography.bodySmall)
+    Text("Ajustes da instantânea: três blocos estáveis de pelo menos 90 s. Validade de até 7 dias, vinculada à instalação e ao firmware, com nova confirmação após pausas. Média Android não é recalibrada: sua janela é desconhecida. Sentinelas brutas permanecem visíveis para diagnóstico.",style=MaterialTheme.typography.bodySmall)
     TextButton(onClick={vm.resetCalibration()}) { Text("Recalibrar agora") }
    }
   } }

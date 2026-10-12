@@ -44,7 +44,7 @@ class BatteryMathTest {
  @Test fun currentUsesMicroamps() { assertEquals(1234.0,BatteryMath.currentMa(1_234_000,Mode.CHARGING)!!,0.001) }
  @Test fun dischargeSignPreserved() { assertEquals(-500.0,BatteryMath.currentMa(-500_000,Mode.DISCHARGING)!!,0.001) }
  @Test fun currentSentinelsRejected() { assertNull(BatteryMath.currentMa(Int.MIN_VALUE,Mode.CHARGING)); assertNull(BatteryMath.currentMa(Int.MAX_VALUE,Mode.CHARGING)) }
- @Test fun contradictoryCurrentRejected() { assertNull(BatteryMath.currentMa(500_000,Mode.DISCHARGING)); assertNull(BatteryMath.currentMa(-500_000,Mode.CHARGING)) }
+ @Test fun netCurrentIsNotForcedToStatus() { assertEquals(500.0,BatteryMath.currentMa(500_000,Mode.DISCHARGING)!!,0.0); assertEquals(-500.0,BatteryMath.currentMa(-500_000,Mode.CHARGING)!!,0.0) }
  @Test fun zeroCurrentIsValid() { assertEquals(0.0,BatteryMath.currentMa(0,Mode.FULL)!!,0.001) }
  @Test fun extremeCurrentRejected() { assertNull(BatteryMath.currentMa(31_000_000,Mode.CHARGING)) }
  @Test fun chargingRate() { assertEquals(30.0,BatteryMath.rate(points(),Mode.CHARGING)!!,0.001) }
@@ -114,4 +114,8 @@ class BatteryMathTest {
  @Test fun pauseTimeIsExcluded() { assertEquals(60_000L,BatteryMath.observedDuration(60_000,1000,61_000,true,3)) }
  @Test fun observedIntervalIsIncluded() { assertEquals(90_000L,BatteryMath.observedDuration(60_000,1000,31_000,false,3)) }
  @Test fun firstSampleAndLargeGapDoNotAddTime() { assertEquals(0L,BatteryMath.observedDuration(0,1000,31_000,false,0)); assertEquals(60_000L,BatteryMath.observedDuration(60_000,1000,201_000,false,3)) }
+ @Test fun smallCivilClockRegressionAlsoBreaksSession() {
+  assertTrue(BatteryMath.startsNewSession(Mode.CHARGING,Mode.CHARGING,1000,2000,50_000,49_000))
+  assertFalse(BatteryMath.canResumePause(Mode.CHARGING,Mode.CHARGING,50,50,1000,2000,50_000,49_000))
+ }
 }

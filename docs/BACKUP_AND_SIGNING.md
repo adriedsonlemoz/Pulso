@@ -1,4 +1,4 @@
-# Persistência, backup e assinatura — alpha.8
+# Persistência, backup e assinatura — alpha.12
 
 ## Importante para instalações anteriores
 
@@ -12,7 +12,7 @@ Certificado público de referência (SHA-256): `4B:8A:A8:0E:7F:E1:57:11:29:7B:21
 
 ## Backup manual
 
-Configurações → Backup e restauração → Exportar. Salva JSON UTF-8, sem servidor e sem internet, escolhido pelo Storage Access Framework. Inclui resumos de até 500 sessões, pontos de até 480 por sessão, corrente/temperatura quando observadas e preferências. `sha256` confere integridade acidental do arquivo, não autenticidade de sua origem. O backup **não é criptografado**; proteja o arquivo. Não há backup automático.
+Configurações → Backup e restauração → Exportar. Salva JSON UTF-8, sem servidor e sem internet, escolhido pelo Storage Access Framework. Inclui resumos de até 500 sessões, pontos de até 480 por sessão, corrente/temperatura quando observadas e preferências. `sha256` confere integridade acidental do arquivo, não autenticidade de sua origem. O backup **não é criptografado**; proteja o arquivo. O manifesto desativa backup automático em nuvem; transferências entre dispositivos podem variar com o fabricante. Não se depende disso para preservar histórico.
 
 Para importar, escolha arquivo pelo seletor Android. O aplicativo verifica limites, integridade, relações entre pontos e sessões e mostra uma confirmação. Ao confirmar, as sessões atuais são **substituídas**, não mescladas. A substituição do banco Room ocorre por transação; as preferências DataStore são gravadas depois, sem transação cruzada. Se as preferências falharem após o commit do banco, pode haver atualização parcial das preferências. Exporte uma cópia da instalação atual antes de importar. Sessões em aberto no backup são encerradas para evitar estado ativo falso.
 
@@ -24,7 +24,7 @@ O workflow compila e faz upload do APK como **Artifact** antes de tentar publica
 
 ## Migração Room
 
-DB Room v1 → v2 adiciona `session_samples`, v2 → v3 acrescenta `currentMa`, `temperatureC`, `currentSource` opcionais, não migração destrutiva. Testes instrumentados `RoomMigrationTest` validam uma base v1 e outra v2 abrindo no Room v3. `assembleDebugAndroidTest` apenas compila o APK de testes; execução real exige emulador/aparelho e `connectedDebugAndroidTest`.
+DB Room v1 → v2 adiciona `session_samples`, v2 → v3 acrescenta `currentMa`, `temperatureC`, `currentSource` opcionais, não migração destrutiva. Testes instrumentados `RoomMigrationTest` cobrem bases v1/v2 abrindo em v3, reabertura de v3 e rollback conjunto de resumo/ponto. Na alpha.12 foram preparados, mas não executados no Android. `assembleDebugAndroidTest` apenas compila o APK de testes; execução real exige emulador/aparelho e `connectedDebugAndroidTest`.
 
 ## Possível resgate de uma instalação Debug antiga (avançado, não validado)
 
@@ -37,3 +37,7 @@ adb exec-out run-as br.com.pulsobateria tar -cf - databases files/datastore > pu
 ```
 
 Somente considere o resgate concluído depois de conferir que o TAR contém `databases/pulso.db` e as preferências. Pode incluir arquivos WAL/SHM. **Esse TAR não é diretamente importável pelo botão JSON da alpha.8**; será necessária recuperação manual supervisionada posteriormente, com validação do banco e acesso ADB ao aplicativo de destino. Não execute `uninstall` sem cópia verificada. Não publique esse TAR ou compartilhe os dados privados.
+
+## Auditoria alpha.12
+
+Schema Room v3 e backup JSON v1 preservados. A gravação de resumo, ponto e retenção passa a usar uma transação única. O leitor de backup rejeita contagens de temperatura incoerentes e pontos fora do período da sessão. Decisões antigas de calibração são descartadas; a nova identidade local de calibração fica em noBackupFilesDir, ligada ao firmware. Não apaga históricos/configurações. Ver `AUDIT-alpha.11-to-alpha.12.md` e `VALIDATION.md`.

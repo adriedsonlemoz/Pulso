@@ -19,7 +19,8 @@ class BatteryRepository(
  private val context: Context, private val dao: SessionDao, private val settings: SettingsStore, private val scope: CoroutineScope
 ) {
  private val manager = context.getSystemService(BatteryManager::class.java)
- private val commands = Channel<String>(Channel.UNLIMITED)
+ private data class Command(val name: String, val ack: CompletableDeferred<Unit>? = null)
+ private val commands = Channel<Command>(Channel.UNLIMITED)
  private val owners = mutableSetOf<String>()
  private val mutable = MutableStateFlow(Reading())
  val reading = mutable.asStateFlow()
@@ -30,18 +31,18 @@ class BatteryRepository(
  private val preferences = settings.flow.stateIn(scope, SharingStarted.Eagerly, Settings())
  private var currentTracker = CurrentTracker()
  private var calibrationLoaded = false
- private var savedCalibrationCode: String? = null
- fun resetCalibration() { commands.trySend("resetCalibration") }
+ private var savedCalibration: String? = null
+ private var calibrationScope: String? = null
+ fun resetCalibration() { commands.trySend(Command("resetCalibration")) }
  private var restoring = false
- private var restoreAck: CompletableDeferred<Unit>? = null
  /** Impede a escrita de amostras enquanto o banco é substituído pelo backup. */
  suspend fun freezeForRestore() {
   val ack = CompletableDeferred<Unit>()
-  restoreAck = ack
-  commands.send("freezeRestore")
-  ack.await()
+  commands.send(Command("freezeRestore",ack))
+  try { ack.await() }
+  catch(e: Exception) { commands.trySend(Command("resumeRestore")); throw e }
  }
- fun resumeAfterRestore() { commands.trySend("resumeRestore") }
+ fun resumeAfterRestore() { commands.trySend(Command("resumeRestore")) }
  private var ticker: Job? = null
  private var registered = false
  private var active: Session? = null
@@ -54,16 +55,17 @@ class BatteryRepository(
  private var lastStoredTimestamp: Long? = null
  private var lastStoredPercent: Int? = null
  private val receiver = object: BroadcastReceiver() {
-  override fun onReceive(c: Context?, intent: Intent?) { commands.trySend("read") }
+  override fun onReceive(c: Context?, intent: Intent?) { commands.trySend(Command("read")) }
  }
  init {
   scope.launch {
    try { dao.closeInterrupted() } catch (_: Exception) { mutable.value = mutable.value.copy(error = "Não foi possível recuperar o histórico.") }
-   for (command in commands) {
+   for (message in commands) {
+    val command=message.name
     try {
      when {
       command == "resetCalibration" -> {
-       currentTracker=CurrentTracker(); calibrationLoaded=true; savedCalibrationCode=null
+       currentTracker=CurrentTracker(); calibrationLoaded=false; savedCalibration=null
        settings.calibration(null)
       }
       command == "freezeRestore" -> {
@@ -72,12 +74,12 @@ class BatteryRepository(
        points.clear(); currentTracker = CurrentTracker(); calibrationLoaded=false
        lastElapsed=0L; lastWall=0L; lastMode=Mode.UNKNOWN; paused=false
        mutable.value = Reading()
-       restoreAck?.complete(Unit); restoreAck=null
+       message.ack?.complete(Unit)
       }
-      command == "resumeRestore" -> {
+      command == "resumeRestore" && restoring -> {
        restoring=false; active=null
        lastStoredTimestamp=null; lastStoredPercent=null
-       if(owners.isNotEmpty()) commands.trySend("read")
+       if(owners.isNotEmpty()) commands.trySend(Command("read"))
       }
       command.startsWith("+") -> {
        pauseTimer?.cancel(); pauseTimer = null
@@ -87,7 +89,7 @@ class BatteryRepository(
         if (Build.VERSION.SDK_INT >= 33) context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
         else context.registerReceiver(receiver, filter)
         registered = true
-        ticker = scope.launch { while (isActive) { commands.send("read"); delay(preferences.value.interval * 1000L) } }
+        ticker = scope.launch { while (isActive) { commands.send(Command("read")); delay(preferences.value.interval * 1000L) } }
        }
       }
       command.startsWith("-") -> {
@@ -102,7 +104,7 @@ class BatteryRepository(
         active = active?.copy(reason = "Pausada • aguardando retomada")
         active?.let { dao.update(it) }
         pauseTimer?.cancel()
-        pauseTimer = scope.launch { delay(BatteryMath.PAUSE_GRACE_MS); commands.send("finishPause") }
+        pauseTimer = scope.launch { delay(BatteryMath.PAUSE_GRACE_MS); commands.send(Command("finishPause")) }
        }
       }
       command == "finishPause" && owners.isEmpty() && paused -> {
@@ -111,12 +113,15 @@ class BatteryRepository(
       command == "read" && owners.isNotEmpty() && !restoring -> sample()
      }
     } catch (e: CancellationException) { throw e }
-    catch (_: Exception) { mutable.value = mutable.value.copy(error = "Falha ao registrar a leitura. As próximas amostras serão tentadas automaticamente.") }
+    catch (e: Exception) {
+     if(command=="freezeRestore") { restoring=false; message.ack?.completeExceptionally(e) }
+     mutable.value = mutable.value.copy(error = "Falha ao registrar a leitura. As próximas amostras serão tentadas automaticamente.")
+    }
    }
   }
  }
- fun acquire(owner: String) { commands.trySend("+$owner") }
- fun release(owner: String) { commands.trySend("-$owner") }
+ fun acquire(owner: String) { commands.trySend(Command("+$owner")) }
+ fun release(owner: String) { commands.trySend(Command("-$owner")) }
  private suspend fun close(reason: String) {
   active?.let { dao.update(it.copy(closed = true, reason = reason)) }
   active = null
@@ -148,46 +153,39 @@ class BatteryRepository(
   }
   if (!paused && lastElapsed > 0 && BatteryMath.startsNewSession(lastMode,mode,lastElapsed,now,lastWall,wall)) {
    close(if (lastMode != mode) "Estado alterado" else "Intervalo sem observação")
-   points.clear()
+   points.clear(); currentTracker=CurrentTracker(); calibrationLoaded=false
   }
-  if (level == null || mode == Mode.UNKNOWN) { close("Leitura indisponível"); points.clear() }
-  var shouldStorePoint = false
-  if (level != null && mode != Mode.UNKNOWN) {
-   if (active == null) {
-    val session = Session(mode=mode.name, started=wall, ended=wall, durationMs=0, initial=level, final=level,
-     temperatureSum=0.0, temperatureCount=0, samples=0)
-    active = session.copy(id=dao.insert(session)); dao.trim()
-    lastStoredTimestamp = null; lastStoredPercent = null
-   }
-   active = active?.copy(ended=wall, durationMs=BatteryMath.observedDuration(active!!.durationMs,lastElapsed,now,paused,active!!.samples), final=level,
-    temperatureSum=active!!.temperatureSum+(temperature ?: 0.0), temperatureCount=active!!.temperatureCount+(if(temperature != null) 1 else 0), samples=active!!.samples+1, reason="Em observação")
-   active?.let { session ->
-    dao.update(session)
-    if (BatteryMath.shouldStoreSessionSample(lastStoredTimestamp,lastStoredPercent,wall,level)) {
-     shouldStorePoint = true
-    }
-   }
-   points.add(Point(now,level))
-   points.removeAll { now-it.elapsed > 30*60*1000L }
-  }
-  val rate = BatteryMath.rate(points,mode)
+  if (level == null || mode == Mode.UNKNOWN) { close("Leitura indisponível"); points.clear(); currentTracker=CurrentTracker(); calibrationLoaded=false }
+  // Carregar o valor real do DataStore antes de marcar calibração como carregada.
   if(!calibrationLoaded) {
-   currentTracker.loadCalibration(preferences.value.calibration,wall)
-   savedCalibrationCode=preferences.value.calibration?.substringAfter(';')
+   val stored=settings.flow.first().calibration
+   if(calibrationScope==null) calibrationScope=settings.calibrationScope()
+   currentTracker.loadCalibration(stored,wall,calibrationScope!!)
+   savedCalibration=stored
    calibrationLoaded=true
   }
-  val currentInfo = currentTracker.observe(rawNow,rawAverage,rawCounter,mode,now,rate,preferences.value.capacityMah)
-  val confirmed=currentTracker.calibrationCode()
-  if(confirmed.isNotEmpty() && confirmed!=savedCalibrationCode) {
-   settings.calibration("$wall;$confirmed")
-   savedCalibrationCode=confirmed
+  val candidatePoints=if(level!=null && mode!=Mode.UNKNOWN)
+   (points+Point(now,level)).filter { now-it.elapsed <= 30*60*1000L } else emptyList()
+  val rate=BatteryMath.rate(candidatePoints,mode)
+  val currentInfo=currentTracker.observe(rawNow,rawAverage,rawCounter,mode,now,rate,preferences.value.capacityMah,wall)
+  val calibration=currentTracker.calibrationRecord(calibrationScope!!)
+  if(calibration!=savedCalibration) {
+   settings.calibration(calibration); savedCalibration=calibration
   }
-  if (shouldStorePoint && level != null) active?.let { session ->
-   dao.insertSample(SessionSample(sessionId=session.id,timestamp=wall,percent=level,
-    currentMa=currentInfo.ma,temperatureC=temperature,currentSource=currentInfo.source.name))
-   dao.trimSamples(session.id)
-   lastStoredTimestamp=wall; lastStoredPercent=level
+  if(level!=null && mode!=Mode.UNKNOWN) {
+   val previous=active ?: Session(mode=mode.name,started=wall,ended=wall,durationMs=0,initial=level,final=level,
+    temperatureSum=0.0,temperatureCount=0,samples=0)
+   val candidate=previous.copy(ended=wall,
+    durationMs=BatteryMath.observedDuration(previous.durationMs,lastElapsed,now,paused,previous.samples),final=level,
+    temperatureSum=previous.temperatureSum+(temperature ?: 0.0),
+    temperatureCount=previous.temperatureCount+(if(temperature!=null) 1 else 0),samples=previous.samples+1,reason="Em observação")
+   val shouldStore=BatteryMath.shouldStoreSessionSample(lastStoredTimestamp,lastStoredPercent,wall,level)
+   val sample=if(shouldStore) SessionSample(sessionId=previous.id,timestamp=wall,percent=level,
+    currentMa=currentInfo.ma,temperatureC=temperature,currentSource=currentInfo.source.name) else null
+   active=dao.saveObservation(candidate,sample)
+   if(shouldStore) { lastStoredTimestamp=wall; lastStoredPercent=level }
   }
+  points.clear(); points.addAll(candidatePoints)
   val rawSystemRemaining = if (Build.VERSION.SDK_INT >= 28 && mode == Mode.CHARGING) {
    runCatching { manager.computeChargeTimeRemaining() }.getOrNull()
   } else null

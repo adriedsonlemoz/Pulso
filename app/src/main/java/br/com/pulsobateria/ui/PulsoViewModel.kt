@@ -43,6 +43,7 @@ class PulsoViewModel(application: Application): AndroidViewModel(application) {
  } }
  fun cancelBackupRestore() { pendingBackup=null }
  fun restoreBackup() {
+  if(backupBusy) return
   val backup=pendingBackup ?: return
   if(app.repository.serviceActive.value) {
    backupStatus="Desative primeiro o monitoramento contínuo nas Configurações para restaurar com segurança."

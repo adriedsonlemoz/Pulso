@@ -1,0 +1,13 @@
+test_foreign_key_cascades (__main__.StorageSQLTest.test_foreign_key_cascades) ... ok
+test_orphan_is_rejected (__main__.StorageSQLTest.test_orphan_is_rejected) ... ok
+test_retention_keeps_first_and_last_479 (__main__.StorageSQLTest.test_retention_keeps_first_and_last_479) ... ok
+test_summary_retention_and_cascade (__main__.StorageSQLTest.test_summary_retention_and_cascade) ... ok
+test_transaction_rolls_back_both_changes (__main__.StorageSQLTest.test_transaction_rolls_back_both_changes) ... ok
+test_v1_to_v3_preserves_session (__main__.StorageSQLTest.test_v1_to_v3_preserves_session) ... ok
+test_v2_to_v3_preserves_points_without_fabricating_current (__main__.StorageSQLTest.test_v2_to_v3_preserves_points_without_fabricating_current) ... ok
+test_v3_has_same_schema_no_migration_in_alpha12 (__main__.StorageSQLTest.test_v3_has_same_schema_no_migration_in_alpha12) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.006s
+
+OK

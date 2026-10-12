@@ -1,0 +1,1 @@
+Kotlin PSI syntax only: 19 files, 0 errors. Does not validate Android types or Room/KSP.

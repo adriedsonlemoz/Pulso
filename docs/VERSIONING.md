@@ -1,7 +1,8 @@
 # Versionamento
 
-Versão atual: **0.1.0-alpha.11**, **versionCode 11**.
+Versão atual: **0.1.0-alpha.12**, **versionCode 12**.
+Próxima entrega: **0.1.0-alpha.13**, **versionCode 13**.
 
-Próxima atualização: `0.1.0-alpha.12`, `versionCode 12`. Incrementar ambos sequencialmente a cada entrega. A fonte Android é `app/build.gradle.kts` (versionName/versionCode). A tela usa BuildConfig.
+Fonte Android: `app/build.gradle.kts`; a tela Sobre usa BuildConfig. Sincronizar README, CHANGELOG, RELEASE_NOTES, AGENTS, este documento, validação, workflow e ZIP. Preservar `applicationId = br.com.pulsobateria` e os Secrets/keystore existentes.
 
-Sincronizar README, CHANGELOG, RELEASE_NOTES, este documento, nome do ZIP e nome do artefato no workflow. Manter applicationId `br.com.pulsobateria`. Registrar alterações reais e resultados de testes; não declarar validações não executadas. Ao alterar o banco, subir schema version, preservar JSON exportado e fornecer migração explícita; não usar migração destrutiva para evitar perda silenciosa.
+Alpha.12 mantém **Room v3** e **backup JSON v1**. Não existe migração destrutiva. Mudança no formato interno da calibração descarta somente decisões antigas de sinal/unidade, preservando histórico e preferências. Os schemas JSON reais do KSP ainda precisam ser gerados e versionados; não criar JSON fictício.

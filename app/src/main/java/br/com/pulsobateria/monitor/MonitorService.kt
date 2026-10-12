@@ -86,7 +86,8 @@ class MonitorService: Service() {
      source = reading.currentInfo.source,
      counterMeanMa = reading.currentInfo.counterMeanMa,
      ratePercentPerHour = reading.rate,
-     nowEpochMillis = System.currentTimeMillis()
+     nowEpochMillis = reading.updated.takeIf { it > 0 },
+     androidAverageMa = reading.currentInfo.androidAverageMa
     )
    }.collect { content ->
     try {

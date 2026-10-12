@@ -15,6 +15,7 @@ import org.junit.runner.RunWith
 class RoomMigrationTest {
  @Test fun migracaoDaVersao1PreservaResumo() = checkMigration(1)
  @Test fun migracaoDaVersao2PreservaResumoEGrafico() = checkMigration(2)
+ @Test fun reaberturaDaVersao3PreservaMedicoes() = checkMigration(3)
 
  private fun checkMigration(from: Int) = runBlocking {
   val context=InstrumentationRegistry.getInstrumentation().targetContext
@@ -32,7 +33,7 @@ class RoomMigrationTest {
     `samples` INTEGER NOT NULL, `closed` INTEGER NOT NULL, `reason` TEXT NOT NULL
    )""")
    legacy.execSQL("INSERT INTO sessions (id,mode,started,ended,durationMs,initial,final,temperatureSum,temperatureCount,samples,closed,reason) VALUES (1,'CHARGING',1000,2000,1000,40,41,30.0,1,2,1,'Teste')")
-   if(from==2) {
+   if(from>=2) {
     legacy.execSQL("""CREATE TABLE IF NOT EXISTS `session_samples` (
      `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
      `sessionId` INTEGER NOT NULL, `timestamp` INTEGER NOT NULL, `percent` INTEGER NOT NULL,
@@ -40,6 +41,12 @@ class RoomMigrationTest {
     )""")
     legacy.execSQL("CREATE INDEX `index_session_samples_sessionId` ON `session_samples` (`sessionId`)")
     legacy.execSQL("INSERT INTO session_samples (id,sessionId,timestamp,percent) VALUES (1,1,1000,40)")
+   }
+   if(from==3) {
+    legacy.execSQL("ALTER TABLE `session_samples` ADD COLUMN `currentMa` REAL")
+    legacy.execSQL("ALTER TABLE `session_samples` ADD COLUMN `temperatureC` REAL")
+    legacy.execSQL("ALTER TABLE `session_samples` ADD COLUMN `currentSource` TEXT")
+    legacy.execSQL("UPDATE session_samples SET currentMa=437.0,temperatureC=38.9,currentSource='NOW'")
    }
    legacy.version=from
   } finally { legacy.close() }
@@ -51,11 +58,32 @@ class RoomMigrationTest {
    assertEquals(41,restored.single().final)
    assertEquals("Teste",restored.single().reason)
    val points=db.sessions().observeSamples(1).first()
-   assertEquals(if(from==2) 1 else 0,points.size)
-   assertTrue(points.all { it.currentMa==null && it.temperatureC==null && it.currentSource==null })
+   assertEquals(if(from>=2) 1 else 0,points.size)
+   if(from==3) {
+    assertEquals(437.0,points.single().currentMa!!,0.0)
+    assertEquals(38.9,points.single().temperatureC!!,0.0)
+    assertEquals("NOW",points.single().currentSource)
+   } else assertTrue(points.all { it.currentMa==null && it.temperatureC==null && it.currentSource==null })
   } finally {
    db.close()
    context.deleteDatabase(name)
   }
+ }
+ @Test fun falhaNaAmostraReverteResumoNaMesmaTransacao() = runBlocking {
+  val context=InstrumentationRegistry.getInstrumentation().targetContext
+  val db=Room.inMemoryDatabaseBuilder(context,BatteryDatabase::class.java).build()
+  try {
+   val dao=db.sessions()
+   val original=dao.saveObservation(Session(mode="CHARGING",started=1000,ended=1000,durationMs=0,
+    initial=40,final=40,temperatureSum=30.0,temperatureCount=1,samples=1),
+    SessionSample(id=1,sessionId=0,timestamp=1000,percent=40))
+   val failure=runCatching {
+    dao.saveObservation(original.copy(ended=2000,final=41),
+     SessionSample(id=1,sessionId=original.id,timestamp=2000,percent=41))
+   }.exceptionOrNull()
+   assertNotNull(failure)
+   assertEquals(40,dao.exportSessions().single().final)
+   assertEquals(40,dao.exportSamples().single().percent)
+  } finally { db.close() }
  }
 }
