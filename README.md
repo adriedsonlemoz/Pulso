@@ -1,6 +1,6 @@
 # Pulso Bateria
 
-**0.1.0-alpha.8 • versionCode 8** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.9 • versionCode 9** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0 (API 26) ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Funcionalidades
@@ -19,9 +19,9 @@ Android 8.0 (API 26) ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Estado desta entrega
 
-A Alpha 8 foi preparada a partir da Alpha 7 após os logs do workflow **Pulso Android 8**. Os logs comprovam **BUILD SUCCESSFUL** nas tarefas Gradle (testes, lint e APK Debug), mas a etapa de publicação falhou por HTTP 500 da API GitHub Releases. O workflow agora preserva o APK em Artifacts por 30 dias antes da tentativa de criar a Release e faz até quatro tentativas. Não representa correção na compilação, que já havia passado.
+A Alpha 9 foi preparada a partir da Alpha 8 para melhorar a **notificação expandida** do monitoramento contínuo. O objetivo foi deixá-la visualmente mais limpa e próxima do padrão desejado, mantendo no título **porcentagem, temperatura e corrente/gasto** e removendo a repetição desnecessária da mesma linha no corpo expandido.
 
-**Mudanças:** backup/restauração JSON local via Configurações, Room v3 com migração explícita 2→3 e amostras contendo corrente/temperatura quando disponíveis, persistência conservadora da calibração confirmada por 7 dias (com opção de recalibrar), instrumentação de teste de migração, assinatura estável via Secrets e publicação robusta do APK. O monitoramento é congelado durante a restauração e não existe restauração automática por instalação.
+**Mudanças:** reorganização do texto da notificação em título + resumo + corpo, rótulos mais curtos (Agora, Gasto, Média, Estimativa e Ritmo) e formatação de corrente com separador de milhar. Não houve mudança em banco Room, backup/restauração, assinatura nem persistência de dados.
 
 ### Gerar APK pelo GitHub Manager
 

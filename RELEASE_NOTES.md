@@ -1,11 +1,8 @@
-# Pulso Bateria 0.1.0-alpha.8
+# Pulso Bateria 0.1.0-alpha.9
 
-- Corrigida a distribuição quando a API GitHub Releases responde HTTP 500: o APK fica salvo em Artifacts e a Release é tentada novamente.
-- Assinatura estável de Debug/Release por Secrets GitHub Manager (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`). Sem Secrets, Debug temporário sem garantia de atualização.
-- Backup local JSON de sessões, pontos e preferências, com SHA-256, prévia e confirmação para restauração por substituição.
-- Persistência Room v3: migração 2→3 não destrutiva; salva corrente, temperatura e origem quando disponíveis.
-- Calibração confirmada mantida por até 7 dias e controle Recalibrar.
+- Notificação expandida reorganizada para ficar mais limpa e semelhante ao estilo desejado: o título mantém **porcentagem, temperatura e corrente/gasto**.
+- O corpo agora evita repetição da mesma linha e mostra somente o essencial: previsão/autonomia, corrente (ou média/estimativa) e ritmo em `%/h`.
+- Corrente formatada com melhor legibilidade, usando separador de milhar e sinais `+` e `−`.
+- Sem alterações no banco Room, na assinatura, no backup/restauração ou na persistência da alpha.8.
 
-**Importante:** a nova assinatura não é compatível automaticamente com APKs antigos assinados em runners temporários. Não desinstale a versão antiga se ainda há registros sem backup.
-
-APK: `Pulso-Bateria-v0.1.0-alpha.8-debug.apk`. A execução exige testes no aparelho/emulador para confirmar fluxo de restauração e migrações Room.
+APK: `Pulso-Bateria-v0.1.0-alpha.9-debug.apk`. A compilação e a validação visual final da notificação ainda precisam ser executadas no Android.

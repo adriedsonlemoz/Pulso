@@ -11,85 +11,164 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
-import br.com.pulsobateria.*
-import br.com.pulsobateria.ui.*
+import br.com.pulsobateria.MainActivity
+import br.com.pulsobateria.PulsoApp
+import br.com.pulsobateria.R
+import br.com.pulsobateria.core.CurrentSource
 import br.com.pulsobateria.core.Mode
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.combine
+import br.com.pulsobateria.ui.currentText
+import br.com.pulsobateria.ui.currentTitleText
+import br.com.pulsobateria.ui.durationText
+import br.com.pulsobateria.ui.rateText
+import br.com.pulsobateria.ui.temperatureText
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 
 class MonitorService: Service() {
  private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
  private val app get() = application as PulsoApp
  private var started = false
+
  override fun onBind(intent: Intent?): IBinder? = null
+
  override fun onCreate() {
   super.onCreate()
   getSystemService(NotificationManager::class.java).createNotificationChannel(
-   NotificationChannel("battery", "Monitoramento de bateria", NotificationManager.IMPORTANCE_LOW).apply { setSound(null,null); enableVibration(false) })
+   NotificationChannel("battery", "Monitoramento de bateria", NotificationManager.IMPORTANCE_LOW).apply {
+    setSound(null,null)
+    enableVibration(false)
+   }
+  )
  }
+
  override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
   if (intent?.action == "STOP") {
    app.scope.launch { app.settings.continuous(false) }
-   stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); return START_NOT_STICKY
+   stopForeground(STOP_FOREGROUND_REMOVE)
+   stopSelf()
+   return START_NOT_STICKY
   }
   if (started) return START_NOT_STICKY
-  if (!NotificationManagerCompat.from(this).areNotificationsEnabled() || (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this,Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)) {
-   fail("Permita as notificações para ativar o monitoramento."); return START_NOT_STICKY
+  if (!NotificationManagerCompat.from(this).areNotificationsEnabled() ||
+   (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this,Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)) {
+   fail("Permita as notificações para ativar o monitoramento.")
+   return START_NOT_STICKY
   }
   if (getSystemService(NotificationManager::class.java).getNotificationChannel("battery")?.importance == NotificationManager.IMPORTANCE_NONE) {
-   fail("Ative o canal Monitoramento de bateria nas notificações do Android."); return START_NOT_STICKY
+   fail("Ative o canal Monitoramento de bateria nas notificações do Android.")
+   return START_NOT_STICKY
   }
   try {
-   ServiceCompat.startForeground(this,1,notification("Iniciando leitura da bateria…"),
-    if(Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0)
+   ServiceCompat.startForeground(
+    this,
+    1,
+    notification(NotificationContent("Pulso Bateria", "Iniciando leitura da bateria…", "Iniciando leitura da bateria…")),
+    if(Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
+   )
   } catch (_: RuntimeException) {
-   fail("O Android não permitiu iniciar o monitoramento. Tente novamente com o aplicativo aberto."); return START_NOT_STICKY
+   fail("O Android não permitiu iniciar o monitoramento. Tente novamente com o aplicativo aberto.")
+   return START_NOT_STICKY
   }
-  started = true; app.repository.serviceActive.value = true; app.repository.serviceError.value = null
+
+  started = true
+  app.repository.serviceActive.value = true
+  app.repository.serviceError.value = null
   app.repository.acquire("service")
   app.scope.launch { app.settings.continuous(true) }
+
   scope.launch {
-   combine(app.repository.reading,app.settings.flow) { r,s ->
-    val quick = "${r.percent?.let { "$it%" } ?: "—"} • ${temperatureText(r.temperature,s.fahrenheit)}"
-    val eta = when(r.mode) {
+   combine(app.repository.reading, app.settings.flow) { r, s ->
+    val title = "${r.percent?.let { "$it%" } ?: "—"} • ${temperatureText(r.temperature, s.fahrenheit)} • ${currentTitleText(r.current)}"
+    val summary = when(r.mode) {
      Mode.CHARGING -> "Até 100%: ${durationText(r.remaining)}"
      Mode.DISCHARGING -> "Autonomia: ${durationText(r.remaining)}"
      Mode.FULL -> "Bateria cheia"
      Mode.IDLE -> "Carga pausada"
      else -> "Previsão indisponível"
     }
-    val origin = when(r.currentInfo.source) {
-     br.com.pulsobateria.core.CurrentSource.CAPACITY -> " (estimada)"
-     br.com.pulsobateria.core.CurrentSource.COUNTER,br.com.pulsobateria.core.CurrentSource.AVERAGE -> " (média)"
-     else -> ""
-    }
-    "$quick\n$eta\n${currentText(r.current)}$origin • ${rateText(r.rate)}"
 
-   }.collect { text ->
-    try { getSystemService(NotificationManager::class.java).notify(1,notification(text)) }
-    catch (_: SecurityException) { fail("As notificações foram bloqueadas.") }
+    val averageMa = when {
+     r.currentInfo.counterMeanMa != null -> r.currentInfo.counterMeanMa
+     r.currentInfo.source == CurrentSource.AVERAGE -> r.current
+     r.currentInfo.source == CurrentSource.COUNTER -> r.current
+     r.currentInfo.source == CurrentSource.CAPACITY -> r.current
+     else -> null
+    }
+
+    val bodyLines = mutableListOf<String>()
+    bodyLines += summary
+    when (r.currentInfo.source) {
+     CurrentSource.NOW -> {
+      val currentLabel = if (r.mode == Mode.DISCHARGING) "Gasto" else "Agora"
+      bodyLines += "$currentLabel: ${currentText(r.current)}"
+      bodyLines += "Média: ${currentText(averageMa)} • ${rateText(r.rate)}"
+     }
+     CurrentSource.AVERAGE, CurrentSource.COUNTER -> {
+      bodyLines += "Média: ${currentText(r.current)}"
+      bodyLines += "Ritmo: ${rateText(r.rate)}"
+     }
+     CurrentSource.CAPACITY -> {
+      bodyLines += "Estimativa: ${currentText(r.current)}"
+      bodyLines += "Ritmo: ${rateText(r.rate)}"
+     }
+     CurrentSource.NONE -> {
+      bodyLines += "Corrente: Indisponível"
+      bodyLines += "Ritmo: ${rateText(r.rate)}"
+     }
+    }
+    NotificationContent(title, summary, bodyLines.joinToString("\n"))
+   }.collect { content ->
+    try {
+     getSystemService(NotificationManager::class.java).notify(1, notification(content))
+    } catch (_: SecurityException) {
+     fail("As notificações foram bloqueadas.")
+    }
    }
   }
   return START_NOT_STICKY
  }
+
  private fun fail(message: String) {
   app.repository.serviceError.value = message
   app.scope.launch { app.settings.continuous(false) }
   stopSelf()
  }
- private fun notification(text: String): Notification {
-  val open = PendingIntent.getActivity(this,0,Intent(this,MainActivity::class.java),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-  val stop = PendingIntent.getService(this,1,Intent(this,MonitorService::class.java).setAction("STOP"),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-  return NotificationCompat.Builder(this,"battery").setSmallIcon(R.drawable.ic_notification)
-   .setContentTitle(text.lineSequence().first()).setContentText(text.lineSequence().drop(1).firstOrNull() ?: "Aguardando leitura")
-   .setStyle(NotificationCompat.BigTextStyle().bigText(text)).setContentIntent(open)
-   .setOnlyAlertOnce(true).setSilent(true).setOngoing(true).setShowWhen(false)
-   .addAction(0,"Parar",stop).build()
+
+ private data class NotificationContent(val title: String, val summary: String, val body: String)
+
+ private fun notification(content: NotificationContent): Notification {
+  val open = PendingIntent.getActivity(
+   this, 0, Intent(this, MainActivity::class.java),
+   PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+  )
+  val stop = PendingIntent.getService(
+   this, 1, Intent(this, MonitorService::class.java).setAction("STOP"),
+   PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+  )
+  return NotificationCompat.Builder(this, "battery")
+   .setSmallIcon(R.drawable.ic_notification)
+   .setContentTitle(content.title)
+   .setContentText(content.summary)
+   .setStyle(NotificationCompat.BigTextStyle().bigText(content.body))
+   .setContentIntent(open)
+   .setOnlyAlertOnce(true)
+   .setSilent(true)
+   .setOngoing(true)
+   .setShowWhen(false)
+   .addAction(0, "Parar", stop)
+   .build()
  }
+
  override fun onDestroy() {
-  scope.cancel(); app.repository.serviceActive.value = false
-  app.repository.release("service"); stopForeground(STOP_FOREGROUND_REMOVE)
+  scope.cancel()
+  app.repository.serviceActive.value = false
+  app.repository.release("service")
+  stopForeground(STOP_FOREGROUND_REMOVE)
   super.onDestroy()
  }
 }

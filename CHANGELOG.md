@@ -1,6 +1,13 @@
 # Changelog
 
 
+## 0.1.0-alpha.9 (9) — 2026-10-12
+
+- Notificação expandida reorganizada para ficar mais limpa e semelhante ao estilo desejado. O título agora mantém **porcentagem, temperatura e corrente/gasto** em uma única linha.
+- Corpo da notificação simplificado, sem repetir o título: mostra apenas previsão/autonomia, corrente/média/estimativa e ritmo em `%/h`.
+- Corrente formatada com melhor legibilidade, usando separador de milhar e sinais `+` e `−`, por exemplo `+1.018 mA` e `−450 mA`.
+- Mantidos a ação `Parar`, o foreground service, o banco Room, o backup/restauração e a persistência da alpha.8, sem mudanças estruturais nesses componentes.
+
 ## 0.1.0-alpha.8 (8) — 2026-10-12
 
 - Corrigido o fluxo de distribuição após o workflow 8: testes, lint e APK Debug passaram; o erro foi HTTP 500 em `gh release create`. O APK agora é salvo como Artifact antes de publicar a Release, e a publicação é tentada novamente até quatro vezes.
