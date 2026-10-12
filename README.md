@@ -1,6 +1,6 @@
 # Pulso Bateria
 
-**0.1.0-alpha.2 • versionCode 2** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.3 • versionCode 3** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0 (API 26) ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Funcionalidades
@@ -17,17 +17,19 @@ Android 8.0 (API 26) ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Estado desta entrega
 
-Correção do setup Android: pacotes definidos explicitamente como `platform-tools`, evitando a tentativa de instalar `tools` que falhou nos builds #1 e #2. Código-fonte completo; os 31 testes dos cálculos e os recursos AAPT2 foram aprovados na Alpha 1 e não foram reexecutados nesta correção de workflow. **A compilação Android completa e o Android Lint não foram concluídos neste ambiente; não há APK local validado.** O workflow executará essas etapas. Consulte `docs/VALIDATION.md`.
+Telas Recarga/Autonomia, notificação rápida com porcentagem/temperatura/previsão e retomada de pausas curtas. Mantém a correção de SDK da Alpha 2. Código-fonte completo; 40 testes Kotlin/JUnit dos cálculos, retomada e duração observada passaram nesta entrega. Os recursos AAPT2 foram compilados na Alpha 1; não foram revalidados com o SDK nesta atualização. **A compilação Android completa e o Android Lint não foram concluídos neste ambiente; não há APK local validado.** O workflow executará essas etapas. Consulte `docs/VALIDATION.md`.
 
 ## Gerar APK pelo GitHub Manager
 
-1. Importe o conteúdo deste ZIP em um repositório: `settings.gradle.kts`, `gradlew`, `app/` e `.github/` precisam ficar na raiz. Inclua arquivos ocultos.
-2. Envie para `main` ou `master`, ou execute manualmente **Actions → Android • Pulso Bateria → Run workflow** na branch importada.
-3. Aguarde testes, lint e compilação. Baixe o artefato **Pulso-Bateria-v0.1.0-alpha.2-debug**.
-4. Extraia `app-debug.apk` e instale no Android permitindo instalação por essa fonte, quando solicitado.
+1. Importe o ZIP completo na raiz do repositório, incluindo `.github` e o Wrapper oficial.
+2. Envie para main/master ou execute manualmente Android • Pulso Bateria.
+3. Após sucesso, abra o link **APK direto** no resumo da execução ou **Releases** no repositório e baixe `Pulso-Bateria-v0.1.0-alpha.3-debug.apk`.
 
-Nenhum Secret é necessário. O APK Debug é assinado automaticamente com chave de desenvolvimento: **não é uma Release assinada para distribuição**. Runners novos podem gerar chaves Debug diferentes; nesse caso uma atualização sobre o APK anterior pode exigir desinstalação (perdendo os dados locais). Para distribuição e atualizações duráveis, configure uma chave estável em uma versão futura.
-Não foram inventados metadados proprietários do GitHub Manager; a integração usa o repositório e GitHub Actions padrão.
+O workflow publica SOMENTE o APK como asset de uma pré-release por execução. Não usa upload-artifact, não compacta o APK e não publica relatórios. O GitHub pode mostrar seus próprios links automáticos de código-fonte nas Releases; esses links não são arquivos produzidos pelo workflow. Logs e relatórios locais permanecem disponíveis apenas nas etapas/build, sem upload adicional.
+
+A permissão `contents: write` do GITHUB_TOKEN automático permite criar a Release. Não exige Secrets personalizados nem assinatura Release. Publicação ocorre somente em push ou execução manual; não há publicação por pull request. Se a organização bloquear escrita pelo token, será necessário permitir essa escrita na configuração de Actions do repositório.
+
+APK Debug é assinado com chave de desenvolvimento. Runners diferentes podem gerar chaves distintas e impedir atualização sobre uma instalação anterior; uma chave estável para distribuição será tratada em versão futura. Não foram inventados metadados proprietários do GitHub Manager.
 
 ## Compilar localmente
 
@@ -49,12 +51,12 @@ Dependências fixadas: AGP 8.9.2, Gradle 8.11.1, Kotlin/Compose Compiler 2.1.20,
 - `core/src/main/kotlin`: cálculos independentes de Android.
 - `core/src/test/kotlin`: testes JUnit de conversões, taxas, estimativas e fronteiras de sessão.
 - `app/schemas`: schema Room exportado pelo compilador.
-- `.github/workflows/android.yml`: validação e artefatos.
+- `.github/workflows/android.yml`: validação e publicação de APK direto.
 - `docs/MEASUREMENTS.md`, `docs/VALIDATION.md`, `docs/VERSIONING.md`: critérios, validação e versionamento.
 
 ## Uso e limitações
 
-Abra o app para iniciar a observação. Sem serviço, a coleta para quando a Activity deixa de estar visível. Ative a notificação nas configurações para observar em segundo plano. O serviço é iniciado apenas por ação explícita com o app aberto; não há boot receiver, reinício automático nem wake lock. Se o sistema encerrar o processo ou o aparelho reiniciar, reative a opção. A preferência é preservada, mas a interface distingue preferência anterior de serviço realmente ativo.
+Abra o app para iniciar a observação. Sem serviço, a coleta para quando a Activity deixa de estar visível. Pausas de até 90 segundos podem retomar a mesma sessão somente se estado e porcentagem não mudaram, no mesmo processo. O tempo parado não entra na duração, e a curva/taxa recente reinicia para não ligar amostras através da pausa. Ative a notificação nas configurações para observar em segundo plano. O serviço é iniciado apenas por ação explícita com o app aberto; não há boot receiver, reinício automático nem wake lock. Se o sistema encerrar o processo ou o aparelho reiniciar, reative a opção. A preferência é preservada, mas a interface distingue preferência anterior de serviço realmente ativo.
 
 O Android e o fabricante podem adiar leituras ou encerrar serviços. Não se promete notificação impossível de dispensar. Negar notificações mantém o modo de observação com o app aberto. `specialUse` é declarado com justificativa específica para a função opcional de telemetria; eventual publicação no Google Play depende da revisão das declarações de serviço pela loja.
 

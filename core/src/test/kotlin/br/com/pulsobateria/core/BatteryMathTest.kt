@@ -39,4 +39,13 @@ class BatteryMathTest {
  @Test fun shortSessionHasNoRate() { assertNull(BatteryMath.sessionRate(80,74,60_000,2)) }
  @Test fun temperatureNeedsThreeSamples() { assertNull(BatteryMath.averageTemperature(70.0,2)); assertEquals(35.0,BatteryMath.averageTemperature(105.0,3)!!,0.001) }
  @Test fun invalidTemperatureAverageRejected() { assertNull(BatteryMath.averageTemperature(Double.NaN,3)); assertNull(BatteryMath.averageTemperature(1000.0,3)) }
+ @Test fun shortPauseCanResume() { assertTrue(BatteryMath.canResumePause(Mode.DISCHARGING,Mode.DISCHARGING,67,67,1000,61_000,1000,61_000)) }
+ @Test fun changedPercentCannotResumePause() { assertFalse(BatteryMath.canResumePause(Mode.DISCHARGING,Mode.DISCHARGING,67,66,1000,61_000,1000,61_000)) }
+ @Test fun changedStateCannotResumePause() { assertFalse(BatteryMath.canResumePause(Mode.DISCHARGING,Mode.CHARGING,67,67,1000,61_000,1000,61_000)) }
+ @Test fun longPauseCannotResume() { assertFalse(BatteryMath.canResumePause(Mode.DISCHARGING,Mode.DISCHARGING,67,67,1000,92_000,1000,92_000)) }
+ @Test fun pauseClockResetCannotResume() { assertFalse(BatteryMath.canResumePause(Mode.DISCHARGING,Mode.DISCHARGING,67,67,1000,0,1000,61_000)) }
+ @Test fun pauseWallClockChangeCannotResume() { assertFalse(BatteryMath.canResumePause(Mode.DISCHARGING,Mode.DISCHARGING,67,67,1000,61_000,1000,181_000)) }
+ @Test fun pauseTimeIsExcluded() { assertEquals(60_000L,BatteryMath.observedDuration(60_000,1000,61_000,true,3)) }
+ @Test fun observedIntervalIsIncluded() { assertEquals(90_000L,BatteryMath.observedDuration(60_000,1000,31_000,false,3)) }
+ @Test fun firstSampleAndLargeGapDoNotAddTime() { assertEquals(0L,BatteryMath.observedDuration(0,1000,31_000,false,0)); assertEquals(60_000L,BatteryMath.observedDuration(60_000,1000,201_000,false,3)) }
 }

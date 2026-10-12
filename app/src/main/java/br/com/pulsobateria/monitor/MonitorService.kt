@@ -51,10 +51,16 @@ class MonitorService: Service() {
   app.scope.launch { app.settings.continuous(true) }
   scope.launch {
    combine(app.repository.reading,app.settings.flow) { r,s ->
-    val estimating = r.mode == Mode.CHARGING || r.mode == Mode.DISCHARGING
-    val rate = if (estimating) rateText(r.rate) else "Taxa indisponível"
-    val eta = if (estimating) durationText(r.remaining) else "Previsão indisponível"
-    "${r.percent?.let { "$it%" } ?: "—"} • ${r.mode.label}\n${currentText(r.current)} • ${temperatureText(r.temperature,s.fahrenheit)}\n$rate • $eta"
+    val quick = "${r.percent?.let { "$it%" } ?: "—"} • ${temperatureText(r.temperature,s.fahrenheit)}"
+    val eta = when(r.mode) {
+     Mode.CHARGING -> "Até 100%: ${durationText(r.remaining)}"
+     Mode.DISCHARGING -> "Autonomia: ${durationText(r.remaining)}"
+     Mode.FULL -> "Bateria cheia"
+     Mode.IDLE -> "Carga pausada"
+     else -> "Previsão indisponível"
+    }
+    "$quick\n$eta\n${currentText(r.current)} • ${rateText(r.rate)}"
+
    }.collect { text ->
     try { getSystemService(NotificationManager::class.java).notify(1,notification(text)) }
     catch (_: SecurityException) { fail("As notificações foram bloqueadas.") }
@@ -71,7 +77,7 @@ class MonitorService: Service() {
   val open = PendingIntent.getActivity(this,0,Intent(this,MainActivity::class.java),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   val stop = PendingIntent.getService(this,1,Intent(this,MonitorService::class.java).setAction("STOP"),PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   return NotificationCompat.Builder(this,"battery").setSmallIcon(R.drawable.ic_notification)
-   .setContentTitle("Pulso Bateria").setContentText(text.lineSequence().first())
+   .setContentTitle(text.lineSequence().first()).setContentText(text.lineSequence().drop(1).firstOrNull() ?: "Aguardando leitura")
    .setStyle(NotificationCompat.BigTextStyle().bigText(text)).setContentIntent(open)
    .setOnlyAlertOnce(true).setSilent(true).setOngoing(true).setShowWhen(false)
    .addAction(0,"Parar",stop).build()

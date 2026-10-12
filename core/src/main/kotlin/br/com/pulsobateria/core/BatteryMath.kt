@@ -9,6 +9,16 @@ enum class Mode(val label: String) {
 }
 data class Point(val elapsed: Long, val percent: Int)
 object BatteryMath {
+ const val PAUSE_GRACE_MS = 90_000L
+ fun observedDuration(previous: Long, lastElapsed: Long, elapsed: Long, paused: Boolean, samples: Int): Long {
+  val interval = elapsed-lastElapsed
+  return previous.coerceAtLeast(0)+(if (!paused && samples > 0 && lastElapsed > 0 && interval in 1..180_000L) interval else 0)
+ }
+ fun canResumePause(previous: Mode, next: Mode, before: Int, after: Int, lastElapsed: Long, elapsed: Long, lastWall: Long, wall: Long): Boolean =
+  previous != Mode.UNKNOWN && previous == next && before in 0..100 && before == after &&
+   elapsed > lastElapsed && elapsed-lastElapsed <= PAUSE_GRACE_MS &&
+   abs((wall-lastWall)-(elapsed-lastElapsed)) <= 60_000
+
  fun sessionRate(initial: Int, final: Int, durationMs: Long, samples: Int): Double? {
   if (initial !in 0..100 || final !in 0..100 || durationMs < 300_000 || samples < 3 || abs(final-initial) < 2) return null
   return ((final-initial)*3_600_000.0/durationMs).takeIf { abs(it) <= 200 }

@@ -1,13 +1,11 @@
-# Pulso Bateria 0.1.0-alpha.2
+# Pulso Bateria 0.1.0-alpha.3
 
-versionCode: 2. Android mínimo: 8.0 (API 26).
+versionCode: 3. Android 8.0+.
 
-Correção do workflow após análise dos logs Pulso-Android-Pulso-Bateria-1-logs.zip e Pulso-Android-Pulso-Bateria-2-logs.zip. Ambos falharam em Android SDK ao executar `sdkmanager tools`, antes de Gradle/testes/compilação.
+Telas Recarga e Autonomia escolhidas automaticamente pelo estado real. Porcentagem e temperatura em destaque no indicador. Notificação compacta mostra porcentagem e temperatura; segunda linha mostra tempo até 100% ou autonomia. Dados sem suporte continuam indisponíveis; previsões sem amostras suficientes mostram Calculando.
 
-A ação setup-android agora recebe `packages: platform-tools`, evitando o pacote indisponível `tools`. SDK 35 e Build Tools 35.0.0 continuam instalados explicitamente na próxima etapa.
+Sessões podem retomar após pausa de até 90 s no mesmo processo, somente com mesmo estado e porcentagem. Não contamos o tempo parado e reiniciamos curva/taxa recente. Mudança de estado, percentual, relógio, processo ou pausa maior abre novo registro. Histórico anterior é preservado; os registros mostrados nas imagens não serão apagados nem fundidos retroativamente.
 
-Importe o ZIP completo e envie os arquivos atualizados, incluindo `.github/workflows/android.yml`, ao repositório. Execute uma NOVA execução do workflow na versão atualizada; repetir o job antigo utiliza a configuração antiga.
+Após sucesso do workflow, baixe Pulso-Bateria-v0.1.0-alpha.3-debug.apk pelo link APK direto no resumo ou em Releases. Apenas o APK é publicado pelo workflow, sem compactação e sem upload-artifact/relatórios extras. A pré-release usa GITHUB_TOKEN automático com contents: write; não exige Secret personalizado. APK Debug não é Release com assinatura de distribuição.
 
-Artefato esperado após sucesso: Pulso-Bateria-v0.1.0-alpha.2-debug. Não exige Secrets; APK Debug não é Release assinada para distribuição.
-
-Validação desta correção: YAML, configuração de pacotes, referências de versão, XMLs, Wrapper oficial e integridade do ZIP. Build completo, lint e execução em aparelho permanecem pendentes. Os 31 testes JUnit anteriores estão registrados, mas não foram reexecutados nesta mudança de workflow. Funcionalidades e limitações de medição permanecem descritas no README.
+Build Android completo, lint e validação no aparelho dependem do Actions/dispositivo; consultar docs/VALIDATION.md para os testes realmente executados.

@@ -30,7 +30,8 @@ class BatteryRepository(
  private var ticker: Job? = null
  private var registered = false
  private var active: Session? = null
- private var startedElapsed = 0L
+ private var paused = false
+ private var pauseTimer: Job? = null
  private var lastElapsed = 0L
  private var lastWall = 0L
  private var lastMode = Mode.UNKNOWN
@@ -45,6 +46,7 @@ class BatteryRepository(
     try {
      when {
       command.startsWith("+") -> {
+       pauseTimer?.cancel(); pauseTimer = null
        owners.add(command.drop(1))
        if (!registered) {
         val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
@@ -59,9 +61,16 @@ class BatteryRepository(
        if (owners.isEmpty()) {
         ticker?.cancel(); ticker = null
         if (registered) { context.unregisterReceiver(receiver); registered = false }
-        close("Monitoramento pausado")
-        points.clear(); lastElapsed = 0
+        paused = true
+        points.clear()
+        active = active?.copy(reason = "Pausada • aguardando retomada")
+        active?.let { dao.update(it) }
+        pauseTimer?.cancel()
+        pauseTimer = scope.launch { delay(BatteryMath.PAUSE_GRACE_MS); commands.send("finishPause") }
        }
+      }
+      command == "finishPause" && owners.isEmpty() && paused -> {
+       close("Monitoramento pausado"); paused = false; lastElapsed = 0
       }
       command == "read" && owners.isNotEmpty() -> sample()
      }
@@ -90,26 +99,28 @@ class BatteryRepository(
    else -> Mode.UNKNOWN
   }
   // State changes must remain immediate, even directly after another sample.
-  if (mode == lastMode && lastElapsed > 0 && now - lastElapsed in 0..999) return
+  if (!paused && mode == lastMode && lastElapsed > 0 && now - lastElapsed in 0..999) return
   val level = BatteryMath.percent(intent.getIntExtra(BatteryManager.EXTRA_LEVEL,-1), intent.getIntExtra(BatteryManager.EXTRA_SCALE,-1))
   val temperature = BatteryMath.temperature(if (intent.hasExtra(BatteryManager.EXTRA_TEMPERATURE)) intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE,0) else null)
   val raw = runCatching { manager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW) }.getOrDefault(Int.MIN_VALUE)
   val current = BatteryMath.currentMa(raw, mode)
   val conflict = raw != Int.MIN_VALUE && raw != Int.MAX_VALUE && ((mode == Mode.CHARGING && raw < 0) || (mode == Mode.DISCHARGING && raw > 0))
-  if (lastElapsed > 0 && BatteryMath.startsNewSession(lastMode,mode,lastElapsed,now,lastWall,wall)) {
+  if (paused && active != null && !BatteryMath.canResumePause(lastMode,mode,active!!.final,level ?: -1,lastElapsed,now,lastWall,wall)) {
+   close("Intervalo sem observação")
+  }
+  if (!paused && lastElapsed > 0 && BatteryMath.startsNewSession(lastMode,mode,lastElapsed,now,lastWall,wall)) {
    close(if (lastMode != mode) "Estado alterado" else "Intervalo sem observação")
    points.clear()
   }
   if (level == null || mode == Mode.UNKNOWN) { close("Leitura indisponível"); points.clear() }
   if (level != null && mode != Mode.UNKNOWN) {
    if (active == null) {
-    startedElapsed = now
     val session = Session(mode=mode.name, started=wall, ended=wall, durationMs=0, initial=level, final=level,
      temperatureSum=0.0, temperatureCount=0, samples=0)
     active = session.copy(id=dao.insert(session)); dao.trim()
    }
-   active = active?.copy(ended=wall, durationMs=now-startedElapsed, final=level,
-    temperatureSum=active!!.temperatureSum+(temperature ?: 0.0), temperatureCount=active!!.temperatureCount+(if(temperature != null) 1 else 0), samples=active!!.samples+1)
+   active = active?.copy(ended=wall, durationMs=BatteryMath.observedDuration(active!!.durationMs,lastElapsed,now,paused,active!!.samples), final=level,
+    temperatureSum=active!!.temperatureSum+(temperature ?: 0.0), temperatureCount=active!!.temperatureCount+(if(temperature != null) 1 else 0), samples=active!!.samples+1, reason="Em observação")
    active?.let { dao.update(it) }
    points.add(Point(now,level))
    points.removeAll { now-it.elapsed > 30*60*1000L }
@@ -126,6 +137,7 @@ class BatteryRepository(
    else -> "Na bateria"
   },temperature,current,conflict,rate,systemRemaining ?: BatteryMath.remainingMs(level,rate,mode),systemRemaining != null,
    active?.durationMs ?: 0,points.toList(),wall)
+  paused = false
   lastElapsed = now; lastWall = wall; lastMode = mode
  }
 }

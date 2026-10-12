@@ -85,23 +85,39 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
    }
   }) { padding ->
    when(tab) {
-    0 -> Home(reading,settings,Modifier.padding(padding),onLimitations={limitations=true})
+    0 -> when(reading.mode) {
+     Mode.CHARGING -> ChargingScreen(reading,settings,Modifier.padding(padding)) { limitations=true }
+     Mode.DISCHARGING -> DischargingScreen(reading,settings,Modifier.padding(padding)) { limitations=true }
+     else -> MonitorScreen(reading,settings,Modifier.padding(padding),"Visão da bateria",onLimitations={limitations=true})
+    }
     1 -> History(sessions,settings,Modifier.padding(padding))
     else -> SettingsPage(settings,active,error,vm,onMonitor,{limitations=true},Modifier.padding(padding))
    }
   }
   if(limitations) AlertDialog(onDismissRequest={limitations=false},confirmButton={TextButton(onClick={limitations=false}){Text("Entendi")}},title={Text("Sobre as medições")},text={
-   Text("Os dados vêm do Android e dependem do sensor e do fabricante. Corrente positiva indica entrada na bateria; negativa indica saída. Leituras com sinal contraditório ficam indisponíveis. Estar conectado não garante carga.\n\nTaxa e autonomia exigem pelo menos 5 minutos e 2 pontos percentuais de variação consistente. São estimativas, não garantias. A previsão do sistema tem prioridade durante a carga.\n\nSem monitoramento contínuo, só registramos com o app visível. Interrupções acima de 3 minutos criam outra sessão. O Android pode suspender o serviço. Não há coleta durante desligamento nem recuperação de intervalos perdidos. Temperatura é da bateria, não da CPU. Corrente não é potência nem capacidade em mAh.")
+   Text("Os dados vêm do Android e dependem do sensor e do fabricante. Corrente positiva indica entrada na bateria; negativa indica saída. Leituras com sinal contraditório ficam indisponíveis. Estar conectado não garante carga.\n\nTaxa e autonomia exigem pelo menos 5 minutos e 2 pontos percentuais de variação consistente. São estimativas, não garantias. A previsão do sistema tem prioridade durante a carga.\n\nSem monitoramento contínuo, só registramos com o app visível. Pausas de até 90 segundos podem retomar a mesma sessão se estado e porcentagem permanecerem iguais; o tempo parado não entra na duração. Lacunas de coleta acima de 3 minutos criam outra sessão. O Android pode suspender o serviço. Não há coleta durante desligamento nem recuperação de intervalos perdidos. Temperatura é da bateria, não da CPU. Corrente não é potência nem capacidade em mAh.")
   })
  }
 }
 
 @Composable
-private fun Home(r: Reading, s: Settings, modifier: Modifier, onLimitations: () -> Unit) {
+private fun ChargingScreen(r: Reading, s: Settings, modifier: Modifier, onLimitations: () -> Unit) {
+ MonitorScreen(r,s,modifier,"Recarga",onLimitations)
+}
+@Composable
+private fun DischargingScreen(r: Reading, s: Settings, modifier: Modifier, onLimitations: () -> Unit) {
+ MonitorScreen(r,s,modifier,"Autonomia",onLimitations)
+}
+@Composable
+private fun MonitorScreen(r: Reading, s: Settings, modifier: Modifier, pageTitle: String, onLimitations: () -> Unit) {
  val isDark = MaterialTheme.colorScheme.background == Color.Black
  val accent by animateColorAsState(if(r.mode==Mode.CHARGING) (if(isDark) Color(0xFF38E8C4) else Color(0xFF00785D)) else MaterialTheme.colorScheme.primary,label="estado")
  val progress by animateFloatAsState((r.percent ?: 0)/100f,tween(700),label="bateria")
  LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+  item {
+   Text(pageTitle,style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold,color=accent)
+   Text(if(r.mode==Mode.CHARGING) "Acompanhe o tempo até completar a carga" else if(r.mode==Mode.DISCHARGING) "Veja quanto tempo de bateria ainda resta" else r.mode.label,style=MaterialTheme.typography.bodySmall)
+  }
   item {
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
     Surface(color=accent.copy(alpha=.12f),shape=RoundedCornerShape(50)) { Text(r.mode.label,Modifier.padding(horizontal=14.dp,vertical=8.dp),color=accent,style=MaterialTheme.typography.labelLarge) }
@@ -119,7 +135,7 @@ private fun Home(r: Reading, s: Settings, modifier: Modifier, onLimitations: () 
     }
     Column(horizontalAlignment=Alignment.CenterHorizontally) {
      Text("${r.percent?.toString() ?: "—"}%",fontSize=58.sp,fontWeight=FontWeight.Bold,letterSpacing=(-2).sp)
-     Text("${r.mode.label}",color=accent,style=MaterialTheme.typography.titleMedium)
+     Text(temperatureText(r.temperature,s.fahrenheit),color=accent,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold)
      Spacer(Modifier.height(12.dp))
      Text(if(r.updated==0L) "Aguardando leitura" else "${durationText(r.duration)} observados",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -135,10 +151,10 @@ private fun Home(r: Reading, s: Settings, modifier: Modifier, onLimitations: () 
    }
   }
   item { Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-   Metric("Corrente",currentText(r.current),if(r.currentConflict) "Sinal inconsistente" else "Instantânea • bateria",Modifier.weight(1f))
+   Metric(if(r.mode==Mode.CHARGING) "Corrente de carga" else "Consumo instantâneo",currentText(r.current),if(r.currentConflict) "Sinal inconsistente" else "Instantânea • bateria",Modifier.weight(1f))
    Metric("Temperatura",temperatureText(r.temperature,s.fahrenheit),"Sensor da bateria",Modifier.weight(1f))
   } }
-  item { Metric("Ritmo da bateria",if(r.mode==Mode.CHARGING || r.mode==Mode.DISCHARGING) rateText(r.rate) else "Indisponível","%/h • pontos percentuais por hora",Modifier.fillMaxWidth()) }
+  item { Metric(if(r.mode==Mode.CHARGING) "Velocidade de carga" else "Ritmo de descarga",if(r.mode==Mode.CHARGING || r.mode==Mode.DISCHARGING) rateText(r.rate) else "Indisponível","%/h • pontos percentuais por hora",Modifier.fillMaxWidth()) }
   item { Chart(r.points,accent) }
   if(r.error!=null) item { Text(r.error,color=MaterialTheme.colorScheme.error) }
   item { TextButton(onClick=onLimitations) { Icon(Icons.Default.Info,null); Spacer(Modifier.width(8.dp)); Text("Entenda as medições") } }
@@ -186,7 +202,7 @@ private fun History(sessions: List<Session>,settings: Settings,modifier: Modifie
  var filter by rememberSaveable { mutableIntStateOf(0) }
  val filtered=sessions.filter { filter==0 || it.mode==(if(filter==1) Mode.CHARGING.name else Mode.DISCHARGING.name) }
  LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-  item { Text("Cada sessão representa um período observado. Guardamos as 500 mais recentes.",color=MaterialTheme.colorScheme.onSurfaceVariant) }
+  item { Text("Sessões com amostras reais. Pausas curtas podem retomar o mesmo registro; guardamos as 500 mais recentes.",color=MaterialTheme.colorScheme.onSurfaceVariant) }
   item { Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { listOf("Todas","Carga","Descarga").forEachIndexed { i,label -> FilterChip(selected=filter==i,onClick={filter=i},label={Text(label)}) } } }
   if(filtered.isEmpty()) item { Metric("Nenhuma sessão por aqui","Seu histórico começa agora","Use o app ou ative o monitoramento contínuo.",Modifier.fillMaxWidth()) }
   items(filtered,key={it.id}) { session ->
@@ -202,7 +218,7 @@ private fun History(sessions: List<Session>,settings: Settings,modifier: Modifie
      val average=BatteryMath.sessionRate(session.initial,session.final,session.durationMs,session.samples)
      val rateLabel=if(average==null && (session.closed || mode==Mode.FULL || mode==Mode.IDLE)) "Indisponível" else rateText(average)
      Text("Média: $rateLabel • ${temperatureText(BatteryMath.averageTemperature(session.temperatureSum,session.temperatureCount),settings.fahrenheit)}",style=MaterialTheme.typography.bodySmall)
-     Text(if(session.closed) session.reason else "Em observação",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     Text("Sessão #${session.id} • ${session.reason}",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     }
    }
   }

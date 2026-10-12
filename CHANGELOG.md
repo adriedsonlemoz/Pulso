@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.3 (3) — 2026-10-12
+
+- Telas automáticas Recarga e Autonomia com apresentação própria e componentes compartilhados.
+- Porcentagem e temperatura em destaque; notificação compacta com ambas e estimativa na segunda linha.
+- Retomada da mesma sessão após pausa de até 90 s, somente sem mudança de estado/percentual; duração exclui pausa e estimativas recentes reiniciam.
+- Histórico identifica sessão e pausa; registros antigos preservados.
+- Workflow publica apenas APK direto em Releases, sem artifacts ZIP nem relatórios extras.
+
+
 ## 0.1.0-alpha.2 (2) — 2026-10-12
 
 - Corrige falha `Failed to find package tools` nos builds #1 e #2: `android-actions/setup-android@v3` agora recebe explicitamente `packages: platform-tools`.

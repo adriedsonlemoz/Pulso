@@ -3,9 +3,8 @@ on:
   workflow_dispatch:
   push:
     branches: [main, master]
-  pull_request:
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: android-${{ github.ref }}
   cancel-in-progress: true
@@ -33,18 +32,17 @@ jobs:
         run: chmod +x gradlew
       - name: Testes, lint e APK Debug
         run: ./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
-      - name: Publicar APK Debug
-        uses: actions/upload-artifact@v4
-        with:
-          name: Pulso-Bateria-v0.1.0-alpha.2-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-      - name: Relatórios de validação
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: relatorios-validacao
-          path: |
-            core/build/reports/tests/
-            app/build/reports/
-          if-no-files-found: warn
+      - name: Publicar somente APK direto
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="Pulso-Bateria-v0.1.0-alpha.3-debug.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "$apk"
+          tag="apk-alpha.3-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          gh release create "$tag" "$apk" --target "$GITHUB_SHA" --title "Pulso Bateria 0.1.0-alpha.3 • APK Debug" --notes-file RELEASE_NOTES.md --prerelease --latest=false
+          url=$(gh release view "$tag" --json assets --jq '.assets[] | select(.name == "Pulso-Bateria-v0.1.0-alpha.3-debug.apk") | .url')
+          test -n "$url"
+          printf '### APK direto\n\n[Baixar %s](%s)\n' "$apk" "$url" >> "$GITHUB_STEP_SUMMARY"
