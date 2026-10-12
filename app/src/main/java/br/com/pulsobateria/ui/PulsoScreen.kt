@@ -25,6 +25,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextOverflow
+import kotlin.math.roundToInt
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -111,55 +114,112 @@ private fun DischargingScreen(r: Reading, s: Settings, modifier: Modifier, onLim
 @Composable
 private fun MonitorScreen(r: Reading, s: Settings, modifier: Modifier, pageTitle: String, onLimitations: () -> Unit) {
  val isDark = MaterialTheme.colorScheme.background == Color.Black
- val accent by animateColorAsState(if(r.mode==Mode.CHARGING) (if(isDark) Color(0xFF38E8C4) else Color(0xFF00785D)) else MaterialTheme.colorScheme.primary,label="estado")
+ val accent by animateColorAsState(
+  if(r.mode==Mode.CHARGING) (if(isDark) Color(0xFF38E8C4) else Color(0xFF00785D)) else MaterialTheme.colorScheme.primary,
+  label="estado"
+ )
  val progress by animateFloatAsState((r.percent ?: 0)/100f,tween(700),label="bateria")
- LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+ val charging = r.mode==Mode.CHARGING
+ val measuring = charging || r.mode==Mode.DISCHARGING
+ var metricDetails by remember { mutableStateOf<Pair<String,String>?>(null) }
+ val currentLabel = if(charging) "Corrente" else "Consumo"
+ val currentValue = r.current?.let { "${if(it>0) "+" else ""}${it.roundToInt()}" } ?: "—"
+ val currentDetails = when {
+  r.currentConflict -> "Sinal inconsistente: o Android informou corrente contrária ao estado de carga ou descarga. A leitura não é usada como consumo confiável."
+  r.current == null -> "Corrente instantânea indisponível neste aparelho ou nesta leitura. Não é uma estimativa de consumo médio ou capacidade."
+  else -> "${currentText(r.current)}. Corrente instantânea medida na bateria pelo Android. Sinal positivo indica entrada; negativo indica saída."
+ }
+ val temperatureLabel = "Temperatura"
+ val temperatureValue = r.temperature?.let {
+  String.format(Locale.forLanguageTag("pt-BR"),"%.1f",if(s.fahrenheit) it*9/5+32 else it)
+ } ?: "—"
+ val temperatureDetails = if(r.temperature==null) "Sensor de temperatura da bateria indisponível. Não representa a temperatura da CPU."
+ else "${temperatureText(r.temperature,s.fahrenheit)}. Medição do sensor da bateria, não da CPU."
+ val rateLabel = if(charging) "Carga" else "Descarga"
+ val rateValue = if(measuring) r.rate?.let {
+  "${if(it>0) "+" else if(it<0) "−" else ""}${String.format(Locale.forLanguageTag("pt-BR"),"%.1f",abs(it))}"
+ } ?: "—" else "—"
+ val rateDetails = when {
+  !measuring -> "Não há uma taxa de carga ou descarga para este estado da bateria."
+  r.rate == null -> "Calculando: são necessários pelo menos 5 minutos, 3 amostras e variação de 2 pontos percentuais, sem lacunas ou direção contraditória."
+  else -> "${rateText(r.rate)}. Variação observada em pontos percentuais por hora, não consumo em mA ou capacidade da bateria."
+ }
+ LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
   item {
    Text(pageTitle,style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold,color=accent)
-   Text(if(r.mode==Mode.CHARGING) "Acompanhe o tempo até completar a carga" else if(r.mode==Mode.DISCHARGING) "Veja quanto tempo de bateria ainda resta" else r.mode.label,style=MaterialTheme.typography.bodySmall)
+   Text(if(charging) "Acompanhe o tempo até completar a carga" else if(r.mode==Mode.DISCHARGING) "Veja quanto tempo de bateria ainda resta" else r.mode.label,style=MaterialTheme.typography.bodySmall)
   }
   item {
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
-    Surface(color=accent.copy(alpha=.12f),shape=RoundedCornerShape(50)) { Text(r.mode.label,Modifier.padding(horizontal=14.dp,vertical=8.dp),color=accent,style=MaterialTheme.typography.labelLarge) }
+    Surface(color=accent.copy(alpha=.12f),shape=RoundedCornerShape(50)) { Text(r.mode.label,Modifier.padding(horizontal=12.dp,vertical=6.dp),color=accent,style=MaterialTheme.typography.labelLarge) }
     Text(r.source,style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
    }
   }
   item {
-   Box(Modifier.fillMaxWidth().padding(vertical=12.dp),contentAlignment=Alignment.Center) {
+   Box(Modifier.fillMaxWidth().padding(vertical=4.dp),contentAlignment=Alignment.Center) {
     val track=MaterialTheme.colorScheme.surfaceVariant
-    Canvas(Modifier.size(240.dp).semantics { contentDescription="Bateria ${r.percent?.toString() ?: "indisponível"} por cento" }) {
+    Canvas(Modifier.size(212.dp).semantics { contentDescription="Bateria ${r.percent?.toString() ?: "indisponível"} por cento" }) {
      val inset=8.dp.toPx()
      val arcSize=Size(size.width-2*inset,size.height-2*inset)
-     drawArc(track,135f,270f,false,topLeft=Offset(inset,inset),size=arcSize,style=Stroke(13.dp.toPx(),cap=StrokeCap.Round))
-     drawArc(accent,135f,270f*progress,false,topLeft=Offset(inset,inset),size=arcSize,style=Stroke(13.dp.toPx(),cap=StrokeCap.Round))
+     drawArc(track,135f,270f,false,topLeft=Offset(inset,inset),size=arcSize,style=Stroke(12.dp.toPx(),cap=StrokeCap.Round))
+     drawArc(accent,135f,270f*progress,false,topLeft=Offset(inset,inset),size=arcSize,style=Stroke(12.dp.toPx(),cap=StrokeCap.Round))
     }
     Column(horizontalAlignment=Alignment.CenterHorizontally) {
-     Text("${r.percent?.toString() ?: "—"}%",fontSize=58.sp,fontWeight=FontWeight.Bold,letterSpacing=(-2).sp)
-     Text(temperatureText(r.temperature,s.fahrenheit),color=accent,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold)
-     Spacer(Modifier.height(12.dp))
+     Text(r.percent?.let { "$it%" } ?: "—",fontSize=54.sp,fontWeight=FontWeight.Bold,letterSpacing=(-2).sp)
+     Spacer(Modifier.height(6.dp))
      Text(if(r.updated==0L) "Aguardando leitura" else "${durationText(r.duration)} observados",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
     }
    }
   }
   item {
-   Surface(shape=RoundedCornerShape(24.dp),color=accent.copy(alpha=.10f)) {
-    Column(Modifier.fillMaxWidth().padding(20.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-     Text(if(r.mode==Mode.CHARGING) "PREVISÃO ATÉ 100%" else "AUTONOMIA ESTIMADA",style=MaterialTheme.typography.labelMedium,color=accent,letterSpacing=1.sp)
-     Text(if(r.mode==Mode.CHARGING || r.mode==Mode.DISCHARGING) durationText(r.remaining) else "Indisponível",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold)
+   Surface(shape=RoundedCornerShape(20.dp),color=accent.copy(alpha=.10f)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=14.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+     Text(if(charging) "PREVISÃO ATÉ 100%" else "AUTONOMIA ESTIMADA",style=MaterialTheme.typography.labelMedium,color=accent,letterSpacing=1.sp)
+     Text(if(measuring) durationText(r.remaining) else "Indisponível",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
      Text(if(r.systemEstimate) "Previsão fornecida pelo Android" else "Baseada na variação recente da bateria",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     }
    }
   }
-  item { Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-   Metric(if(r.mode==Mode.CHARGING) "Corrente de carga" else "Consumo instantâneo",currentText(r.current),if(r.currentConflict) "Sinal inconsistente" else "Instantânea • bateria",Modifier.weight(1f))
-   Metric("Temperatura",temperatureText(r.temperature,s.fahrenheit),"Sensor da bateria",Modifier.weight(1f))
-  } }
-  item { Metric(if(r.mode==Mode.CHARGING) "Velocidade de carga" else "Ritmo de descarga",if(r.mode==Mode.CHARGING || r.mode==Mode.DISCHARGING) rateText(r.rate) else "Indisponível","%/h • pontos percentuais por hora",Modifier.fillMaxWidth()) }
+  item {
+   BoxWithConstraints(Modifier.fillMaxWidth()) {
+    // Abaixo desse espaço útil, ou com texto ampliado, evita cortes e alvos de toque pequenos.
+    val useThreeColumns = maxWidth >= 312.dp && LocalDensity.current.fontScale <= 1.2f
+    if(useThreeColumns) {
+     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+      MetricTile(currentLabel,currentValue,"mA",Modifier.weight(1f)) { metricDetails=currentLabel to currentDetails }
+      MetricTile(temperatureLabel,temperatureValue,if(s.fahrenheit) "°F" else "°C",Modifier.weight(1f)) { metricDetails=temperatureLabel to temperatureDetails }
+      MetricTile(rateLabel,rateValue,"%/h",Modifier.weight(1f)) { metricDetails=rateLabel to rateDetails }
+     }
+    } else {
+     Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+      MetricTile(currentLabel,if(r.current==null) "—" else currentText(r.current),"Corrente da bateria",Modifier.fillMaxWidth()) { metricDetails=currentLabel to currentDetails }
+      MetricTile(temperatureLabel,temperatureText(r.temperature,s.fahrenheit),"Sensor da bateria",Modifier.fillMaxWidth()) { metricDetails=temperatureLabel to temperatureDetails }
+      MetricTile(rateLabel,if(measuring) rateText(r.rate) else "Indisponível","Pontos percentuais por hora",Modifier.fillMaxWidth()) { metricDetails=rateLabel to rateDetails }
+     }
+    }
+   }
+  }
   item { Chart(r.points,accent) }
   if(r.error!=null) item { Text(r.error,color=MaterialTheme.colorScheme.error) }
   item { TextButton(onClick=onLimitations) { Icon(Icons.Default.Info,null); Spacer(Modifier.width(8.dp)); Text("Entenda as medições") } }
  }
+ metricDetails?.let { (title, explanation) ->
+  AlertDialog(onDismissRequest={metricDetails=null},title={Text(title)},text={Text(explanation)},confirmButton={TextButton(onClick={metricDetails=null}){Text("Fechar")}})
+ }
 }
+
+@Composable
+private fun MetricTile(label: String,value: String,unit: String,modifier: Modifier=Modifier,onClick: () -> Unit) {
+ Card(onClick=onClick,modifier=modifier.heightIn(min=94.dp).semantics { contentDescription="$label: $value $unit. Toque para detalhes." },
+  shape=RoundedCornerShape(18.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
+  Column(Modifier.fillMaxWidth().padding(horizontal=10.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
+   Text(label,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=TextOverflow.Ellipsis)
+   Text(value,fontSize=19.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+   Text(unit,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=TextOverflow.Ellipsis)
+  }
+ }
+}
+
 @Composable
 private fun Metric(label: String,value: String,detail: String,modifier: Modifier=Modifier) {
  Card(modifier,shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
@@ -170,27 +230,44 @@ private fun Metric(label: String,value: String,detail: String,modifier: Modifier
   }
  }
 }
+
 @Composable
 private fun Chart(points: List<Point>,accent: Color) {
  Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
-  Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+  Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
    Text("Pulso recente",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
-   Text("Últimos 30 minutos observados • escala 0–100%",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-   if(points.size<2) Text("Aguardando novas amostras…",Modifier.padding(vertical=24.dp)) else {
+   val range=BatteryMath.chartRange(points)
+   if(points.size<2 || range==null) {
+    Text("Aguardando novas amostras…",Modifier.padding(vertical=20.dp),style=MaterialTheme.typography.bodySmall)
+   } else {
+    val lower=range.first
+    val upper=range.last
+    val difference=(upper-lower).coerceAtLeast(1)
+    val elapsed=(points.last().elapsed-points.first().elapsed).coerceAtLeast(0L)
+    val timeLabel=if(elapsed<60_000L) "há menos de 1 min" else "há ${elapsed/60_000L} min"
+    Text("Janela de até 30 min • escala $lower–$upper%",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     val track=MaterialTheme.colorScheme.surfaceVariant
-    Canvas(Modifier.fillMaxWidth().height(100.dp).semantics { contentDescription="Evolução da bateria: ${points.first().percent}% a ${points.last().percent}%" }) {
-     for(i in 0..4) drawLine(track,Offset(0f,size.height*i/4),Offset(size.width,size.height*i/4),1.dp.toPx())
-     val span=(points.last().elapsed-points.first().elapsed).coerceAtLeast(1)
-     val path=Path()
-     points.forEachIndexed { i,p ->
-      val x=((p.elapsed-points.first().elapsed).toDouble()/span*size.width).toFloat()
-      val y=size.height*(1-p.percent/100f)
-      if(i==0) path.moveTo(x,y) else path.lineTo(x,y)
+    Row(Modifier.fillMaxWidth().height(112.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+     Column(Modifier.fillMaxHeight(),verticalArrangement=Arrangement.SpaceBetween) {
+      Text("$upper%",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+      Text("$lower%",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
      }
-     drawPath(path,accent,style=Stroke(3.dp.toPx(),cap=StrokeCap.Round))
+     Canvas(Modifier.weight(1f).fillMaxHeight().semantics {
+      contentDescription="Variação observada de ${points.first().percent}% para ${points.last().percent}%, entre $lower e $upper por cento"
+     }) {
+      for(i in 0..4) drawLine(track,Offset(0f,size.height*i/4),Offset(size.width,size.height*i/4),1.dp.toPx())
+      val span=elapsed.coerceAtLeast(1L)
+      val path=Path()
+      points.forEachIndexed { i,p ->
+       val x=((p.elapsed-points.first().elapsed).toDouble()/span*size.width).toFloat().coerceIn(0f,size.width)
+       val y=size.height*(1-(p.percent-lower).toFloat()/difference)
+       if(i==0) path.moveTo(x,y) else path.lineTo(x,y)
+      }
+      drawPath(path,accent,style=Stroke(3.dp.toPx(),cap=StrokeCap.Round))
+     }
     }
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
-     Text("${points.first().percent}%",style=MaterialTheme.typography.labelSmall)
+     Text("${points.first().percent}% • $timeLabel",style=MaterialTheme.typography.labelSmall)
      Text("${points.last().percent}% • agora",style=MaterialTheme.typography.labelSmall)
     }
    }
@@ -226,10 +303,15 @@ private fun History(sessions: List<Session>,settings: Settings,modifier: Modifie
 }
 @Composable
 private fun SettingsPage(s: Settings,active: Boolean,error: String?,vm: PulsoViewModel,onMonitor: (Boolean)->Unit,onLimitations: ()->Unit,modifier: Modifier) {
- LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+ LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
   item { SettingsCard("Aparência") {
-   listOf("system" to "Sistema","dark" to "Escuro AMOLED","light" to "Claro").forEach { (value,label) ->
-    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) { RadioButton(selected=s.theme==value,onClick={vm.theme(value)}); TextButton(onClick={vm.theme(value)}) { Text(label) } }
+   val themes=listOf("system" to "Sistema","dark" to "AMOLED","light" to "Claro")
+   SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+    themes.forEachIndexed { index,theme ->
+     SegmentedButton(selected=s.theme==theme.first,onClick={vm.theme(theme.first)},shape=SegmentedButtonDefaults.itemShape(index,themes.size),label={
+      Text(theme.second,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.labelMedium)
+     })
+    }
    }
   } }
   item { SettingsCard("Monitoramento contínuo") {
@@ -241,15 +323,22 @@ private fun SettingsPage(s: Settings,active: Boolean,error: String?,vm: PulsoVie
    if(s.continuous && !active) Text("Monitoramento interrompido. Ative novamente para retomar.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.primary)
    if(error!=null) Text(error,color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall)
   } }
-  item { SettingsCard("Intervalo de atualização") {
-   Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { listOf(15,30,60).forEach { value -> FilterChip(selected=s.interval==value,onClick={vm.interval(value)},label={Text("$value s")}) } }
-   Text("30 s é o padrão. Eventos de bateria podem antecipar a leitura. Durante suspensão, o Android pode adiar as atualizações.",style=MaterialTheme.typography.bodySmall)
-  } }
-  item { SettingsCard("Unidade de temperatura") {
-   Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-    FilterChip(selected=!s.fahrenheit,onClick={vm.fahrenheit(false)},label={Text("Celsius • °C")})
-    FilterChip(selected=s.fahrenheit,onClick={vm.fahrenheit(true)},label={Text("Fahrenheit • °F")})
+  item { SettingsCard("Leituras e unidades") {
+   BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val sideBySide=maxWidth>=280.dp && LocalDensity.current.fontScale<=1.2f
+    if(sideBySide) {
+     Row(horizontalArrangement=Arrangement.spacedBy(12.dp),modifier=Modifier.fillMaxWidth()) {
+      Column(Modifier.weight(1f)) { IntervalPicker(s.interval,vm) }
+      Column(Modifier.weight(1f)) { TemperaturePicker(s.fahrenheit,vm) }
+     }
+    } else {
+     Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
+      IntervalPicker(s.interval,vm)
+      TemperaturePicker(s.fahrenheit,vm)
+     }
+    }
    }
+   Text("30 s é o padrão. Eventos podem antecipar a leitura; o Android pode adiar atualizações durante a suspensão.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
   } }
   item { SettingsCard("Sobre o Pulso") {
    Text("Pulso Bateria ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",fontWeight=FontWeight.SemiBold)
@@ -259,10 +348,40 @@ private fun SettingsPage(s: Settings,active: Boolean,error: String?,vm: PulsoVie
   } }
  }
 }
+
+@Composable
+private fun IntervalPicker(interval: Int, vm: PulsoViewModel) {
+ Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
+  Text("Atualização • s",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  val intervals=listOf(15,30,60)
+  SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+   intervals.forEachIndexed { index,seconds ->
+    SegmentedButton(selected=interval==seconds,onClick={vm.interval(seconds)},shape=SegmentedButtonDefaults.itemShape(index,intervals.size),label={
+     Text("$seconds",style=MaterialTheme.typography.labelSmall,maxLines=1)
+    })
+   }
+  }
+ }
+}
+
+@Composable
+private fun TemperaturePicker(fahrenheit: Boolean, vm: PulsoViewModel) {
+ Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
+  Text("Temperatura",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+   listOf(false,true).forEachIndexed { index,unit ->
+    SegmentedButton(selected=fahrenheit==unit,onClick={vm.fahrenheit(unit)},shape=SegmentedButtonDefaults.itemShape(index,2),label={
+     Text(if(unit) "°F" else "°C",style=MaterialTheme.typography.labelSmall)
+    })
+   }
+  }
+ }
+}
+
 @Composable
 private fun SettingsCard(title: String,content: @Composable ColumnScope.()->Unit) {
  Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
-  Column(Modifier.fillMaxWidth().padding(18.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+  Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
    Text(title,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
    content()
   }

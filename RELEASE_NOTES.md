@@ -1,11 +1,13 @@
-# Pulso Bateria 0.1.0-alpha.3
+# Pulso Bateria 0.1.0-alpha.4
 
-versionCode: 3. Android 8.0+.
+versionCode: 4. Android 8.0+.
 
-Telas Recarga e Autonomia escolhidas automaticamente pelo estado real. Porcentagem e temperatura em destaque no indicador. Notificação compacta mostra porcentagem e temperatura; segunda linha mostra tempo até 100% ou autonomia. Dados sem suporte continuam indisponíveis; previsões sem amostras suficientes mostram Calculando.
+**Ajustes de interface:** consumo/corrente, temperatura e ritmo na mesma linha quando há espaço; textos acessíveis em telas estreitas ou com fontes ampliadas. Toque nas medições para ver explicações, inclusive quando o Android não oferece valor confiável. O medidor circular e o cartão de autonomia estão mais compactos, e a temperatura aparece em um único cartão de leitura. O gráfico usa escala ajustada aos percentuais observados (sem inventar dados) e informa o período realmente amostrado.
 
-Sessões podem retomar após pausa de até 90 s no mesmo processo, somente com mesmo estado e porcentagem. Não contamos o tempo parado e reiniciamos curva/taxa recente. Mudança de estado, percentual, relógio, processo ou pausa maior abre novo registro. Histórico anterior é preservado; os registros mostrados nas imagens não serão apagados nem fundidos retroativamente.
+**Configurações:** seletor horizontal de tema Sistema/AMOLED/Claro; intervalo de 15/30/60 segundos e temperatura °C/°F lado a lado quando couberem, ou empilhados para acessibilidade. Preferências continuam salvas no DataStore.
 
-Após sucesso do workflow, baixe Pulso-Bateria-v0.1.0-alpha.3-debug.apk pelo link APK direto no resumo ou em Releases. Apenas o APK é publicado pelo workflow, sem compactação e sem upload-artifact/relatórios extras. A pré-release usa GITHUB_TOKEN automático com contents: write; não exige Secret personalizado. APK Debug não é Release com assinatura de distribuição.
+Sem alterações nos cálculos de autonomia, captura BatteryManager, histórico Room ou serviço de monitoramento contínuo. Mantém retomada controlada de pausas curtas da Alpha 3 e demais funções anteriores.
 
-Build Android completo, lint e validação no aparelho dependem do Actions/dispositivo; consultar docs/VALIDATION.md para os testes realmente executados.
+Após aprovação do workflow, baixe `Pulso-Bateria-v0.1.0-alpha.4-debug.apk` na Release ou pelo link do resumo. Apenas o APK Debug é publicado, sem ZIP intermediário e sem assinatura Release. É um build de desenvolvimento; a instalação sobre builds de outros runners pode exigir reinstalação por assinatura Debug diferente.
+
+A compilação Android completa e os testes físicos de interface devem ser confirmados no workflow e no dispositivo; consulte `docs/VALIDATION.md`.

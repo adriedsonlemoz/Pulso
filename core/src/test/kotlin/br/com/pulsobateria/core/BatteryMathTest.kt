@@ -5,6 +5,17 @@ import org.junit.Test
 
 class BatteryMathTest {
  private fun points(start: Int=50, sign: Int=1) = (0..10).map { Point(it*60_000L,start+sign*(it/2)) }
+ @Test fun chartRangeShowsFlatBatteryWithoutFakeVariation() { assertEquals(53..57,BatteryMath.chartRange(listOf(Point(100,55),Point(200,55)))) }
+ @Test fun chartRangeRespectsBatteryBounds() {
+  assertEquals(0..2,BatteryMath.chartRange(listOf(Point(100,0),Point(200,0))))
+  assertEquals(98..100,BatteryMath.chartRange(listOf(Point(100,100),Point(200,100))))
+  assertEquals(13..26,BatteryMath.chartRange(listOf(Point(100,15),Point(200,24))))
+ }
+ @Test fun chartRangeRejectsInvalidLevels() {
+  assertNull(BatteryMath.chartRange(emptyList()))
+  assertNull(BatteryMath.chartRange(listOf(Point(100,-1))))
+  assertNull(BatteryMath.chartRange(listOf(Point(100,101))))
+ }
  @Test fun percentScalesCorrectly() { assertEquals(50,BatteryMath.percent(100,200)) }
  @Test fun invalidPercentageIsAbsent() { assertNull(BatteryMath.percent(-1,100)); assertNull(BatteryMath.percent(10,0)); assertNull(BatteryMath.percent(101,100)) }
  @Test fun temperatureUsesTenths() { assertEquals(37.8,BatteryMath.temperature(378)!!,0.001); assertEquals(0.0,BatteryMath.temperature(0)!!,0.001) }

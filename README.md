@@ -1,6 +1,6 @@
 # Pulso Bateria
 
-**0.1.0-alpha.3 • versionCode 3** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.4 • versionCode 4** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0 (API 26) ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Funcionalidades
@@ -9,21 +9,21 @@ Android 8.0 (API 26) ou superior. Identidade: `br.com.pulsobateria`.
 - Estados carregando, descarregando, cheia, conectado sem carregar e desconhecido.
 - Taxa em %/h (pontos percentuais por hora) e estimativas com critérios mínimos. Previsão do sistema tem prioridade na carga.
 - Sessões persistentes Room; filtros todas/carga/descarga; até 500 registros, com início, última leitura/término, duração, percentuais e médias.
-- Gráfico **ao vivo**, dos últimos 30 minutos observados. O histórico conserva resumos; as curvas não são persistidas nesta Alpha.
-- Temas Sistema, Escuro AMOLED (#000000) e Claro. Interface em português, ícone e splash próprios.
+- Gráfico **ao vivo**, com janela de até 30 minutos de amostras observadas, escala vertical adaptável sem inventar variação. O histórico conserva resumos; as curvas não são persistidas nesta Alpha.
+- Temas Sistema, Escuro AMOLED (#000000) e Claro, selecionáveis horizontalmente. Interface em português, ícone e splash próprios.
 - Notificação opcional por foreground service, com ação Parar e tratamento de permissão Android 13+.
 - DataStore: tema, intervalo 15/30/60 s (padrão 30), unidade °C/°F e preferência de monitoramento.
 - Sem INTERNET, anúncios, analytics, conta, root ou coleta externa. Backup do app desativado.
 
 ## Estado desta entrega
 
-Telas Recarga/Autonomia, notificação rápida com porcentagem/temperatura/previsão e retomada de pausas curtas. Mantém a correção de SDK da Alpha 2. Código-fonte completo; 40 testes Kotlin/JUnit dos cálculos, retomada e duração observada passaram nesta entrega. Os recursos AAPT2 foram compilados na Alpha 1; não foram revalidados com o SDK nesta atualização. **A compilação Android completa e o Android Lint não foram concluídos neste ambiente; não há APK local validado.** O workflow executará essas etapas. Consulte `docs/VALIDATION.md`.
+A Alpha 4 compacta o painel de métricas, a previsão e as preferências sem mudar a origem das medições. Temperatura, corrente e taxa usam três cartões em larguras suficientes; toque para detalhes e leitura vertical acessível em telas pequenas. Gráfico com escala adaptável e duração observada. Mantém as melhorias e correções anteriores. **O APK Android, Compose e Lint ainda precisam de validação no GitHub Actions e em aparelho.** Consulte `docs/VALIDATION.md` para os testes realmente executados.
 
 ## Gerar APK pelo GitHub Manager
 
 1. Importe o ZIP completo na raiz do repositório, incluindo `.github` e o Wrapper oficial.
 2. Envie para main/master ou execute manualmente Android • Pulso Bateria.
-3. Após sucesso, abra o link **APK direto** no resumo da execução ou **Releases** no repositório e baixe `Pulso-Bateria-v0.1.0-alpha.3-debug.apk`.
+3. Após sucesso, abra o link **APK direto** no resumo da execução ou **Releases** no repositório e baixe `Pulso-Bateria-v0.1.0-alpha.4-debug.apk`.
 
 O workflow publica SOMENTE o APK como asset de uma pré-release por execução. Não usa upload-artifact, não compacta o APK e não publica relatórios. O GitHub pode mostrar seus próprios links automáticos de código-fonte nas Releases; esses links não são arquivos produzidos pelo workflow. Logs e relatórios locais permanecem disponíveis apenas nas etapas/build, sem upload adicional.
 

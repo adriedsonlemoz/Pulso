@@ -39,6 +39,11 @@ object BatteryMath {
    else -> value
   }
  }
+ // A escala visual segue a variação observada, sem alterar os valores da bateria.
+ fun chartRange(points: List<Point>): IntRange? {
+  if (points.isEmpty() || points.any { it.percent !in 0..100 }) return null
+  return (points.minOf { it.percent }-2).coerceAtLeast(0)..(points.maxOf { it.percent }+2).coerceAtMost(100)
+ }
  fun rate(points: List<Point>, mode: Mode): Double? {
   if (mode != Mode.CHARGING && mode != Mode.DISCHARGING) return null
   if (points.size < 3 || points.any { it.percent !in 0..100 }) return null

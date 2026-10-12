@@ -18,6 +18,12 @@ Exigências: ≥3 pontos, ≥5 min, ≥2 p.p., timestamps crescentes, intervalos
 
 A média de uma sessão é a variação líquida observada dividida pela duração; não é a média das correntes. Exige ≥3 amostras, ≥5 min e ≥2 p.p. Temperatura média é média aritmética das amostras válidas (≥3), não uma média temporal ponderada. Eventos extras podem influenciar a ponderação.
 
+## Apresentação das leituras
+
+Na Alpha 4, o indicador de corrente mostra `—` quando o Android não fornece corrente confiável, e a taxa mostra `—` enquanto não satisfaz os critérios ou quando o estado não comporta taxa. O motivo é mostrado ao tocar no cartão. A unidade %/h permanece em pontos percentuais por hora.
+
+A curva recente usa exclusivamente amostras reais e ajusta a escala vertical para o mínimo e máximo observados com margem de 2 pontos percentuais (limitada a 0–100%). Escala visual não muda as leituras nem produz estimativas: uma curva de 55% constante continua horizontal. O eixo horizontal representa o intervalo real das primeiras às últimas amostras da janela de até 30 minutos, não 30 minutos artificiais.
+
 ## Integridade e consumo
 
 Um único coletor atende Activity e serviço; comandos são serializados em coroutine. Banco usa métodos suspend do Room. Observação para quando não há proprietário. Rotação mantém a sessão. Pausas explícitas até 90 s podem retomar o mesmo registro apenas com estado/percentual iguais no mesmo processo; pausas não entram na duração e reiniciam pontos da taxa. Sem retomada, o registro fecha na última amostra. A duração usa relógio monotônico; alteração do relógio civil >60 s, regressão monotônica, status diferente ou lacuna >3 min encerra a sessão na **última leitura válida**, nunca no fim presumido da lacuna. Reabertura após morte do processo fecha registros incompletos como interrompidos. Não se reconstitui o que não foi medido.
