@@ -10,10 +10,12 @@ class PulsoApp: Application() {
  val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
  lateinit var settings: SettingsStore; private set
  lateinit var repository: BatteryRepository; private set
+ lateinit var backup: BackupManager; private set
  override fun onCreate() {
   super.onCreate()
   settings = SettingsStore(this)
-  val database = Room.databaseBuilder(this, BatteryDatabase::class.java, "pulso.db").addMigrations(BatteryDatabase.MIGRATION_1_2).build()
+  val database = Room.databaseBuilder(this, BatteryDatabase::class.java, "pulso.db").addMigrations(BatteryDatabase.MIGRATION_1_2, BatteryDatabase.MIGRATION_2_3).build()
+  backup = BackupManager(this, database, settings)
   repository = BatteryRepository(this, database.sessions(), settings, scope)
  }
 }

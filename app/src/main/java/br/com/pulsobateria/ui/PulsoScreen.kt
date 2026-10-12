@@ -1,6 +1,8 @@
 package br.com.pulsobateria.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -72,6 +74,12 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
   surface=Color.White,surfaceVariant=Color(0xFFE6EEF7),onSurface=Color(0xFF101C2A),onBackground=Color(0xFF101C2A))
  var tab by rememberSaveable { mutableIntStateOf(0) }
  var limitations by rememberSaveable { mutableStateOf(false) }
+ val exportLauncher=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+  if(uri!=null) vm.exportBackup(uri)
+ }
+ val importLauncher=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+  if(uri!=null) vm.inspectBackup(uri)
+ }
  BackHandler(tab != 0) { tab = 0 }
  MaterialTheme(colorScheme=colors) {
   Scaffold(containerColor=colors.background, topBar={
@@ -96,7 +104,10 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
      else -> MonitorScreen(reading,settings,Modifier.padding(padding),"Visão da bateria",onLimitations={limitations=true})
     }
     1 -> History(sessions,settings,vm,Modifier.padding(padding))
-    else -> SettingsPage(settings,reading,active,error,vm,onMonitor,{limitations=true},Modifier.padding(padding))
+    else -> SettingsPage(settings,reading,active,error,vm,onMonitor,{limitations=true},
+     onExport={exportLauncher.launch("Pulso-Bateria-backup-${System.currentTimeMillis()}.json")},
+     onImport={importLauncher.launch(arrayOf("application/json","application/octet-stream","*/*"))},
+     modifier=Modifier.padding(padding))
    }
   }
   if(limitations) AlertDialog(onDismissRequest={limitations=false},confirmButton={TextButton(onClick={limitations=false}){Text("Entendi")}},title={Text("Sobre as medições")},text={
@@ -394,6 +405,13 @@ private fun SessionHistoryCard(session: Session,settings: Settings,vm: PulsoView
     val sampleFlow = remember(session.id) { vm.sessionSamples(session.id) }
     val savedSamples by sampleFlow.collectAsStateWithLifecycle(initialValue=emptyList())
     SessionHistoryChart(savedSamples,accent)
+    savedSamples.lastOrNull { it.currentMa != null }?.let { measured ->
+     SessionDetailRow("Última corrente salva",currentText(measured.currentMa))
+     SessionDetailRow("Origem da corrente",measured.currentSource ?: "Indisponível")
+    }
+    savedSamples.lastOrNull { it.temperatureC != null }?.let { measured ->
+     SessionDetailRow("Última temperatura salva",temperatureText(measured.temperatureC,settings.fahrenheit))
+    }
     Text("Sessão #${session.id} • Pontos reais armazenados",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
    }
   }
@@ -451,7 +469,8 @@ private fun SessionHistoryChart(samples: List<SessionSample>,accent: Color) {
 }
 
 @Composable
-private fun SettingsPage(s: Settings,r: Reading,active: Boolean,error: String?,vm: PulsoViewModel,onMonitor: (Boolean)->Unit,onLimitations: ()->Unit,modifier: Modifier) {
+private fun SettingsPage(s: Settings,r: Reading,active: Boolean,error: String?,vm: PulsoViewModel,
+ onMonitor: (Boolean)->Unit,onLimitations: ()->Unit,onExport: ()->Unit,onImport: ()->Unit,modifier: Modifier) {
  LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
   item { SettingsCard("Aparência") {
    val themes=listOf("system" to "Sistema","dark" to "AMOLED","light" to "Claro")
@@ -517,15 +536,34 @@ private fun SettingsPage(s: Settings,r: Reading,active: Boolean,error: String?,v
     SessionDetailRow("Média pelo contador",currentText(r.currentInfo.counterMeanMa))
     SessionDetailRow("Calibração instantânea",r.currentInfo.nowAdjustment)
     SessionDetailRow("Calibração média",r.currentInfo.averageAdjustment)
-    Text("Os valores brutos não são necessariamente confiáveis. Calibrações não são persistidas e recomeçam ao iniciar o app.",style=MaterialTheme.typography.bodySmall)
+    Text("Calibrações confirmadas são guardadas por até 7 dias e conferidas novamente com os sensores. Após trocar o aparelho ou atualizar o Android, use Recalibrar.",style=MaterialTheme.typography.bodySmall)
+    TextButton(onClick={vm.resetCalibration()}) { Text("Recalibrar agora") }
    }
+  } }
+  item { SettingsCard("Backup e restauração") {
+   Text("Exporte sessões, pontos dos gráficos e preferências em JSON local. O arquivo não é criptografado; guarde em lugar privado.",style=MaterialTheme.typography.bodySmall)
+   Row(horizontalArrangement=Arrangement.spacedBy(8.dp),modifier=Modifier.fillMaxWidth()) {
+    Button(onClick=onExport,enabled=!vm.backupBusy) { Text("Exportar") }
+    OutlinedButton(onClick=onImport,enabled=!vm.backupBusy) { Text("Importar") }
+   }
+   if(vm.backupBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
+   Text(vm.backupStatus,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+   Text("Importar substitui todo o histórico atual. Desative o monitoramento contínuo antes de restaurar. Faça uma cópia antes.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
   } }
   item { SettingsCard("Sobre o Pulso") {
    Text("Pulso Bateria ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",fontWeight=FontWeight.SemiBold)
    Text("100% offline • Sem anúncios • Sem rastreamento",style=MaterialTheme.typography.bodySmall)
-   Text("Histórico e preferências ficam neste aparelho. Desinstalar ou limpar os dados remove essas informações.",style=MaterialTheme.typography.bodySmall)
+   Text("Histórico e preferências ficam neste aparelho. Desinstalar ou limpar os dados os remove. Exporte um backup manual antes de trocar a instalação.",style=MaterialTheme.typography.bodySmall)
    TextButton(onClick=onLimitations) { Text("Limitações das medições") }
   } }
+ }
+ vm.pendingBackup?.let { preview ->
+  val date=SimpleDateFormat("dd/MM/yyyy HH:mm",Locale.forLanguageTag("pt-BR")).format(Date(preview.exportedAt))
+  AlertDialog(onDismissRequest={vm.cancelBackupRestore()},
+   title={Text("Substituir histórico atual?")},
+   text={Text("Backup de $date com ${preview.sessions.size} sessões e ${preview.samples.size} pontos. A restauração apagará os registros atuais e aplicará as configurações do arquivo. Não há mesclagem. Deseja continuar?")},
+   confirmButton={TextButton(onClick={vm.restoreBackup()},enabled=!vm.backupBusy && !active) { Text("Substituir e restaurar") }},
+   dismissButton={TextButton(onClick={vm.cancelBackupRestore()},enabled=!vm.backupBusy) { Text("Cancelar") }})
  }
 }
 

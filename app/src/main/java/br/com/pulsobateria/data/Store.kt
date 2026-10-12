@@ -10,22 +10,37 @@ import kotlinx.coroutines.flow.*
 import java.io.IOException
 
 private val Context.preferences by preferencesDataStore("settings")
-data class Settings(val theme: String = "system", val interval: Int = 30, val fahrenheit: Boolean = false, val continuous: Boolean = false, val capacityMah: Int? = null)
+data class Settings(val theme: String = "system", val interval: Int = 30, val fahrenheit: Boolean = false, val continuous: Boolean = false, val capacityMah: Int? = null, val calibration: String? = null)
 class SettingsStore(private val context: Context) {
  private val theme = stringPreferencesKey("theme")
  private val interval = intPreferencesKey("interval")
  private val fahrenheit = booleanPreferencesKey("fahrenheit")
  private val continuous = booleanPreferencesKey("continuous")
  private val capacity = intPreferencesKey("capacity_mah")
+ private val calibration = stringPreferencesKey("current_calibration")
  val flow = context.preferences.data.catch { if (it is IOException) emit(emptyPreferences()) else throw it }.map {
   Settings(it[theme] ?: "system", (it[interval] ?: 30).coerceIn(15,60), it[fahrenheit] ?: false, it[continuous] ?: false,
-   it[capacity]?.takeIf { mah -> mah in 500..30_000 })
+   it[capacity]?.takeIf { mah -> mah in 500..30_000 }, it[calibration])
  }
  suspend fun theme(value: String) { context.preferences.edit { it[theme] = value } }
  suspend fun interval(value: Int) { context.preferences.edit { it[interval] = value.coerceIn(15,60) } }
  suspend fun fahrenheit(value: Boolean) { context.preferences.edit { it[fahrenheit] = value } }
  suspend fun continuous(value: Boolean) { context.preferences.edit { it[continuous] = value } }
  suspend fun capacityMah(value: Int?) { require(value == null || value in 500..30_000); context.preferences.edit { if (value == null) it.remove(capacity) else it[capacity] = value } }
+ suspend fun calibration(value: String?) { context.preferences.edit { if(value==null) it.remove(calibration) else it[calibration]=value } }
+ suspend fun replaceFromBackup(value: Settings) {
+  require(value.theme in listOf("system", "dark", "light") && value.interval in listOf(15,30,60))
+  require(value.capacityMah == null || value.capacityMah in 500..30_000)
+  context.preferences.edit {
+   it[theme] = value.theme; it[interval] = value.interval; it[fahrenheit] = value.fahrenheit
+   // Segurança: a preferência restaurada nunca inicia um serviço sem intervenção do usuário.
+   it[continuous] = false
+   if(value.capacityMah != null) it[capacity] = value.capacityMah else it.remove(capacity)
+   // Nunca importar calibração específica de hardware de outro aparelho.
+   it.remove(calibration)
+  }
+
+ }
 }
 @Entity(tableName = "sessions")
 data class Session(
@@ -43,7 +58,8 @@ data class Session(
 )
 data class SessionSample(
  @PrimaryKey(autoGenerate = true) val id: Long = 0,
- val sessionId: Long, val timestamp: Long, val percent: Int
+ val sessionId: Long, val timestamp: Long, val percent: Int,
+ val currentMa: Double? = null, val temperatureC: Double? = null, val currentSource: String? = null
 )
 
 @Dao
@@ -53,6 +69,11 @@ interface SessionDao {
  @Query("SELECT * FROM session_samples WHERE sessionId = :sessionId ORDER BY timestamp ASC, id ASC")
  fun observeSamples(sessionId: Long): Flow<List<SessionSample>>
  @Insert suspend fun insertSample(sample: SessionSample)
+ @Insert suspend fun insertSamples(samples: List<SessionSample>)
+ @Query("SELECT * FROM sessions ORDER BY id ASC") suspend fun exportSessions(): List<Session>
+ @Query("SELECT * FROM session_samples ORDER BY sessionId ASC, id ASC") suspend fun exportSamples(): List<SessionSample>
+ @Query("DELETE FROM session_samples") suspend fun clearSamples()
+ @Query("DELETE FROM sessions") suspend fun clearSessions()
  // Manter o primeiro ponto e os 479 mais recentes evita crescimento sem limite por sessão.
  @Query("""DELETE FROM session_samples WHERE sessionId = :sessionId
  AND id != (SELECT MIN(id) FROM session_samples WHERE sessionId = :sessionId)
@@ -62,7 +83,7 @@ interface SessionDao {
  @Update suspend fun update(session: Session)
  @Query("DELETE FROM sessions WHERE id NOT IN (SELECT id FROM sessions ORDER BY id DESC LIMIT 500)") suspend fun trim()
 }
-@Database(entities = [Session::class, SessionSample::class], version = 2, exportSchema = true)
+@Database(entities = [Session::class, SessionSample::class], version = 3, exportSchema = true)
 abstract class BatteryDatabase: RoomDatabase() {
  abstract fun sessions(): SessionDao
  companion object {
@@ -77,6 +98,13 @@ abstract class BatteryDatabase: RoomDatabase() {
       FOREIGN KEY(`sessionId`) REFERENCES `sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
      )""")
     db.execSQL("CREATE INDEX IF NOT EXISTS `index_session_samples_sessionId` ON `session_samples` (`sessionId`)")
+   }
+  }
+  val MIGRATION_2_3 = object : Migration(2, 3) {
+   override fun migrate(db: SupportSQLiteDatabase) {
+    db.execSQL("ALTER TABLE `session_samples` ADD COLUMN `currentMa` REAL")
+    db.execSQL("ALTER TABLE `session_samples` ADD COLUMN `temperatureC` REAL")
+    db.execSQL("ALTER TABLE `session_samples` ADD COLUMN `currentSource` TEXT")
    }
   }
  }

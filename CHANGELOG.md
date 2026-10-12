@@ -1,5 +1,16 @@
 # Changelog
 
+
+## 0.1.0-alpha.8 (8) — 2026-10-12
+
+- Corrigido o fluxo de distribuição após o workflow 8: testes, lint e APK Debug passaram; o erro foi HTTP 500 em `gh release create`. O APK agora é salvo como Artifact antes de publicar a Release, e a publicação é tentada novamente até quatro vezes.
+- Assinatura estável opcional para variantes Debug/Release por quatro Secrets GitHub Manager; sem Secrets completos, alerta explícito para assinatura temporária.
+- Backup JSON pelo Storage Access Framework, SHA-256 de integridade, prévia e confirmação antes de substituir histórico; transação Room na restauração.
+- Room 2→3 preserva sessões e pontos e acrescenta corrente, temperatura e origem nas próximas amostras. Histórico mostra último valor disponível em detalhes.
+- Calibração confirmada armazenada localmente com validade de sete dias, rejeição de leitura incompatível e comando Recalibrar.
+- Adicionados testes instrumentados de migração 1→3 e 2→3 (necessário executar em dispositivo/emulador); testes locais core 75/75 aprovados.
+- Código não inclui nem registra chaves privadas; lembre-se de que nova assinatura não atualiza APKs antigos sem a chave original.
+
 ## 0.1.0-alpha.7 (7) — 2026-10-12
 
 - Corrente mais útil: consulta `BATTERY_PROPERTY_CURRENT_NOW` e `CURRENT_AVERAGE` (µA declarados), usa fallback por diferença temporal no `CHARGE_COUNTER` (µAh) e, opcionalmente, estimativa por %/h e capacidade útil fornecida pelo usuário.

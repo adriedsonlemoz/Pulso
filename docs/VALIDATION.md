@@ -1,22 +1,21 @@
-# Validação — Pulso Bateria 0.1.0-alpha.7 (7)
+# Validação — Pulso Bateria 0.1.0-alpha.8 (8)
 
-## Executado neste ambiente
+## Fonte dos logs recebidos
 
-- **73/73 testes Kotlin/JVM aprovados**, compilados com `kotlinc` usando executor de asserções compatíveis com JUnit (55 testes antigos + 18 novos). Cobrem polaridade correta/invertida, propriedades ausentes, corrente média, unidade µA/mA, contador em µAh, lacunas/reversões, valor zero, sinais e fallback por capacidade opcional. **Não equivale ao JUnit via Gradle.**
-- **12 arquivos Kotlin analisados por PSI sem erros sintáticos**; análise PSI não valida dependências Android, tipos Compose ou KSP.
-- `python tools/validate_source.py`: estrutura, XML, permissões, versão e Wrapper SHA-256/CRC (executar antes de fechar entrega).
-- ZIP final verificado com CRC e referências da versão (executar antes de fechar entrega).
-- Banco Room mantido na versão 2; sem mudança de schema nem novas permissões. A migração 1→2 continua a mesma da Alpha 6.
+ZIP `Pulso-Android-Pulso-Bateria-8-logs.zip`: no job `build/8_Testes, lint e APK Debug.txt`, o Gradle finalizou com `BUILD SUCCESSFUL in 1m 41s`, 55 tarefas executadas, incluindo `:core:test`, `:app:assembleDebug` e `:app:lintDebug`. A etapa **posterior** `gh release create` falhou com HTTP 500 `https://api.github.com/repos/adriedsonlemoz/Pulso/releases`. O erro não é de compilação.
 
-## Pendências e riscos
+## Testes locais da alpha.8
 
-1. Compilação real `:core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` por Gradle, validação de Compose/Android/KSP e geração de APK ainda pendentes caso o Gradle não esteja disponível neste ambiente.
-2. Testar em hardware leituras reais `CURRENT_NOW`, `CURRENT_AVERAGE`, `CHARGE_COUNTER` e verificar se a unidade e o sinal inferidos batem com um medidor externo, quando houver. Comparar contra AccuBattery apenas como referência secundária, não como medição laboratorial.
-3. Testar calibração com carga e descarga por vários minutos: as propriedades podem ser proprietárias, intermitentes ou incorretas. A polaridade inferida por estado pode falhar perto de 100% e se reinicia ao recriar o processo.
-4. Confirmar que informar capacidade útil opcional não transforma taxa %/h em leitura supostamente medida; revisar valores em telas estreitas, fontes ampliadas e notificação.
-5. Instalar atualização sobre Alpha 6 e verificar preservação de Room v2, histórico e sessões novas.
+- `kotlinc` do módulo core e dois testes novos para calibração: **75 testes aprovados, 0 falhas** (executor JUnit compatível, não Gradle).
+- PSI de Kotlin: **14 fontes testadas, 0 erros de sintaxe**. Análise sintática não substitui compilação Android/Compose/KSP.
+- SQL de migração 1→2 e 2→3 testado separadamente com `sqlite3` e preservação de registro, campos opcionais e exclusão em cascata; não equivale a testar migração Room em aparelho.
+- YAML do workflow interpretado, XMLs e Python `tools/validate_source.py` aprovados. Verificar ZIP/CRC e ausência de chaves privadas após empacotar.
+- Keystore PKCS12 gerada fora do pacote; os Secrets são arquivos PRIVADOS separados. SHA-256 do certificado público documentado em `docs/BACKUP_AND_SIGNING.md`.
 
-## Resultado final desta preparação
+## Pendências
 
-- `python tools/validate_source.py`: **PASS** (14 arquivos obrigatórios, 7 XMLs, permissões, metadados e SHA-256/CRC do Gradle Wrapper).
-- `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon --stacktrace`: tentativa encerrada antes do build em `UnknownHostException: services.gradle.org` ao baixar Gradle 8.11.1. **Não houve compilação Android ou APK local.**
+1. **Compilar a alpha.8 no GitHub Actions**. A alpha.8 não foi compilada pelo Gradle neste ambiente: `UnknownHostException` ao buscar `services.gradle.org`. Testes Kotlin sintáticos não comprovam compilação Android.
+2. **Executar `:app:connectedDebugAndroidTest`** num dispositivo/emulador. O workflow usa `:app:assembleDebugAndroidTest`, que apenas compila os testes. Confirmar schema Room3/SQL real e exportar `app/schemas/br.com.pulsobateria.data.BatteryDatabase/3.json` gerado por KSP para versionamento; não inventar esse arquivo.
+3. Validar exportação, importação, transação e UI com dados reais em aparelho. DataStore é independente do Room; falha após commit pode deixar preferências desatualizadas.
+4. Conferir fingerprint de cada APK com `apksigner verify --print-certs` e testar atualização entre builds **ambos assinados com a chave estável**. Sem chave antiga, a alpha.8 não pode atualizar o APK Debug anterior com certificado diferente.
+5. Testar permanência de histórico após fechar/reabrir, reiniciar, e restaurar backups extensos. Limite de arquivo 64 MiB. Calibração possui validade de sete dias.

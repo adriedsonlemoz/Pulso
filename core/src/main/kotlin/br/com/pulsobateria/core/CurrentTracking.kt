@@ -53,9 +53,11 @@ private enum class CurrentUnit(val divisor: Double, val label: String) {
 }
 private data class ProbeResult(val ma: Double?, val note: String)
 
-/** Calibração em memória, independente para CURRENT_NOW e CURRENT_AVERAGE. */
+/** Observação em memória; somente decisões confirmadas podem ser persistidas por DataStore. */
 private class CurrentProbe {
  private var flipped = false
+ private var polarityConfirmed = false
+ private var unitConfirmed = false
  private var polarityCandidate: Boolean? = null
  private var polarityCount = 0
  private var polarityStart = 0L
@@ -66,6 +68,23 @@ private class CurrentProbe {
  private var unitCount = 0
  private var unitStart = 0L
  private var unitLast = 0L
+
+ /** Serializa somente decisões confirmadas. A referência de carga e as amostras nunca são persistidas. */
+ fun calibrationCode(): String {
+  val sign = if (polarityConfirmed) (if (flipped) "1" else "0") else "?"
+  val scale = if (!unitConfirmed) "?" else when(unit) {
+   CurrentUnit.MICROAMPS -> "U"; CurrentUnit.MILLIAMPS -> "M"; else -> "?"
+  }
+  return "$sign$scale"
+ }
+ fun loadCalibration(code: String) {
+  if(code.length!=2) return
+  if(code[0] in "01") { flipped=code[0]=='1'; polarityConfirmed=true }
+  when(code[1]) {
+   'U' -> { unit=CurrentUnit.MICROAMPS; unitConfirmed=true }
+   'M' -> { unit=CurrentUnit.MILLIAMPS; unitConfirmed=true }
+  }
+ }
 
  fun observe(raw: Int?, mode: Mode, now: Long, referenceMa: Double?): ProbeResult {
   if (mode != Mode.CHARGING && mode != Mode.DISCHARGING || raw == null ||
@@ -83,7 +102,9 @@ private class CurrentProbe {
    if (polarityCandidate != proposedFlip) { polarityCandidate=proposedFlip; polarityCount=0; polarityStart=now }
    polarityCount++
    polarityLast=now
-   if (polarityCount >= 4 && now-polarityStart >= 60_000L) flipped=proposedFlip
+   if (polarityCount >= 4 && now-polarityStart >= 60_000L) {
+    flipped=proposedFlip; polarityConfirmed=true
+   }
   }
   // Muitos aparelhos devolvem zero como substituto de indisponível. Durante carga/descarga,
   // preferir o contador independente à falsa medição instantânea de 0 mA.
@@ -94,7 +115,9 @@ private class CurrentProbe {
   // Acima de 30 mil, a escala mA seria >30 A: usamos a unidade µA documentada.
   // Abaixo disso as escalas µA e mA se sobrepõem e exigem referência independente.
   val magnitude = abs(raw.toLong())
-  if (magnitude > 30_000L) unit=CurrentUnit.MICROAMPS
+  if (magnitude > 30_000L) {
+   unit=CurrentUnit.MICROAMPS; unitConfirmed=true
+  }
   if (magnitude <= 30_000L && referenceMa != null && abs(referenceMa) >= 50.0) {
    val normalizedReference=abs(referenceMa)
    val ratioUa = magnitude/1_000.0/normalizedReference
@@ -112,8 +135,16 @@ private class CurrentProbe {
      unitCandidate=candidate; unitCount=0; unitStart=now
     }
     unitCount++; unitLast=now
-    if(unitCount >= 3 && now-unitStart >= 60_000L) unit=candidate
+    if(unitCount >= 3 && now-unitStart >= 60_000L) {
+     unit=candidate; unitConfirmed=true
+    }
    }
+  }
+  // Uma calibração anterior só é usada se não contradizer uma referência disponível.
+  if (referenceMa != null && unit != null && abs(referenceMa) >= 50) {
+   val presumed=abs(raw.toDouble() / unit!!.divisor)
+   val proportion=presumed / abs(referenceMa)
+   if(proportion !in 0.1..10.0) { unit=null; unitConfirmed=false }
   }
   val decidedUnit = unit ?: return ProbeResult(null,"Unidade ambígua: aguardando contador de carga para distinguir µA de mA")
   // Se a unidade calibrada era mA e o bruto muda de escala abruptamente, não usar resultado absurdo.
@@ -127,6 +158,23 @@ class CurrentTracker {
  private val currentNow = CurrentProbe()
  private val currentAverage = CurrentProbe()
  private val counter = ChargeCounterTracker()
+ /** Código sem timestamp; útil para evitar regravar DataStore a cada leitura. */
+ fun calibrationCode(): String {
+  val a=currentNow.calibrationCode()
+  val b=currentAverage.calibrationCode()
+  return if(a=="??" && b=="??") "" else "$a:$b"
+ }
+ /** Calibração específica deste aparelho e válida somente por 7 dias. */
+ fun loadCalibration(saved: String?, wallMillis: Long): Boolean {
+  val parts=saved?.split(';') ?: return false
+  if(parts.size!=2) return false
+  val whenSaved=parts[0].toLongOrNull() ?: return false
+  if(whenSaved<0 || wallMillis<whenSaved || wallMillis-whenSaved>7L*24*3600*1000) return false
+  val codes=parts[1].split(':')
+  if(codes.size!=2 || codes.any { it.length!=2 }) return false
+  currentNow.loadCalibration(codes[0]); currentAverage.loadCalibration(codes[1])
+  return true
+ }
 
  fun observe(
   rawNow: Int?, rawAverage: Int?, rawCounter: Int?, mode: Mode,

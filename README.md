@@ -1,6 +1,6 @@
 # Pulso Bateria
 
-**0.1.0-alpha.7 • versionCode 7** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.8 • versionCode 8** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0 (API 26) ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Funcionalidades
@@ -15,23 +15,21 @@ Android 8.0 (API 26) ou superior. Identidade: `br.com.pulsobateria`.
 - Temas Sistema, Escuro AMOLED (#000000) e Claro, selecionáveis horizontalmente. Interface em português, ícone e splash próprios.
 - Notificação opcional por foreground service, com ação Parar e tratamento de permissão Android 13+.
 - DataStore: tema, intervalo 15/30/60 s (padrão 30), unidade °C/°F, capacidade útil opcional e preferência de monitoramento.
-- Sem INTERNET, anúncios, analytics, conta, root ou coleta externa. Backup do app desativado.
+- Sem INTERNET, anúncios, analytics, conta, root ou coleta externa. Backup automático do Android desativado; exportação e restauração manual JSON pelo seletor de arquivos, com checksum SHA-256.
 
 ## Estado desta entrega
 
-A Alpha 7 adiciona leituras complementares de corrente, calibração automática condicionada a várias amostras, contador de carga como média independente e estimativa opcional baseada em capacidade informada. O diagnóstico expõe os dados originais; valores sem fundamento permanecem indisponíveis. O histórico e gráficos da Alpha 6, a migração Room 1→2 e as correções anteriores foram preservados. **O APK Android, Compose e Lint ainda precisam de validação no GitHub Actions e em aparelho.** Consulte `docs/VALIDATION.md` para os testes realmente executados.
+A Alpha 8 foi preparada a partir da Alpha 7 após os logs do workflow **Pulso Android 8**. Os logs comprovam **BUILD SUCCESSFUL** nas tarefas Gradle (testes, lint e APK Debug), mas a etapa de publicação falhou por HTTP 500 da API GitHub Releases. O workflow agora preserva o APK em Artifacts por 30 dias antes da tentativa de criar a Release e faz até quatro tentativas. Não representa correção na compilação, que já havia passado.
 
-## Gerar APK pelo GitHub Manager
+**Mudanças:** backup/restauração JSON local via Configurações, Room v3 com migração explícita 2→3 e amostras contendo corrente/temperatura quando disponíveis, persistência conservadora da calibração confirmada por 7 dias (com opção de recalibrar), instrumentação de teste de migração, assinatura estável via Secrets e publicação robusta do APK. O monitoramento é congelado durante a restauração e não existe restauração automática por instalação.
 
-1. Importe o ZIP completo na raiz do repositório, incluindo `.github` e o Wrapper oficial.
-2. Envie para main/master ou execute manualmente Android • Pulso Bateria.
-3. Após sucesso, abra o link **APK direto** no resumo da execução ou **Releases** no repositório e baixe `Pulso-Bateria-v0.1.0-alpha.7-debug.apk`.
+### Gerar APK pelo GitHub Manager
 
-O workflow publica SOMENTE o APK como asset de uma pré-release por execução. Não usa upload-artifact, não compacta o APK e não publica relatórios. O GitHub pode mostrar seus próprios links automáticos de código-fonte nas Releases; esses links não são arquivos produzidos pelo workflow. Logs e relatórios locais permanecem disponíveis apenas nas etapas/build, sem upload adicional.
+1. Importe o ZIP do código-fonte na raiz do repositório (incluindo `.github`).
+2. Importe **os quatro Secrets** `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` pelo módulo Secrets do GitHub Manager. Os arquivos confidenciais com a chave foram fornecidos **separadamente** e nunca devem ser colocados no GitHub como arquivo de código. Guarde uma cópia da keystore privada e a senha fora do GitHub.
+3. Execute **Android • Pulso Bateria**, verifique se a etapa de assinatura reconheceu os Secrets e baixe o APK pelo link da Release ou em **Actions → execução → Artifacts** caso a API de Releases esteja indisponível.
 
-A permissão `contents: write` do GITHUB_TOKEN automático permite criar a Release. Não exige Secrets personalizados nem assinatura Release. Publicação ocorre somente em push ou execução manual; não há publicação por pull request. Se a organização bloquear escrita pelo token, será necessário permitir essa escrita na configuração de Actions do repositório.
-
-APK Debug é assinado com chave de desenvolvimento. Runners diferentes podem gerar chaves distintas e impedir atualização sobre uma instalação anterior; uma chave estável para distribuição será tratada em versão futura. Não foram inventados metadados proprietários do GitHub Manager.
+Sem os Secrets, o Debug continua compilável, porém a assinatura é temporária e **pode impedir a atualização preservando dados**. Com os mesmos Secrets importados nas próximas execuções, o certificado permanece constante. A chave criada para a Alpha 8 **não é a chave dos APKs antigos**. Portanto, não é possível garantir atualização direta sobre a Alpha 7 já instalada: nunca desinstale o app antigo contando que a Alpha 8 irá recuperar seus dados. Veja `docs/BACKUP_AND_SIGNING.md`.
 
 ## Compilar localmente
 
@@ -43,7 +41,7 @@ chmod +x gradlew
 ```
 
 Saída: `app/build/outputs/apk/debug/app-debug.apk`.
-Dependências fixadas: AGP 8.9.2, Gradle 8.11.1, Kotlin/Compose Compiler 2.1.20, Compose BOM 2025.04.01, KSP 2.1.20-1.0.32, Room 2.7.1. O Wrapper oficial inclui verificação SHA-256 da distribuição. A primeira compilação exige internet para ferramentas e dependências; o aplicativo instalado não exige internet.
+Dependências fixadas: AGP 8.9.2, Gradle 8.11.1, Kotlin/Compose Compiler 2.1.20, Compose BOM 2025.04.01, KSP 2.1.20-1.0.32, Room 2.7.1. O Wrapper oficial inclui verificação SHA-256 da distribuição. A primeira compilação exige internet para ferramentas e dependências; o aplicativo instalado não exige internet. Também compile os testes instrumentados via `:app:assembleDebugAndroidTest`, e execute em aparelho/emulador com `:app:connectedDebugAndroidTest`.
 
 ## Estrutura
 
@@ -53,8 +51,8 @@ Dependências fixadas: AGP 8.9.2, Gradle 8.11.1, Kotlin/Compose Compiler 2.1.20,
 - `app/src/main/java/br/com/pulsobateria/data`: entidades, DAO Room e DataStore.
 - `core/src/main/kotlin`: cálculos independentes de Android.
 - `core/src/test/kotlin`: testes JUnit de conversões, taxas, estimativas e fronteiras de sessão.
-- `app/schemas`: SQL versionado da migração 1→2; o JSON oficial de schema deve ser gerado pelo compilador Room no CI.
-- `.github/workflows/android.yml`: validação e publicação de APK direto.
+- `app/schemas`: SQL versionado das migrações 1→2 e 2→3; o JSON oficial de schema 3 deve ser capturado do compilador Room no CI e versionado após compilação.
+- `.github/workflows/android.yml`: validação, assinatura por Secrets, artefato de fallback e publicação de APK direto com tentativas.
 - `docs/MEASUREMENTS.md`, `docs/VALIDATION.md`, `docs/VERSIONING.md`: critérios, validação e versionamento.
 
 ## Uso e limitações
@@ -63,4 +61,4 @@ Abra o app para iniciar a observação. Sem serviço, a coleta para quando a Act
 
 O Android e o fabricante podem adiar leituras ou encerrar serviços. Não se promete notificação impossível de dispensar. Negar notificações mantém o modo de observação com o app aberto. `specialUse` é declarado com justificativa específica para a função opcional de telemetria; eventual publicação no Google Play depende da revisão das declarações de serviço pela loja.
 
-Medições variam por aparelho. Corrente ausente ou contraditória é indisponível; não há estimativa de capacidade em mAh. O gráfico não inventa pontos em lacunas. Consulte as limitações no próprio aplicativo e o relatório de validação antes de tratar esta Alpha como pronta para produção.
+Medições variam por aparelho. Corrente ausente ou contraditória é indisponível; a estimativa em mA por capacidade útil só existe quando o usuário informa o valor. A calibração confirmada é temporariamente persistida por até 7 dias, sem backup entre dispositivos. O gráfico não inventa pontos em lacunas. Consulte as limitações no próprio aplicativo e o relatório de validação antes de tratar esta Alpha como pronta para produção.

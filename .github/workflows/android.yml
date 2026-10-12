@@ -11,7 +11,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,19 +30,97 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
       - name: Permissão do Wrapper
         run: chmod +x gradlew
-      - name: Testes, lint e APK Debug
-        run: ./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon --stacktrace
-      - name: Publicar somente APK direto
+
+      - name: Preparar assinatura estável (Secrets)
+        shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          present=0
+          for name in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [[ -n "${!name}" ]]; then present=$((present+1)); fi
+          done
+          if [[ "$present" -eq 0 ]]; then
+            echo '::warning::Sem Secrets de assinatura: APK Debug terá certificado temporário e NÃO será atualizável de modo confiável.'
+            echo 'PULSO_SIGNED=false' >> "$GITHUB_ENV"
+          elif [[ "$present" -ne 4 ]]; then
+            echo '::error::Secrets de assinatura incompletos. Configure os quatro campos.'
+            exit 1
+          else
+            store="$RUNNER_TEMP/pulso-signing.p12"
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$store"
+            test -s "$store" || exit 1
+            chmod 600 "$store"
+            keytool -list -keystore "$store" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
+            echo "PULSO_KEYSTORE_FILE=$store" >> "$GITHUB_ENV"
+            echo 'PULSO_SIGNED=true' >> "$GITHUB_ENV"
+          fi
+
+      - name: Testes, lint e APK Debug
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+
+      - name: Preparar APK para download
         shell: bash
         run: |
           set -euo pipefail
-          apk="Pulso-Bateria-v0.1.0-alpha.7-debug.apk"
+          apk="Pulso-Bateria-v0.1.0-alpha.8-debug.apk"
           cp app/build/outputs/apk/debug/app-debug.apk "$apk"
-          tag="apk-alpha.7-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          gh release create "$tag" "$apk" --target "$GITHUB_SHA" --title "Pulso Bateria 0.1.0-alpha.7 • APK Debug" --notes-file RELEASE_NOTES.md --prerelease --latest=false
-          url=$(gh release view "$tag" --json assets --jq '.assets[] | select(.name == "Pulso-Bateria-v0.1.0-alpha.7-debug.apk") | .url')
-          test -n "$url"
-          printf '### APK direto\n\n[Baixar %s](%s)\n' "$apk" "$url" >> "$GITHUB_STEP_SUMMARY"
+          sha256sum "$apk" | tee "$RUNNER_TEMP/apk-sha256.txt"
+          if [[ "$PULSO_SIGNED" == true ]]; then
+            echo 'APK Debug assinado com a chave estável de Secrets.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '⚠️ APK Debug com chave temporária: NÃO desinstale uma versão antiga sem exportar os dados.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # O artefato existe independentemente da saúde momentânea da API de Releases.
+      - name: Guardar APK do build, mesmo se Release falhar
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pulso-Bateria-v0.1.0-alpha.8-debug
+          path: Pulso-Bateria-v0.1.0-alpha.8-debug.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Publicar Release com tentativas
+        shell: bash
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          apk="Pulso-Bateria-v0.1.0-alpha.8-debug.apk"
+          tag="apk-alpha.8-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          for attempt in 1 2 3 4; do
+            if gh release view "$tag" >/dev/null 2>&1; then
+              if gh release upload "$tag" "$apk" --clobber; then break; fi
+            elif gh release create "$tag" "$apk" --target "$GITHUB_SHA" \
+              --title 'Pulso Bateria 0.1.0-alpha.8 • APK Debug' \
+              --notes-file RELEASE_NOTES.md --prerelease --latest=false; then
+              break
+            fi
+            if [[ "$attempt" -eq 4 ]]; then
+              echo '::warning::API do GitHub indisponível após 4 tentativas. Baixe o APK em Artifacts da execução.'
+              echo '⚠️ Release indisponível; APK está em **Artifacts** na execução (30 dias).' >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep $((attempt * 10))
+          done
+          url=$(gh release view "$tag" --json assets --jq ".assets[] | select(.name == \"$apk\") | .url" || true)
+          if [[ -n "$url" ]]; then
+            printf '\n### APK direto\n\n[Baixar %s](%s)\n' "$apk" "$url" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Release criada, mas link não confirmado; APK disponível em Artifacts.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Apagar keystore temporário
+        if: always()
+        run: |
+          if [[ -n "${PULSO_KEYSTORE_FILE:-}" ]]; then rm -f "$PULSO_KEYSTORE_FILE"; fi

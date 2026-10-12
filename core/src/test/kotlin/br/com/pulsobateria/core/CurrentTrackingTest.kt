@@ -106,4 +106,20 @@ class CurrentTrackingTest {
   val r=t.observe(null,null,2_050_000,Mode.CHARGING,120_000,32.4,5000)
   assertEquals(CurrentSource.COUNTER,r.source); assertEquals(1500.0,r.ma!!,0.01)
  }
+ @Test fun confirmedCalibrationCanBeReusedBySameDevice() {
+  val t=CurrentTracker()
+  for(i in 0..6) t.observe(-1500,null,2_000_000+i*25_000,Mode.CHARGING,i*60_000L,null,null)
+  val code=t.calibrationCode()
+  assertTrue(code.contains("1M"))
+  val restored=CurrentTracker()
+  assertTrue(restored.loadCalibration("1000000;$code",1_001_000L))
+  val r=restored.observe(-1500,null,null,Mode.CHARGING,1_000L,null,null)
+  assertEquals(1500.0,r.ma!!,0.01)
+ }
+ @Test fun oldCalibrationAndMalformedValuesAreRejected() {
+  val t=CurrentTracker()
+  assertFalse(t.loadCalibration("broken",1000L))
+  assertFalse(t.loadCalibration("0;1M:??",8L*24*3600*1000))
+  assertEquals("",t.calibrationCode())
+ }
 }

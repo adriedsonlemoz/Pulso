@@ -2,8 +2,8 @@
 
 - Android Kotlin/Compose, offline, sem anúncios/rastreamento/INTERNET. Não inventar medições ou capacidades do aparelho.
 - Antes de editar, ler README, docs/MEASUREMENTS.md e docs/VERSIONING.md.
-- Versão atual 0.1.0-alpha.7 / versionCode 7. Próxima 0.1.0-alpha.8 / 8. Incrementar sequencialmente cada entrega e sincronizar todos os documentos, Gradle, workflow e nome do ZIP.
-- Preservar applicationId. Assinatura Release nunca deve ser incluída no repositório; Debug não exige Secrets.
+- Versão atual 0.1.0-alpha.8 / versionCode 8. Próxima 0.1.0-alpha.9 / 9. Incrementar sequencialmente cada entrega e sincronizar todos os documentos, Gradle, workflow e nome do ZIP.
+- Preservar applicationId. Keystore privada e Secrets nunca entram no ZIP de código ou repositório. Para Debug atualizável, requer Secrets estáveis; sem Secrets a chave temporária deve receber aviso.
 - Manter cálculos no módulo core, testáveis sem Android; validar nulos, sentinelas, sinal, relógio e lacunas.
 - Não iniciar foreground service fora de ação permitida; manter tipo specialUse e sua justificativa, sem simular dataSync/health. Não adicionar wake locks, permissões privilegiadas ou mecanismos de evasão.
 - Histórico só contém períodos observados. Não preencher lacunas. Migrações Room explícitas; manter schemas versionados.

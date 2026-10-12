@@ -1,13 +1,11 @@
-# Pulso Bateria 0.1.0-alpha.7
+# Pulso Bateria 0.1.0-alpha.8
 
-versionCode: 7. Android 8.0+.
+- Corrigida a distribuição quando a API GitHub Releases responde HTTP 500: o APK fica salvo em Artifacts e a Release é tentada novamente.
+- Assinatura estável de Debug/Release por Secrets GitHub Manager (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`). Sem Secrets, Debug temporário sem garantia de atualização.
+- Backup local JSON de sessões, pontos e preferências, com SHA-256, prévia e confirmação para restauração por substituição.
+- Persistência Room v3: migração 2→3 não destrutiva; salva corrente, temperatura e origem quando disponíveis.
+- Calibração confirmada mantida por até 7 dias e controle Recalibrar.
 
-**Corrente elétrica melhorada:** leitura de corrente instantânea e média pelo Android, detecção conservadora de inversão de polaridade e unidade inconsistente por amostras, e cálculo de corrente média a partir da variação real do contador de carga, quando disponível.
+**Importante:** a nova assinatura não é compatível automaticamente com APKs antigos assinados em runners temporários. Não desinstale a versão antiga se ainda há registros sem backup.
 
-**Estimativa opcional:** informe a capacidade útil estimada (mAh) em Configurações para obter uma aproximação a partir da taxa observada (%/h). O app não presume capacidade do aparelho e identifica a origem como estimativa, média ou leitura Android. Corrente positiva indica entrada líquida na bateria e negativa, saída.
-
-**Diagnóstico:** valores brutos CURRENT_NOW, CURRENT_AVERAGE e CHARGE_COUNTER, além das decisões da calibração, em Configurações. Calibração automática recomeça quando o processo é reiniciado.
-
-As sessões, gráficos, Room 2 e privacidade offline são preservados. APK e testes físicos pendentes de validação via workflow GitHub Actions.
-
-Após sucesso do workflow, baixe `Pulso-Bateria-v0.1.0-alpha.7-debug.apk` na pré-release. Não são necessários Secrets para Debug.
+APK: `Pulso-Bateria-v0.1.0-alpha.8-debug.apk`. A execução exige testes no aparelho/emulador para confirmar fluxo de restauração e migrações Room.

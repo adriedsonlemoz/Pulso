@@ -1,0 +1,8 @@
+Pulso Bateria alpha.8
+- 75/75 testes core Kotlin/JVM com executor JUnit compatível: PASS (2 novos para calibração)
+- 14/14 arquivos Kotlin analisados com PSI: sem erros de sintaxe
+- SQLite migração 1->2->3, preservação de resumos/pontos, novas colunas opcionais, FK cascade: PASS
+- YAML workflow parse: PASS
+- tools/validate_source.py: PASS
+- Gradle build Android: NÃO executado - serviços externos indisponíveis (UnknownHost services.gradle.org)
+- APK alpha.8 e testes Room instrumentados em aparelho: NÃO executados

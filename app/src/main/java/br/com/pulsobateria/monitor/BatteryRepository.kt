@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.*
  val error: String? = null
 )
 class BatteryRepository(
- private val context: Context, private val dao: SessionDao, settings: SettingsStore, private val scope: CoroutineScope
+ private val context: Context, private val dao: SessionDao, private val settings: SettingsStore, private val scope: CoroutineScope
 ) {
  private val manager = context.getSystemService(BatteryManager::class.java)
  private val commands = Channel<String>(Channel.UNLIMITED)
@@ -29,6 +29,19 @@ class BatteryRepository(
  val serviceError = MutableStateFlow<String?>(null)
  private val preferences = settings.flow.stateIn(scope, SharingStarted.Eagerly, Settings())
  private var currentTracker = CurrentTracker()
+ private var calibrationLoaded = false
+ private var savedCalibrationCode: String? = null
+ fun resetCalibration() { commands.trySend("resetCalibration") }
+ private var restoring = false
+ private var restoreAck: CompletableDeferred<Unit>? = null
+ /** Impede a escrita de amostras enquanto o banco é substituído pelo backup. */
+ suspend fun freezeForRestore() {
+  val ack = CompletableDeferred<Unit>()
+  restoreAck = ack
+  commands.send("freezeRestore")
+  ack.await()
+ }
+ fun resumeAfterRestore() { commands.trySend("resumeRestore") }
  private var ticker: Job? = null
  private var registered = false
  private var active: Session? = null
@@ -49,6 +62,23 @@ class BatteryRepository(
    for (command in commands) {
     try {
      when {
+      command == "resetCalibration" -> {
+       currentTracker=CurrentTracker(); calibrationLoaded=true; savedCalibrationCode=null
+       settings.calibration(null)
+      }
+      command == "freezeRestore" -> {
+       restoring = true
+       close("Histórico restaurado")
+       points.clear(); currentTracker = CurrentTracker(); calibrationLoaded=false
+       lastElapsed=0L; lastWall=0L; lastMode=Mode.UNKNOWN; paused=false
+       mutable.value = Reading()
+       restoreAck?.complete(Unit); restoreAck=null
+      }
+      command == "resumeRestore" -> {
+       restoring=false; active=null
+       lastStoredTimestamp=null; lastStoredPercent=null
+       if(owners.isNotEmpty()) commands.trySend("read")
+      }
       command.startsWith("+") -> {
        pauseTimer?.cancel(); pauseTimer = null
        owners.add(command.drop(1))
@@ -64,7 +94,7 @@ class BatteryRepository(
        owners.remove(command.drop(1))
        if (owners.isEmpty()) {
         // Evitar médias de corrente atravessando períodos não observados.
-        currentTracker = CurrentTracker()
+        currentTracker = CurrentTracker(); calibrationLoaded=false
         ticker?.cancel(); ticker = null
         if (registered) { context.unregisterReceiver(receiver); registered = false }
         paused = true
@@ -78,7 +108,7 @@ class BatteryRepository(
       command == "finishPause" && owners.isEmpty() && paused -> {
        close("Monitoramento pausado"); paused = false; lastElapsed = 0
       }
-      command == "read" && owners.isNotEmpty() -> sample()
+      command == "read" && owners.isNotEmpty() && !restoring -> sample()
      }
     } catch (e: CancellationException) { throw e }
     catch (_: Exception) { mutable.value = mutable.value.copy(error = "Falha ao registrar a leitura. As próximas amostras serão tentadas automaticamente.") }
@@ -121,6 +151,7 @@ class BatteryRepository(
    points.clear()
   }
   if (level == null || mode == Mode.UNKNOWN) { close("Leitura indisponível"); points.clear() }
+  var shouldStorePoint = false
   if (level != null && mode != Mode.UNKNOWN) {
    if (active == null) {
     val session = Session(mode=mode.name, started=wall, ended=wall, durationMs=0, initial=level, final=level,
@@ -133,16 +164,30 @@ class BatteryRepository(
    active?.let { session ->
     dao.update(session)
     if (BatteryMath.shouldStoreSessionSample(lastStoredTimestamp,lastStoredPercent,wall,level)) {
-     dao.insertSample(SessionSample(sessionId=session.id,timestamp=wall,percent=level))
-     dao.trimSamples(session.id)
-     lastStoredTimestamp = wall; lastStoredPercent = level
+     shouldStorePoint = true
     }
    }
    points.add(Point(now,level))
    points.removeAll { now-it.elapsed > 30*60*1000L }
   }
   val rate = BatteryMath.rate(points,mode)
+  if(!calibrationLoaded) {
+   currentTracker.loadCalibration(preferences.value.calibration,wall)
+   savedCalibrationCode=preferences.value.calibration?.substringAfter(';')
+   calibrationLoaded=true
+  }
   val currentInfo = currentTracker.observe(rawNow,rawAverage,rawCounter,mode,now,rate,preferences.value.capacityMah)
+  val confirmed=currentTracker.calibrationCode()
+  if(confirmed.isNotEmpty() && confirmed!=savedCalibrationCode) {
+   settings.calibration("$wall;$confirmed")
+   savedCalibrationCode=confirmed
+  }
+  if (shouldStorePoint && level != null) active?.let { session ->
+   dao.insertSample(SessionSample(sessionId=session.id,timestamp=wall,percent=level,
+    currentMa=currentInfo.ma,temperatureC=temperature,currentSource=currentInfo.source.name))
+   dao.trimSamples(session.id)
+   lastStoredTimestamp=wall; lastStoredPercent=level
+  }
   val rawSystemRemaining = if (Build.VERSION.SDK_INT >= 28 && mode == Mode.CHARGING) {
    runCatching { manager.computeChargeTimeRemaining() }.getOrNull()
   } else null

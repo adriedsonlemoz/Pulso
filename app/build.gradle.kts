@@ -11,13 +11,31 @@ android {
   applicationId = "br.com.pulsobateria"
   minSdk = 26
   targetSdk = 35
-  versionCode = 7
-  versionName = "0.1.0-alpha.7"
+  testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+  versionCode = 8
+  versionName = "0.1.0-alpha.8"
  }
  buildFeatures { compose = true; buildConfig = true }
  compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
  kotlinOptions { jvmTarget = "17" }
- buildTypes { release { isMinifyEnabled = false } }
+ // A mesma chave opcional em Debug e Release mantém a identidade entre builds do CI.
+ // Sem Secrets, Debug ainda compila com a chave temporária padrão do Android.
+ val stableFile = System.getenv("PULSO_KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
+ signingConfigs {
+  if (stableFile != null) create("stable") {
+   storeFile = file(stableFile)
+   storePassword = System.getenv("KEYSTORE_PASSWORD")
+   keyAlias = System.getenv("KEY_ALIAS")
+   keyPassword = System.getenv("KEY_PASSWORD")
+  }
+ }
+ buildTypes {
+  getByName("debug") { if (stableFile != null) signingConfig = signingConfigs.getByName("stable") }
+  getByName("release") {
+   isMinifyEnabled = false
+   if (stableFile != null) signingConfig = signingConfigs.getByName("stable")
+  }
+ }
 }
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 dependencies {
@@ -39,4 +57,6 @@ dependencies {
  implementation("androidx.datastore:datastore-preferences:1.1.4")
  implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
  testImplementation("junit:junit:4.13.2")
+ androidTestImplementation("androidx.test.ext:junit:1.2.1")
+ androidTestImplementation("androidx.test:runner:1.6.2")
 }
