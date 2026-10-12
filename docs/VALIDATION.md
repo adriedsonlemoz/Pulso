@@ -1,36 +1,26 @@
-# Validação — Pulso Bateria 0.1.0-alpha.1 (1)
+# Validação — Pulso Bateria 0.1.0-alpha.2 (2)
 
-Data: 2026-10-12.
+Data: 2026-10-12. Base: Alpha 1 entregue neste chat.
 
-## Testes efetivamente executados
+## Problema confirmado
 
-- **31 testes JUnit 4.13.2 aprovados**, zero falhas. Código real de `core` compilado para JVM com Kotlin Compiler 2.1.20 (a mesma versão do projeto), Java 17. Uma execução preliminar com Kotlin 2.0.20 também passou. Esta execução JUnit independente não substitui o build Android.
-- Casos: escala de porcentagem; percentuais inválidos; décimos de grau e ausência; µA → mA; sinal de descarga; sentinelas e extremos; sinal contraditório; corrente zero; taxa de carga e descarga; observação curta; percentual constante; direção reversa; recalibração; timestamp repetido; lacunas; previsão de carga e descarga; entradas inválidas; cheia/inativa; transição; suspensão; alteração de relógio civil; regressão monotônica; continuidade; média de sessão; média de temperatura e mínimo de amostras.
-- **AAPT2 35.0.0: compilação dos recursos aprovada**, gerando arquivo compilado de recursos. Não equivale a linkagem Android completa ou geração de APK.
-- **Validação estrutural aprovada** via `python3 tools/validate_source.py`: 14 arquivos obrigatórios, 7 XMLs bem formados, permissões limitadas, referências de versão e Wrapper JAR com CRC e SHA-256 oficial.
-- Distribuição Gradle 8.11.1 baixada e SHA-256 confirmado. Gradle executou e interpretou settings/root build. A resolução direta das dependências Android falhou por acesso de rede do processo Java aos repositórios, antes da compilação do aplicativo.
+Os dois logs do workflow Android • Pulso Bateria (#1 e #2) registram `packages: tools platform-tools`, aceitam as licenças e falham em `sdkmanager tools` com `Warning: Failed to find package 'tools'` e exit code 1. A compilação do aplicativo não começou.
 
-- **Workflow YAML validado**: execução manual, tarefas de testes/lint/build e publicação do APK condicionada ao sucesso.
-- **ZIP final conferido**: CRC de todos os arquivos, estrutura na raiz, inclusão de .github e Wrapper, exclusão de caches, builds e local.properties.
+## Correção
 
-## Pendências
+Em `.github/workflows/android.yml`, definir `with: packages: platform-tools` na ação `android-actions/setup-android@v3`. Manter `sdkmanager 'platforms;android-35' 'build-tools;35.0.0'` na etapa seguinte. Versão sincronizada para 0.1.0-alpha.2 / 2.
 
-- **Build Android completo, KSP/Room, testes via Gradle e Android Lint: PENDENTES. Nenhum APK foi gerado ou validado nesta entrega.** A tentativa com dependências oficiais baixadas localmente avançou até tarefas do módulo core, mas não concluiu o aplicativo antes da interrupção. Na retomada, JDK/SDK e dependências temporárias não estavam mais disponíveis. Os fontes e o resultado JUnit permaneceram preservados. Não confundir a execução JUnit independente com estas etapas.
-- Instalação, execução e aparência em aparelho/emulador não testadas nesta entrega.
-- Precisão dos sensores, Doze, políticas Xiaomi/MIUI/HyperOS, funcionamento prolongado do serviço e consumo real precisam de dispositivo físico.
+## Verificações executadas nesta entrega
 
-## Validação no GitHub Actions
+- YAML analisado: ação Android recebe exatamente platform-tools, sem tools; instalação de SDK 35/Build Tools preservada; tarefas de testes/lint/build preservadas.
+- Script `python3 tools/validate_source.py`: arquivos obrigatórios, XMLs, permissões, versão e Wrapper oficial SHA-256/CRC aprovados.
+- Comparação com o ZIP anterior: nenhum código Kotlin, recurso ou dependência de execução alterado; mudança de build do app limitada à versão.
+- ZIP completo: CRC, estrutura na raiz e inclusão de .github/Wrapper verificados; caches, builds e configuração local excluídos.
 
-O workflow executa `:core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug`, publica o APK apenas com sucesso e preserva relatórios mesmo em falhas. Não usa assinatura Release nem Secrets.
+## Pendências e evidência anterior
 
-## Roteiro manual no aparelho
+Não foi executado um novo GitHub Actions nem compilado APK nesta entrega. Compilação Android completa, KSP, Android Lint e testes no aparelho continuam pendentes. A correção remove o bloqueio identificado, mas não prova que as etapas seguintes passarão.
 
-1. Instalar; conferir nome, ícone, splash, navegação e botão Voltar.
-2. Comparar percentual/temperatura com dados do Android. Conectar/desconectar; conferir carregando, sem carregar e cheia quando disponíveis.
-3. Verificar USB/tomada/sem fio somente com fontes realmente disponíveis no aparelho.
-4. Observar ≥5 min e ≥2 p.p.; conferir taxa e previsão. Recalibração, valores ausentes e sinal contraditório não podem gerar valores inventados.
-5. Ativar notificação no Android 13+ aceitando e recusando permissão; bloquear canal nas configurações do sistema; testar desativar e ação Parar.
-6. Trocar temas, unidade e intervalo; reabrir; testar texto ampliado, tela estreita, rotação e navegação gestual.
-7. Sair sem serviço: sessão encerra na última leitura. Com serviço: acompanhar notificação e retorno ao histórico sem dupla contagem.
-8. Forçar parada/reiniciar: registro anterior termina como interrompido; retomar requer ativação. Intervalos sem observação não entram nas médias.
-9. Verificar suspensão por mais de 3 min, filtros e retenção. Não atribuir a autonomia do aparelho ao app sem medir consumo comparativo.
+Os 31 testes dos cálculos passaram na Alpha 1, com Kotlin 2.1.20 e JUnit 4.13.2. Esse resultado anterior foi preservado em `docs/test-results/core-junit.txt`; não é uma nova execução. O relatório anterior e o roteiro de testes físicos estão em `docs/VALIDATION-alpha.1.md`.
+
+Inicie um novo workflow após enviar o código atualizado. Não basta reexecutar o job do commit antigo.

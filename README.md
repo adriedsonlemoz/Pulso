@@ -1,6 +1,6 @@
 # Pulso Bateria
 
-**0.1.0-alpha.1 • versionCode 1** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.2 • versionCode 2** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0 (API 26) ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Funcionalidades
@@ -17,13 +17,13 @@ Android 8.0 (API 26) ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Estado desta entrega
 
-Código-fonte completo; 31 testes dos cálculos aprovados e recursos compilados com AAPT2. **A compilação Android completa e o Android Lint não foram concluídos neste ambiente; não há APK local validado.** O workflow executará essas etapas. Consulte `docs/VALIDATION.md`.
+Correção do setup Android: pacotes definidos explicitamente como `platform-tools`, evitando a tentativa de instalar `tools` que falhou nos builds #1 e #2. Código-fonte completo; os 31 testes dos cálculos e os recursos AAPT2 foram aprovados na Alpha 1 e não foram reexecutados nesta correção de workflow. **A compilação Android completa e o Android Lint não foram concluídos neste ambiente; não há APK local validado.** O workflow executará essas etapas. Consulte `docs/VALIDATION.md`.
 
 ## Gerar APK pelo GitHub Manager
 
 1. Importe o conteúdo deste ZIP em um repositório: `settings.gradle.kts`, `gradlew`, `app/` e `.github/` precisam ficar na raiz. Inclua arquivos ocultos.
 2. Envie para `main` ou `master`, ou execute manualmente **Actions → Android • Pulso Bateria → Run workflow** na branch importada.
-3. Aguarde testes, lint e compilação. Baixe o artefato **Pulso-Bateria-v0.1.0-alpha.1-debug**.
+3. Aguarde testes, lint e compilação. Baixe o artefato **Pulso-Bateria-v0.1.0-alpha.2-debug**.
 4. Extraia `app-debug.apk` e instale no Android permitindo instalação por essa fonte, quando solicitado.
 
 Nenhum Secret é necessário. O APK Debug é assinado automaticamente com chave de desenvolvimento: **não é uma Release assinada para distribuição**. Runners novos podem gerar chaves Debug diferentes; nesse caso uma atualização sobre o APK anterior pode exigir desinstalação (perdendo os dados locais). Para distribuição e atualizações duráveis, configure uma chave estável em uma versão futura.
