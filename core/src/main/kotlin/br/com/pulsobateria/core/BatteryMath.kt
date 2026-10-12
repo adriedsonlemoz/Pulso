@@ -66,6 +66,18 @@ object BatteryMath {
   }
   return (hours * 3_600_000).toLong().takeIf { it in 0..604_800_000L }
  }
+ // A previsão do fabricante é um palpite, não uma medição. Exigir taxa local
+ // comprovada e rejeitar tempo que implique velocidade fora do limite adotado
+ // pelo estimador (200 pontos percentuais/h) ou muito distante da tendência.
+ // A comparação de 0,5x a 4x admite desaceleração da carga perto de 100%.
+ fun validatedSystemChargeTimeMs(percent: Int?, platformMs: Long?, observedRate: Double?): Long? {
+  val localMs = remainingMs(percent, observedRate, Mode.CHARGING) ?: return null
+  if (percent == null || percent !in 0..99 || platformMs == null || platformMs !in 1..604_800_000L) return null
+  val impliedRate = (100 - percent) * 3_600_000.0 / platformMs
+  if (!impliedRate.isFinite() || impliedRate > 200.0) return null
+  val relativeTime = platformMs.toDouble() / localMs.coerceAtLeast(1L)
+  return platformMs.takeIf { relativeTime in 0.5..4.0 }
+ }
  fun startsNewSession(previous: Mode, next: Mode, lastElapsed: Long, elapsed: Long, lastWall: Long, wall: Long): Boolean =
   previous != next || elapsed <= lastElapsed || elapsed-lastElapsed > 180_000 || abs((wall-lastWall)-(elapsed-lastElapsed)) > 60_000
 }

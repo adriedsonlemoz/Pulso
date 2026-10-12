@@ -174,9 +174,14 @@ private fun MonitorScreen(r: Reading, s: Settings, modifier: Modifier, pageTitle
   item {
    Surface(shape=RoundedCornerShape(20.dp),color=accent.copy(alpha=.10f)) {
     Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=14.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-     Text(if(charging) "PREVISÃO ATÉ 100%" else "AUTONOMIA ESTIMADA",style=MaterialTheme.typography.labelMedium,color=accent,letterSpacing=1.sp)
+     Text(if(charging) "TEMPO ESTIMADO ATÉ 100%" else "AUTONOMIA ESTIMADA",style=MaterialTheme.typography.labelMedium,color=accent,letterSpacing=1.sp)
      Text(if(measuring) durationText(r.remaining) else "Indisponível",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
-     Text(if(r.systemEstimate) "Previsão fornecida pelo Android" else "Baseada na variação recente da bateria",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     Text(when {
+      !measuring -> "Sem previsão para este estado da bateria"
+      r.remaining == null -> "Aguardando 5 min e variação de 2 pontos percentuais"
+      r.systemEstimate -> "Estimativa do Android conferida com a tendência observada"
+      else -> "Estimativa pela variação observada • pode mudar"
+     },style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     }
    }
   }

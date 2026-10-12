@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.5 (5) — 2026-10-12
+
+- Corrige previsão até 100% que aceitava qualquer valor positivo retornado pelo Android, incluindo 2 min com bateria em 58%.
+- `BatteryMath.validatedSystemChargeTimeMs`: aceita previsão do fabricante só com taxa observada válida e após conferir plausibilidade da velocidade implícita e compatibilidade com o histórico recente (0,5–4× do ETA local).
+- Exibe “Calculando…” e os requisitos de amostragem enquanto não há dados suficientes; quando o Android devolve estimativa inconsistente, utiliza a extrapolação dos percentuais realmente observados, se disponível.
+- Exibe a origem da estimativa validada; a notificação usa o mesmo valor filtrado pelo repositório.
+- 8 novos testes Kotlin para valores implausíveis, sem histórico, válidos, discrepantes, perto de 100% e fallback local.
+- Sem mudanças no banco Room, permissões, periodicidade de coleta ou telas de configuração.
+
 ## 0.1.0-alpha.4 (4) — 2026-10-12
 
 - Tela inicial mais compacta: corrente/consumo, temperatura e taxa de carga/descarga na mesma linha em larguras compatíveis; layout vertical quando a tela é estreita ou a fonte é ampliada.

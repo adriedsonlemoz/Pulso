@@ -1,21 +1,18 @@
-# Validação — Pulso Bateria 0.1.0-alpha.4 (4)
+# Validação — Pulso Bateria 0.1.0-alpha.5 (5)
 
-## O que foi executado nesta entrega
+## Verificações executadas
 
-- Código-fonte da Alpha 3 mantido; alterações nos composables de painel e configurações e extração da escala visual do gráfico para o módulo `core`.
-- **43/43 testes do módulo `core` passaram** por compilação Kotlin/JVM 1.9.0 (JVM 17) com um executor local e implementação mínima compatível das asserções JUnit. Incluem os 40 testes preexistentes e três novos testes de escala do gráfico (nível constante, extremos 0/100, níveis inválidos). **Não equivalem à execução do JUnit real pelo Gradle**, que segue pendente. Log: `docs/test-results/alpha.4-local-tests.txt`.
-- Análise PSI de sintaxe Kotlin aprovada em `PulsoScreen.kt`, `BatteryMath.kt` e `BatteryMathTest.kt` (sem erros de parsing). Isto não verifica resolução de APIs Compose ou execução no Android.
-- `python tools/validate_source.py` aprovado: 14 arquivos obrigatórios, 7 XMLs, permissões, versionName/versionCode e SHA-256/CRC do Wrapper Gradle.
-- Tentativa de `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon --stacktrace` **não passou da etapa de download do Wrapper**, por `UnknownHostException: services.gradle.org`. Não existe APK criado ou compilação Android validada localmente.
-- Verificação de integridade do ZIP de distribuição, versões e exclusão de caches/keystores realizada após empacotamento.
+- Origem do problema confirmada na Alpha 4: `BatteryRepository.sample()` aceitava `computeChargeTimeRemaining()` em qualquer valor de 1 a 604.800.000 ms, dando prioridade ao sistema mesmo antes de 5 minutos de observação.
+- Alteração: `BatteryMath.validatedSystemChargeTimeMs()` exige uma taxa local válida, verifica limites de tempo, velocidade implícita e consistência com a extrapolação local; a tela e a notificação usam exclusivamente o ETA validado ou o ETA local.
+- **51/51 testes do módulo `core` aprovados** com `kotlinc` 1.9.0 (JVM) e executor local que fornece asserções compatíveis com JUnit. São os 43 testes da Alpha 4 mais 8 testes de validação de ETA. **Não é execução real do JUnit via Gradle.** Log: `docs/test-results/alpha.5-local-tests.txt`.
+- `python tools/validate_source.py` passou: 14 arquivos obrigatórios, 7 XMLs, permissões, versões e hashes/CRC do Gradle Wrapper.
+- PSI de sintaxe Kotlin nos quatro arquivos alterados passou sem erro. Isso não comprova resolução de APIs Android/Compose.
+- Tentativa de `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon --stacktrace` falhou **antes do build**, por `UnknownHostException: services.gradle.org` ao baixar Gradle 8.11.1. Não foi gerado APK no ambiente. A compilação Android, Android Lint e teste em dispositivo continuam pendentes.
 
-## Verificações pendentes no GitHub Actions e em dispositivo
+## Verificações ainda necessárias em aparelho
 
-1. Rodar Gradle, testes unitários reais, Android Lint e `:app:assembleDebug` no GitHub Actions.
-2. Inspecionar no aparelho a tela inicial com largura usual, fontes normal/ampliada e modo de janela estreita: três cartões lado a lado quando houver espaço, sem truncamento de porcentagem, unidade ou título. Toque em cada cartão deve abrir a explicação correta.
-3. Conferir seletor Sistema/AMOLED/Claro e controles 15/30/60 s e °C/°F (lado a lado ou empilhados), persistência após reabrir o app e legibilidade de estados selecionados.
-4. Conferir curva em 0%, 100%, nível constante (eixo local em vez de 0–100%) e variação de 1–2 p.p.; texto do intervalo observado deve corresponder às amostras reais. Lacunas devem continuar separadas conforme as regras da coleta.
-5. Confirmar histórico Room, monitoramento opcional/serviço, troca de estado de carga e notificação inalterados. Testar tema AMOLED em tela real.
-6. Conferir o link `Pulso-Bateria-v0.1.0-alpha.4-debug.apk` em Releases e a possibilidade de instalação/atualização de builds assinados.
-
-Nenhum schema Room foi alterado, nenhuma permissão adicionada e não foram realizados testes físicos nesta entrega.
+1. Com 58% e carregador conectado, se Android informar 2 min antes de 5 min e 2 p.p. observados, ver “Calculando…” e texto de amostragem. Nunca exibir o valor do Android diretamente nessas condições.
+2. Após variação observada suficiente, verificar ETA local com fonte identificada; valores do Android discrepantes devem ser ignorados, sem oscilações absurdas. Acompanhar aproximação até 100% e desaceleração.
+3. Testar aparelho sem leitura de `BATTERY_PROPERTY_CURRENT_NOW`: o ETA por porcentagem deve funcionar mesmo com corrente indisponível. Conferir notificação e interface iguais.
+4. Regressão: estado descarregando/cheia/pausada, sessões Room sem perda, gráfico, fundo/notificação, três cartões e tela estreita.
+5. Confirmar publicação `Pulso-Bateria-v0.1.0-alpha.5-debug.apk` no workflow e assinatura no Android.

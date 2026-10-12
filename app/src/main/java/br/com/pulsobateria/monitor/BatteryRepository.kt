@@ -126,9 +126,13 @@ class BatteryRepository(
    points.removeAll { now-it.elapsed > 30*60*1000L }
   }
   val rate = BatteryMath.rate(points,mode)
-  val systemRemaining = if (Build.VERSION.SDK_INT >= 28 && mode == Mode.CHARGING) {
-   runCatching { manager.computeChargeTimeRemaining() }.getOrNull()?.takeIf { it in 1..604_800_000L }
+  val rawSystemRemaining = if (Build.VERSION.SDK_INT >= 28 && mode == Mode.CHARGING) {
+   runCatching { manager.computeChargeTimeRemaining() }.getOrNull()
   } else null
+  // Nunca exibir um ETA do Android isolado: o fabricante pode retornar um
+  // valor positivo, porém absurdo (ex.: 58% -> 100% em dois minutos).
+  // Sem histórico local confiável, a previsão permanece em "Calculando".
+  val systemRemaining = BatteryMath.validatedSystemChargeTimeMs(level,rawSystemRemaining,rate)
   mutable.value = Reading(level, mode, when {
    plugged and BatteryManager.BATTERY_PLUGGED_AC != 0 -> "Tomada"
    plugged and BatteryManager.BATTERY_PLUGGED_USB != 0 -> "USB"

@@ -40,6 +40,40 @@ class BatteryMathTest {
  @Test fun chargeEta() { assertEquals(3_600_000L,BatteryMath.remainingMs(70,30.0,Mode.CHARGING)) }
  @Test fun dischargeEta() { assertEquals(7_200_000L,BatteryMath.remainingMs(60,-30.0,Mode.DISCHARGING)) }
  @Test fun invalidEtaRejected() { assertNull(BatteryMath.remainingMs(50,0.0,Mode.CHARGING)); assertNull(BatteryMath.remainingMs(50,Double.NaN,Mode.CHARGING)); assertNull(BatteryMath.remainingMs(50,20.0,Mode.DISCHARGING)); assertNull(BatteryMath.remainingMs(null,20.0,Mode.CHARGING)) }
+ @Test fun unrealisticTwoMinutePlatformEtaIsRejected() {
+  // Evidência observada: 58%, Android informa dois minutos; implicaria 1.260 p.p./h.
+  assertNull(BatteryMath.validatedSystemChargeTimeMs(58,120_000L,40.0))
+ }
+ @Test fun platformEtaRequiresLocalHistory() {
+  assertNull(BatteryMath.validatedSystemChargeTimeMs(58,3_600_000L,null))
+  assertNull(BatteryMath.validatedSystemChargeTimeMs(58,3_600_000L,Double.NaN))
+  assertNull(BatteryMath.validatedSystemChargeTimeMs(58,3_600_000L,-20.0))
+ }
+ @Test fun platformEtaRejectsInvalidValuesAndFullBattery() {
+  assertNull(BatteryMath.validatedSystemChargeTimeMs(58,-1L,42.0))
+  assertNull(BatteryMath.validatedSystemChargeTimeMs(58,0L,42.0))
+  assertNull(BatteryMath.validatedSystemChargeTimeMs(58,null,42.0))
+  assertNull(BatteryMath.validatedSystemChargeTimeMs(58,700_000_000L,42.0))
+  assertNull(BatteryMath.validatedSystemChargeTimeMs(null,3_600_000L,42.0))
+  assertNull(BatteryMath.validatedSystemChargeTimeMs(100,3_600_000L,42.0))
+ }
+ @Test fun reasonablePlatformEtaAccepted() {
+  assertEquals(3_600_000L,BatteryMath.validatedSystemChargeTimeMs(58,3_600_000L,42.0))
+ }
+ @Test fun platformEtaMayAllowChargingSlowdown() {
+  assertEquals(7_200_000L,BatteryMath.validatedSystemChargeTimeMs(58,7_200_000L,42.0))
+ }
+ @Test fun tooFarFromObservedRateRejected() {
+  assertNull(BatteryMath.validatedSystemChargeTimeMs(58,5_000_000L,150.0))
+  assertNull(BatteryMath.validatedSystemChargeTimeMs(58,1_200_000L,30.0))
+ }
+ @Test fun shortEtaCanBeValidNearFull() {
+  assertEquals(120_000L,BatteryMath.validatedSystemChargeTimeMs(99,120_000L,30.0))
+ }
+ @Test fun rejectedSystemEtaKeepsLocalFallback() {
+  val platform = BatteryMath.validatedSystemChargeTimeMs(58,120_000L,42.0)
+  assertEquals(3_600_000L,platform ?: BatteryMath.remainingMs(58,42.0,Mode.CHARGING))
+ }
  @Test fun fullIdleHaveNoRate() { assertNull(BatteryMath.rate(points(),Mode.FULL)); assertNull(BatteryMath.rate(points(),Mode.IDLE)) }
  @Test fun transitionStartsSession() { assertTrue(BatteryMath.startsNewSession(Mode.CHARGING,Mode.DISCHARGING,1000,2000,1000,2000)) }
  @Test fun sleepGapStartsSession() { assertTrue(BatteryMath.startsNewSession(Mode.CHARGING,Mode.CHARGING,1000,300_000,1000,300_000)) }
