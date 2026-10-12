@@ -1,17 +1,17 @@
-# Validação — Pulso Bateria 0.1.0-alpha.9 (9)
+# Validação — Pulso Bateria 0.1.0-alpha.11 (11)
 
-## Escopo desta revisão
+## Escopo
 
-A alpha.9 altera a apresentação da **notificação expandida** do monitoramento contínuo. O objetivo é reduzir a poluição visual, manter no título `porcentagem • temperatura • corrente/gasto` e evitar a duplicação do texto no conteúdo expandido.
+Formatação do horário de carga na notificação. A rotina de previsão e os dados persistidos **não mudaram**. O relógio é arredondado a cinco minutos, com indicação de amanhã/data para previsões após meia-noite.
 
-## Verificações executadas
+## Testes
 
-- Revisão estática do código de `MonitorService.kt` e dos formatadores em `ui/Format.kt`.
-- Sincronização de versão e artefatos: `app/build.gradle.kts`, workflow, README, CHANGELOG, RELEASE_NOTES, `docs/VERSIONING.md`, `tools/validate_source.py` e `AGENTS.md`.
-- A integridade estrutural do projeto foi preservada; não houve alteração no banco Room, no backup/restauração nem na assinatura.
+- **96 testes Kotlin/JVM locais aprovados**, sem falhas (módulo core e formatação de notificação; executor de asserções compatíveis com JUnit). Foram incluídos casos de previsão local, ausência de ETA, bateria em 100%, meia-noite, data futura e arredondamento.
+- `tools/validate_source.py` aprovado: 14 arquivos essenciais, 7 XML, permissões, versão, integridade SHA-256/CRC do Gradle Wrapper.
+- Compilação Android e testes com notificação real no aparelho ainda necessários.
 
-## Pendências
+## Pendências anteriores mantidas
 
-1. Compilar a alpha.9 no Android/GitHub Actions. Neste ambiente a compilação completa continua sujeita à indisponibilidade de `services.gradle.org`.
-2. Validar visualmente em aparelho a notificação recolhida e expandida, incluindo casos com corrente instantânea, média, estimativa e indisponível.
-3. Conferir atualização do APK com a mesma assinatura estável já introduzida na alpha.8.
+- Confirmar APK gerado no GitHub Actions e assinatura estável conforme Secrets existentes.
+- Executar testes instrumentados Room e backup/restauração em Android.
+- Versionar JSON de schema 3 exportado pelo KSP.

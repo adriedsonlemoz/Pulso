@@ -1,6 +1,21 @@
 # Changelog
 
 
+## 0.1.0-alpha.11 (11) — 2026-10-12
+
+- Previsão de carga da notificação agora exibe **horário estimado até 100%** em vez de duração, por exemplo `100% previsto: ~14h45`.
+- O horário é calculado a partir da previsão de duração **já validada** pela rotina existente e do relógio local. Arredondamento de cinco minutos evita falsa precisão; exibe `amanhã` ou data quando o horário passa para o dia seguinte.
+- Se não houver previsão de carga, mantém `Carregando`. A autonomia em descarga continua indicando duração; nenhum cálculo da bateria, da corrente, do banco ou do backup foi alterado.
+- Adicionados testes para relógio, mudança de dia, incerteza, ausência de ETA e preservação do formato de descarga.
+
+## 0.1.0-alpha.10 (10) — 2026-10-12
+
+- Notificação com rótulos `Carregando` (corrente positiva) e `Gastando` (corrente negativa), sem confundir fluxo líquido da bateria com corrente do carregador USB.
+- O título mantém porcentagem e temperatura; adiciona mA somente se houver valor válido. Leituras de média e estimativa são identificadas no texto expandido.
+- A média do contador aparece separadamente apenas quando é válida, independente e perceptivelmente diferente da leitura instantânea. `Média: Indisponível`, `Corrente: Indisponível` e ritmo não calculado deixam de ocupar linhas.
+- Em 100%, substitui previsões residuais de chegada a 100% pelo status `Bateria em 100%`.
+- Lógica textual isolada em `NotificationText.kt` para testes locais; Room v3, assinatura, backup/restauração e monitoramento mantidos.
+
 ## 0.1.0-alpha.9 (9) — 2026-10-12
 
 - Notificação expandida reorganizada para ficar mais limpa e semelhante ao estilo desejado. O título agora mantém **porcentagem, temperatura e corrente/gasto** em uma única linha.

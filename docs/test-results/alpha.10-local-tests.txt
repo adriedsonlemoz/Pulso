@@ -1,0 +1,6 @@
+Pulso Bateria 0.1.0-alpha.10 / versionCode 10
+Testes locais com kotlinc e executor de asserções compatíveis com JUnit.
+Core BatteryMathTest + CurrentTrackingTest + app NotificationTextTest: PASS 89; FAIL 0.
+Validação estrutural tools/validate_source.py: PASS 14 arquivos, 7 XMLs, permissões, versão, Gradle Wrapper SHA/CRC.
+Gradle completo indisponível: services.gradle.org UnknownHostException; APK não compilado localmente.
+Testes Android visuais e instrumentados pendentes.

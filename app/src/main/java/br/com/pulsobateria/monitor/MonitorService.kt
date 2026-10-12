@@ -14,13 +14,6 @@ import androidx.core.content.ContextCompat
 import br.com.pulsobateria.MainActivity
 import br.com.pulsobateria.PulsoApp
 import br.com.pulsobateria.R
-import br.com.pulsobateria.core.CurrentSource
-import br.com.pulsobateria.core.Mode
-import br.com.pulsobateria.ui.currentText
-import br.com.pulsobateria.ui.currentTitleText
-import br.com.pulsobateria.ui.durationText
-import br.com.pulsobateria.ui.rateText
-import br.com.pulsobateria.ui.temperatureText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -67,7 +60,7 @@ class MonitorService: Service() {
    ServiceCompat.startForeground(
     this,
     1,
-    notification(NotificationContent("Pulso Bateria", "Iniciando leitura da bateria…", "Iniciando leitura da bateria…")),
+    notification(BatteryNotificationText("Pulso Bateria", "Iniciando leitura da bateria…", "Iniciando leitura da bateria…")),
     if(Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
    )
   } catch (_: RuntimeException) {
@@ -82,46 +75,19 @@ class MonitorService: Service() {
   app.scope.launch { app.settings.continuous(true) }
 
   scope.launch {
-   combine(app.repository.reading, app.settings.flow) { r, s ->
-    val title = "${r.percent?.let { "$it%" } ?: "—"} • ${temperatureText(r.temperature, s.fahrenheit)} • ${currentTitleText(r.current)}"
-    val summary = when(r.mode) {
-     Mode.CHARGING -> "Até 100%: ${durationText(r.remaining)}"
-     Mode.DISCHARGING -> "Autonomia: ${durationText(r.remaining)}"
-     Mode.FULL -> "Bateria cheia"
-     Mode.IDLE -> "Carga pausada"
-     else -> "Previsão indisponível"
-    }
-
-    val averageMa = when {
-     r.currentInfo.counterMeanMa != null -> r.currentInfo.counterMeanMa
-     r.currentInfo.source == CurrentSource.AVERAGE -> r.current
-     r.currentInfo.source == CurrentSource.COUNTER -> r.current
-     r.currentInfo.source == CurrentSource.CAPACITY -> r.current
-     else -> null
-    }
-
-    val bodyLines = mutableListOf<String>()
-    bodyLines += summary
-    when (r.currentInfo.source) {
-     CurrentSource.NOW -> {
-      val currentLabel = if (r.mode == Mode.DISCHARGING) "Gasto" else "Agora"
-      bodyLines += "$currentLabel: ${currentText(r.current)}"
-      bodyLines += "Média: ${currentText(averageMa)} • ${rateText(r.rate)}"
-     }
-     CurrentSource.AVERAGE, CurrentSource.COUNTER -> {
-      bodyLines += "Média: ${currentText(r.current)}"
-      bodyLines += "Ritmo: ${rateText(r.rate)}"
-     }
-     CurrentSource.CAPACITY -> {
-      bodyLines += "Estimativa: ${currentText(r.current)}"
-      bodyLines += "Ritmo: ${rateText(r.rate)}"
-     }
-     CurrentSource.NONE -> {
-      bodyLines += "Corrente: Indisponível"
-      bodyLines += "Ritmo: ${rateText(r.rate)}"
-     }
-    }
-    NotificationContent(title, summary, bodyLines.joinToString("\n"))
+   combine(app.repository.reading, app.settings.flow) { reading, settings ->
+    BatteryNotificationFormatter.format(
+     percent = reading.percent,
+     temperatureC = reading.temperature,
+     fahrenheit = settings.fahrenheit,
+     mode = reading.mode,
+     remainingMs = reading.remaining,
+     currentMa = reading.current,
+     source = reading.currentInfo.source,
+     counterMeanMa = reading.currentInfo.counterMeanMa,
+     ratePercentPerHour = reading.rate,
+     nowEpochMillis = System.currentTimeMillis()
+    )
    }.collect { content ->
     try {
      getSystemService(NotificationManager::class.java).notify(1, notification(content))
@@ -139,9 +105,7 @@ class MonitorService: Service() {
   stopSelf()
  }
 
- private data class NotificationContent(val title: String, val summary: String, val body: String)
-
- private fun notification(content: NotificationContent): Notification {
+ private fun notification(content: BatteryNotificationText): Notification {
   val open = PendingIntent.getActivity(
    this, 0, Intent(this, MainActivity::class.java),
    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
@@ -154,7 +118,7 @@ class MonitorService: Service() {
    .setSmallIcon(R.drawable.ic_notification)
    .setContentTitle(content.title)
    .setContentText(content.summary)
-   .setStyle(NotificationCompat.BigTextStyle().bigText(content.body))
+   .setStyle(NotificationCompat.BigTextStyle().bigText(content.expandedText))
    .setContentIntent(open)
    .setOnlyAlertOnce(true)
    .setSilent(true)

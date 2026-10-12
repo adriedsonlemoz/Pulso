@@ -1,0 +1,5 @@
+Pulso Bateria 0.1.0-alpha.11 / versionCode 11
+2026-10-12
+Testes Kotlin/JVM do core e da notificação: 96 aprovados, 0 falhas (executor com asserções compatíveis com JUnit, não Gradle).
+Validação tools/validate_source.py: PASS; 14 arquivos, 7 XML, permissões, versionamento e SHA-256/CRC do Wrapper.
+Build Android/Gradle e teste visual da notificação: pendentes.

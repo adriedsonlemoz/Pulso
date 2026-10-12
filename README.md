@@ -1,6 +1,6 @@
 # Pulso Bateria
 
-**0.1.0-alpha.9 • versionCode 9** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.11 • versionCode 11** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0 (API 26) ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Funcionalidades
@@ -13,15 +13,17 @@ Android 8.0 (API 26) ou superior. Identidade: `br.com.pulsobateria`.
 - Sessões persistentes Room; filtros todas/carga/descarga, agrupamento por data, cartões compactos e expansíveis com estado Em andamento/Pausada/Finalizada; até 500 resumos com início, fim, duração, percentuais, médias e gráfico individual quando existem amostras.
 - Gráfico **ao vivo**, com janela de até 30 minutos. Para sessões da Alpha 7 em diante, são salvos pontos reais por alteração de nível ou após 60 s com nível estável, até 480 pontos por sessão (primeiro mais 479 recentes). O gráfico individual usa o instante real da leitura e não conecta lacunas superiores a 3 minutos. O banco migra de Room 1 para 2 preservando os resumos antigos, sem fabricar pontos retroativos.
 - Temas Sistema, Escuro AMOLED (#000000) e Claro, selecionáveis horizontalmente. Interface em português, ícone e splash próprios.
-- Notificação opcional por foreground service, com ação Parar e tratamento de permissão Android 13+.
+- Notificação opcional por foreground service, com ação Parar, horário local previsto até 100% em carregamento e porcentagem/temperatura/corrente no título e corpo compacto com corrente instantânea, média ou estimada identificada e somente as métricas disponíveis; tratamento de permissão Android 13+.
 - DataStore: tema, intervalo 15/30/60 s (padrão 30), unidade °C/°F, capacidade útil opcional e preferência de monitoramento.
 - Sem INTERNET, anúncios, analytics, conta, root ou coleta externa. Backup automático do Android desativado; exportação e restauração manual JSON pelo seletor de arquivos, com checksum SHA-256.
 
 ## Estado desta entrega
 
-A Alpha 9 foi preparada a partir da Alpha 8 para melhorar a **notificação expandida** do monitoramento contínuo. O objetivo foi deixá-la visualmente mais limpa e próxima do padrão desejado, mantendo no título **porcentagem, temperatura e corrente/gasto** e removendo a repetição desnecessária da mesma linha no corpo expandido.
+A Alpha 11 foi preparada a partir da Alpha 10 para trocar a duração até 100% por **horário estimado** na notificação. Exibe `100% previsto: ~14h45`, com horário local, arredondamento de cinco minutos e indicação de dia seguinte. A previsão de duração subjacente e seus filtros permanecem os mesmos.
 
-**Mudanças:** reorganização do texto da notificação em título + resumo + corpo, rótulos mais curtos (Agora, Gasto, Média, Estimativa e Ritmo) e formatação de corrente com separador de milhar. Não houve mudança em banco Room, backup/restauração, assinatura nem persistência de dados.
+Na versão anterior, a Alpha 10 refinou a **notificação expandida**. O título contém porcentagem, temperatura e corrente líquida somente quando há leitura válida. Em caso de indisponibilidade, não exibe `— mA` nem inventa consumo.
+
+**Mudanças:** rótulo `Carregando` na entrada líquida de energia e `Gastando` na saída; marcações `(média)` e `(estimativa)` conforme a fonte; média separada só quando existe uma segunda medição independente do contador suficientemente distinta da instantânea; linhas de indisponibilidade e de ritmo não calculado são omitidas. Em 100%, a previsão `Até 100%: < 1 min` é substituída por `Bateria em 100%`. O banco Room, backup/restauração, assinatura e persistência não foram alterados.
 
 ### Gerar APK pelo GitHub Manager
 
