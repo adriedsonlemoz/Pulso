@@ -1,0 +1,4 @@
+Pulso Bateria 0.1.0-alpha.7 — testes locais JVM (Kotlin compilado com kotlinc; executor com asserções compatíveis JUnit)
+RESULT: 73 passed, 0 failed
+PSI: 12 fontes .kt sem erros sintáticos
+Android Gradle: INDISPONÍVEL (UnknownHostException: services.gradle.org)

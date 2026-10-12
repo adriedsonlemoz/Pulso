@@ -1,11 +1,13 @@
-# Pulso Bateria 0.1.0-alpha.6
+# Pulso Bateria 0.1.0-alpha.7
 
-versionCode: 6. Android 8.0+.
+versionCode: 7. Android 8.0+.
 
-**Sessões redesenhadas:** cartões compactos e expansíveis, filtros Todas/Carga/Descarga, agrupamento por data, identificação de sessão Em andamento/Pausada/Finalizada e detalhes técnicos sem poluir a lista.
+**Corrente elétrica melhorada:** leitura de corrente instantânea e média pelo Android, detecção conservadora de inversão de polaridade e unidade inconsistente por amostras, e cálculo de corrente média a partir da variação real do contador de carga, quando disponível.
 
-**Gráficos por sessão nova:** os pontos de percentual passam a ser preservados no banco local quando a leitura muda ou a cada minuto, com máximo de 480 pontos por sessão. Sessões antigas mantêm os resumos, mas não ganham gráficos artificiais. As curvas não unem intervalos longos sem observação.
+**Estimativa opcional:** informe a capacidade útil estimada (mAh) em Configurações para obter uma aproximação a partir da taxa observada (%/h). O app não presume capacidade do aparelho e identifica a origem como estimativa, média ou leitura Android. Corrente positiva indica entrada líquida na bateria e negativa, saída.
 
-**Migração de dados:** Room passa de versão 1 para 2 com migração explícita que mantém as sessões existentes. O app continua offline e sem permissões adicionais. Mantidas as proteções contra estimativas absurdas da Alpha 5.
+**Diagnóstico:** valores brutos CURRENT_NOW, CURRENT_AVERAGE e CHARGE_COUNTER, além das decisões da calibração, em Configurações. Calibração automática recomeça quando o processo é reiniciado.
 
-Quando o workflow for aprovado, baixe `Pulso-Bateria-v0.1.0-alpha.6-debug.apk` na Release ou pelo link no resumo. Apenas o APK Debug é publicado. A compilação Android e o teste físico devem ser confirmados no GitHub Actions e no dispositivo; consulte `docs/VALIDATION.md`.
+As sessões, gráficos, Room 2 e privacidade offline são preservados. APK e testes físicos pendentes de validação via workflow GitHub Actions.
+
+Após sucesso do workflow, baixe `Pulso-Bateria-v0.1.0-alpha.7-debug.apk` na pré-release. Não são necessários Secrets para Debug.

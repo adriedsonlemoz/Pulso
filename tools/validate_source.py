@@ -22,8 +22,8 @@ permissions={x.attrib[ns+'name'] for x in manifest.findall('uses-permission')}
 assert permissions == {'android.permission.POST_NOTIFICATIONS','android.permission.FOREGROUND_SERVICE','android.permission.FOREGROUND_SERVICE_SPECIAL_USE'}
 gradle=(root/'app/build.gradle.kts').read_text()
 version=re.search(r'versionName = "([^"]+)"',gradle).group(1)
-assert version == '0.1.0-alpha.6'
-assert re.search(r'versionCode = 6\b',gradle)
+assert version == '0.1.0-alpha.7'
+assert re.search(r'versionCode = 7\b',gradle)
 for file in ['README.md','CHANGELOG.md','RELEASE_NOTES.md','docs/VERSIONING.md','.github/workflows/android.yml']:
  assert version in (root/file).read_text(), f'Version mismatch: {file}'
 jar=root/'gradle/wrapper/gradle-wrapper.jar'

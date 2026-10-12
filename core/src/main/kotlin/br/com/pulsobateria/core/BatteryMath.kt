@@ -49,6 +49,14 @@ object BatteryMath {
    else -> value
   }
  }
+ // Esta é uma corrente MÉDIA aproximada de sessão, não uma leitura do carregador.
+ // Não estimar mA sem capacidade informada pelo usuário e taxa percentual válida.
+ fun estimatedCurrentMa(ratePercentHour: Double?, capacityMah: Int?, mode: Mode): Double? {
+  if (ratePercentHour == null || !ratePercentHour.isFinite() || capacityMah == null || capacityMah !in 500..30_000) return null
+  if (mode == Mode.CHARGING && ratePercentHour <= 0 || mode == Mode.DISCHARGING && ratePercentHour >= 0 ||
+   mode != Mode.CHARGING && mode != Mode.DISCHARGING) return null
+  return (ratePercentHour * capacityMah/100.0).takeIf { kotlin.math.abs(it) <= 30_000.0 }
+ }
  // A escala visual segue a variação observada, sem alterar os valores da bateria.
  fun chartRange(points: List<Point>): IntRange? {
   if (points.isEmpty() || points.any { it.percent !in 0..100 }) return null

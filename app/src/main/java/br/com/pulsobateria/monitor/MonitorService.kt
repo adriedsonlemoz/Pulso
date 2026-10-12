@@ -59,7 +59,12 @@ class MonitorService: Service() {
      Mode.IDLE -> "Carga pausada"
      else -> "Previsão indisponível"
     }
-    "$quick\n$eta\n${currentText(r.current)} • ${rateText(r.rate)}"
+    val origin = when(r.currentInfo.source) {
+     br.com.pulsobateria.core.CurrentSource.CAPACITY -> " (estimada)"
+     br.com.pulsobateria.core.CurrentSource.COUNTER,br.com.pulsobateria.core.CurrentSource.AVERAGE -> " (média)"
+     else -> ""
+    }
+    "$quick\n$eta\n${currentText(r.current)}$origin • ${rateText(r.rate)}"
 
    }.collect { text ->
     try { getSystemService(NotificationManager::class.java).notify(1,notification(text)) }

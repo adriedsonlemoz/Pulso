@@ -1,29 +1,31 @@
 # Pulso Bateria
 
-**0.1.0-alpha.6 • versionCode 6** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.7 • versionCode 7** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0 (API 26) ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Funcionalidades
 
-- Porcentagem e estado via ACTION_BATTERY_CHANGED; temperatura da bateria, corrente instantânea quando suportada e fonte USB/tomada/sem fio.
+- Porcentagem e estado via ACTION_BATTERY_CHANGED; temperatura da bateria, fonte USB/tomada/sem fio e corrente líquida em mA com indicação de origem (instantânea, média ou estimativa).
+- `CURRENT_NOW` e `CURRENT_AVERAGE` com calibração automática conservadora de sinal e unidade; `CHARGE_COUNTER` como fonte de média alternativa após observação suficiente. Zero/sentinelas e leituras ambíguas são sinalizados, não apresentados como medição válida.
+- Capacidade útil opcional em Configurações (500 a 30.000 mAh), para estimar mA a partir de %/h quando sensores falham. Diagnóstico de corrente exibe dados brutos locais e decisões do algoritmo. Não requer permissões ou Internet extras.
 - Estados carregando, descarregando, cheia, conectado sem carregar e desconhecido.
 - Taxa em %/h (pontos percentuais por hora) e estimativas com critérios mínimos. Previsão do Android só é aceita na carga após validação com taxa local observada e limites de coerência; valores suspeitos são descartados.
 - Sessões persistentes Room; filtros todas/carga/descarga, agrupamento por data, cartões compactos e expansíveis com estado Em andamento/Pausada/Finalizada; até 500 resumos com início, fim, duração, percentuais, médias e gráfico individual quando existem amostras.
-- Gráfico **ao vivo**, com janela de até 30 minutos. Para sessões da Alpha 6 em diante, são salvos pontos reais por alteração de nível ou após 60 s com nível estável, até 480 pontos por sessão (primeiro mais 479 recentes). O gráfico individual usa o instante real da leitura e não conecta lacunas superiores a 3 minutos. O banco migra de Room 1 para 2 preservando os resumos antigos, sem fabricar pontos retroativos.
+- Gráfico **ao vivo**, com janela de até 30 minutos. Para sessões da Alpha 7 em diante, são salvos pontos reais por alteração de nível ou após 60 s com nível estável, até 480 pontos por sessão (primeiro mais 479 recentes). O gráfico individual usa o instante real da leitura e não conecta lacunas superiores a 3 minutos. O banco migra de Room 1 para 2 preservando os resumos antigos, sem fabricar pontos retroativos.
 - Temas Sistema, Escuro AMOLED (#000000) e Claro, selecionáveis horizontalmente. Interface em português, ícone e splash próprios.
 - Notificação opcional por foreground service, com ação Parar e tratamento de permissão Android 13+.
-- DataStore: tema, intervalo 15/30/60 s (padrão 30), unidade °C/°F e preferência de monitoramento.
+- DataStore: tema, intervalo 15/30/60 s (padrão 30), unidade °C/°F, capacidade útil opcional e preferência de monitoramento.
 - Sem INTERNET, anúncios, analytics, conta, root ou coleta externa. Backup do app desativado.
 
 ## Estado desta entrega
 
-A Alpha 6 reorganiza a tela de Sessões para o histórico compacto: filtros horizontais, agrupamento por dia, sessão ativa/pausada/finalizada, detalhes expansíveis e gráfico de leituras por sessão nova. O Room usa migração explícita v1→v2, sem remover os resumos existentes. Mantém o filtro de previsão suspeita da Alpha 5 e os layouts compactos da Alpha 4. **O APK Android, Compose e Lint ainda precisam de validação no GitHub Actions e em aparelho.** Consulte `docs/VALIDATION.md` para os testes realmente executados.
+A Alpha 7 adiciona leituras complementares de corrente, calibração automática condicionada a várias amostras, contador de carga como média independente e estimativa opcional baseada em capacidade informada. O diagnóstico expõe os dados originais; valores sem fundamento permanecem indisponíveis. O histórico e gráficos da Alpha 6, a migração Room 1→2 e as correções anteriores foram preservados. **O APK Android, Compose e Lint ainda precisam de validação no GitHub Actions e em aparelho.** Consulte `docs/VALIDATION.md` para os testes realmente executados.
 
 ## Gerar APK pelo GitHub Manager
 
 1. Importe o ZIP completo na raiz do repositório, incluindo `.github` e o Wrapper oficial.
 2. Envie para main/master ou execute manualmente Android • Pulso Bateria.
-3. Após sucesso, abra o link **APK direto** no resumo da execução ou **Releases** no repositório e baixe `Pulso-Bateria-v0.1.0-alpha.6-debug.apk`.
+3. Após sucesso, abra o link **APK direto** no resumo da execução ou **Releases** no repositório e baixe `Pulso-Bateria-v0.1.0-alpha.7-debug.apk`.
 
 O workflow publica SOMENTE o APK como asset de uma pré-release por execução. Não usa upload-artifact, não compacta o APK e não publica relatórios. O GitHub pode mostrar seus próprios links automáticos de código-fonte nas Releases; esses links não são arquivos produzidos pelo workflow. Logs e relatórios locais permanecem disponíveis apenas nas etapas/build, sem upload adicional.
 
@@ -47,6 +49,7 @@ Dependências fixadas: AGP 8.9.2, Gradle 8.11.1, Kotlin/Compose Compiler 2.1.20,
 
 - `app/src/main/java/br/com/pulsobateria/ui`: Compose, ViewModel e formatação.
 - `app/src/main/java/br/com/pulsobateria/monitor`: coletor, coordenação de observadores, notificações e serviço.
+- `core/src/main/kotlin/br/com/pulsobateria/core/CurrentTracking.kt`: calibração conservadora e escolha da fonte de corrente, com testes JVM.
 - `app/src/main/java/br/com/pulsobateria/data`: entidades, DAO Room e DataStore.
 - `core/src/main/kotlin`: cálculos independentes de Android.
 - `core/src/test/kotlin`: testes JUnit de conversões, taxas, estimativas e fronteiras de sessão.

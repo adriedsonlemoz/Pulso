@@ -20,4 +20,5 @@ class PulsoViewModel(application: Application): AndroidViewModel(application) {
  fun theme(value: String) { viewModelScope.launch { app.settings.theme(value) } }
  fun interval(value: Int) { viewModelScope.launch { app.settings.interval(value) } }
  fun fahrenheit(value: Boolean) { viewModelScope.launch { app.settings.fahrenheit(value) } }
+ fun capacityMah(value: Int?) { viewModelScope.launch { app.settings.capacityMah(value) } }
 }

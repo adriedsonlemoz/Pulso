@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-alpha.7 (7) — 2026-10-12
+
+- Corrente mais útil: consulta `BATTERY_PROPERTY_CURRENT_NOW` e `CURRENT_AVERAGE` (µA declarados), usa fallback por diferença temporal no `CHARGE_COUNTER` (µAh) e, opcionalmente, estimativa por %/h e capacidade útil fornecida pelo usuário.
+- Calibração automática e separada dos dois sensores: inversão de polaridade só após quatro amostras consistentes em pelo menos 60 s; escala mA incorreta do fabricante só é aceita após comparação com contador independente em pelo menos três amostras e 60 s. A calibração fica em memória durante a execução.
+- Leitura zero, unidades ambíguas, sensores inválidos, lacunas, direções contraditórias e dados ausentes não geram corrente falsa; sinal positivo sempre representa entrada líquida na bateria e negativo, saída.
+- Cartão informa mA instantâneos, médios ou estimados; notificações identificam a natureza da média/estimativa. Configurações incluem capacidade opcional e diagnóstico expansível dos valores brutos e da origem.
+- Banco Room, sessões e permissões mantidos. Testes locais adicionais para calibração, prioridades de fonte e rejeição de estimativas não fundamentadas.
+
 ## 0.1.0-alpha.6 (6) — 2026-10-12
 
 - Histórico reorganizado: cabeçalho compacto com ajuda, filtros horizontais, sessões agrupadas por data e cartões responsivos expansíveis.

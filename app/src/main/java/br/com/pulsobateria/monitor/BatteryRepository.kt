@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.*
 
  data class Reading(
  val percent: Int? = null, val mode: Mode = Mode.UNKNOWN, val source: String = "Aguardando Android",
- val temperature: Double? = null, val current: Double? = null, val currentConflict: Boolean = false,
+ val temperature: Double? = null, val current: Double? = null, val currentInfo: CurrentResult = CurrentResult(),
  val rate: Double? = null, val remaining: Long? = null, val systemEstimate: Boolean = false,
  val duration: Long = 0, val points: List<Point> = emptyList(), val updated: Long = 0,
  val error: String? = null
@@ -28,6 +28,7 @@ class BatteryRepository(
  val serviceActive = MutableStateFlow(false)
  val serviceError = MutableStateFlow<String?>(null)
  private val preferences = settings.flow.stateIn(scope, SharingStarted.Eagerly, Settings())
+ private var currentTracker = CurrentTracker()
  private var ticker: Job? = null
  private var registered = false
  private var active: Session? = null
@@ -62,6 +63,8 @@ class BatteryRepository(
       command.startsWith("-") -> {
        owners.remove(command.drop(1))
        if (owners.isEmpty()) {
+        // Evitar médias de corrente atravessando períodos não observados.
+        currentTracker = CurrentTracker()
         ticker?.cancel(); ticker = null
         if (registered) { context.unregisterReceiver(receiver); registered = false }
         paused = true
@@ -106,9 +109,10 @@ class BatteryRepository(
   if (!paused && mode == lastMode && lastElapsed > 0 && now - lastElapsed in 0..999) return
   val level = BatteryMath.percent(intent.getIntExtra(BatteryManager.EXTRA_LEVEL,-1), intent.getIntExtra(BatteryManager.EXTRA_SCALE,-1))
   val temperature = BatteryMath.temperature(if (intent.hasExtra(BatteryManager.EXTRA_TEMPERATURE)) intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE,0) else null)
-  val raw = runCatching { manager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW) }.getOrDefault(Int.MIN_VALUE)
-  val current = BatteryMath.currentMa(raw, mode)
-  val conflict = raw != Int.MIN_VALUE && raw != Int.MAX_VALUE && ((mode == Mode.CHARGING && raw < 0) || (mode == Mode.DISCHARGING && raw > 0))
+  // Retornar MIN_VALUE nas propriedades não suportadas. Não mascarar ausência com zero.
+  val rawNow = runCatching { manager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW) }.getOrDefault(Int.MIN_VALUE)
+  val rawAverage = runCatching { manager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE) }.getOrDefault(Int.MIN_VALUE)
+  val rawCounter = runCatching { manager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER) }.getOrDefault(Int.MIN_VALUE)
   if (paused && active != null && !BatteryMath.canResumePause(lastMode,mode,active!!.final,level ?: -1,lastElapsed,now,lastWall,wall)) {
    close("Intervalo sem observação")
   }
@@ -138,6 +142,7 @@ class BatteryRepository(
    points.removeAll { now-it.elapsed > 30*60*1000L }
   }
   val rate = BatteryMath.rate(points,mode)
+  val currentInfo = currentTracker.observe(rawNow,rawAverage,rawCounter,mode,now,rate,preferences.value.capacityMah)
   val rawSystemRemaining = if (Build.VERSION.SDK_INT >= 28 && mode == Mode.CHARGING) {
    runCatching { manager.computeChargeTimeRemaining() }.getOrNull()
   } else null
@@ -145,14 +150,15 @@ class BatteryRepository(
   // valor positivo, porém absurdo (ex.: 58% -> 100% em dois minutos).
   // Sem histórico local confiável, a previsão permanece em "Calculando".
   val systemRemaining = BatteryMath.validatedSystemChargeTimeMs(level,rawSystemRemaining,rate)
-  mutable.value = Reading(level, mode, when {
+  mutable.value = Reading(percent=level, mode=mode, source=when {
    plugged and BatteryManager.BATTERY_PLUGGED_AC != 0 -> "Tomada"
    plugged and BatteryManager.BATTERY_PLUGGED_USB != 0 -> "USB"
    plugged and BatteryManager.BATTERY_PLUGGED_WIRELESS != 0 -> "Sem fio"
    plugged != 0 -> "Fonte externa"
    else -> "Na bateria"
-  },temperature,current,conflict,rate,systemRemaining ?: BatteryMath.remainingMs(level,rate,mode),systemRemaining != null,
-   active?.durationMs ?: 0,points.toList(),wall)
+  },temperature=temperature,current=currentInfo.ma,currentInfo=currentInfo,rate=rate,
+   remaining=systemRemaining ?: BatteryMath.remainingMs(level,rate,mode),systemEstimate=systemRemaining != null,
+   duration=active?.durationMs ?: 0,points=points.toList(),updated=wall)
   paused = false
   lastElapsed = now; lastWall = wall; lastMode = mode
  }

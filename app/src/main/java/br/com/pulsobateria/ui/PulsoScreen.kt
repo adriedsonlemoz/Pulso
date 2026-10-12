@@ -32,6 +32,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.LocalView
 import android.app.Activity
 import androidx.core.view.WindowCompat
@@ -94,11 +96,11 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
      else -> MonitorScreen(reading,settings,Modifier.padding(padding),"Visão da bateria",onLimitations={limitations=true})
     }
     1 -> History(sessions,settings,vm,Modifier.padding(padding))
-    else -> SettingsPage(settings,active,error,vm,onMonitor,{limitations=true},Modifier.padding(padding))
+    else -> SettingsPage(settings,reading,active,error,vm,onMonitor,{limitations=true},Modifier.padding(padding))
    }
   }
   if(limitations) AlertDialog(onDismissRequest={limitations=false},confirmButton={TextButton(onClick={limitations=false}){Text("Entendi")}},title={Text("Sobre as medições")},text={
-   Text("Os dados vêm do Android e dependem do sensor e do fabricante. Corrente positiva indica entrada na bateria; negativa indica saída. Leituras com sinal contraditório ficam indisponíveis. Estar conectado não garante carga.\n\nTaxa e autonomia exigem pelo menos 5 minutos e 2 pontos percentuais de variação consistente. São estimativas, não garantias. A previsão do sistema só é aceita durante a carga quando compatível com a tendência medida.\n\nSem monitoramento contínuo, só registramos com o app visível. Pausas de até 90 segundos podem retomar a mesma sessão se estado e porcentagem permanecerem iguais; o tempo parado não entra na duração. Lacunas de coleta acima de 3 minutos criam outra sessão. O Android pode suspender o serviço. Não há coleta durante desligamento nem recuperação de intervalos perdidos. Temperatura é da bateria, não da CPU. Corrente não é potência nem capacidade em mAh.")
+   Text("Os dados vêm do Android e dependem do sensor e do fabricante. Corrente positiva indica entrada líquida na bateria; negativa indica saída. O app tenta calibrar inversões de sinal com várias amostras; unidades ambíguas exigem comparação com o contador de carga. Estar conectado não garante carga.\n\nTaxa e autonomia exigem pelo menos 5 minutos e 2 pontos percentuais de variação consistente. São estimativas, não garantias. A previsão do sistema só é aceita durante a carga quando compatível com a tendência medida.\n\nSem monitoramento contínuo, só registramos com o app visível. Pausas de até 90 segundos podem retomar a mesma sessão se estado e porcentagem permanecerem iguais; o tempo parado não entra na duração. Lacunas de coleta acima de 3 minutos criam outra sessão. O Android pode suspender o serviço. Não há coleta durante desligamento nem recuperação de intervalos perdidos. Temperatura é da bateria, não da CPU. Corrente não é potência nem capacidade em mAh.")
   })
  }
 }
@@ -124,11 +126,16 @@ private fun MonitorScreen(r: Reading, s: Settings, modifier: Modifier, pageTitle
  var metricDetails by remember { mutableStateOf<Pair<String,String>?>(null) }
  val currentLabel = if(charging) "Corrente" else "Consumo"
  val currentValue = r.current?.let { "${if(it>0) "+" else ""}${it.roundToInt()}" } ?: "—"
- val currentDetails = when {
-  r.currentConflict -> "Sinal inconsistente: o Android informou corrente contrária ao estado de carga ou descarga. A leitura não é usada como consumo confiável."
-  r.current == null -> "Corrente instantânea indisponível neste aparelho ou nesta leitura. Não é uma estimativa de consumo médio ou capacidade."
-  else -> "${currentText(r.current)}. Corrente instantânea medida na bateria pelo Android. Sinal positivo indica entrada; negativo indica saída."
+ val currentUnit = when(r.currentInfo.source) {
+  CurrentSource.CAPACITY -> "mA • estim."
+  CurrentSource.COUNTER, CurrentSource.AVERAGE -> "mA • média"
+  else -> "mA"
  }
+ val currentDetails = "${r.currentInfo.source.label}. ${r.currentInfo.note} " +
+  "Bruto CURRENT_NOW: ${r.currentInfo.rawNow?.toString() ?: "indisponível"}; " +
+  "CURRENT_AVERAGE: ${r.currentInfo.rawAverage?.toString() ?: "indisponível"} " +
+  "(unidade declarada µA); CHARGE_COUNTER: ${r.currentInfo.rawCounter?.toString() ?: "indisponível"} µAh. " +
+  "O resultado representa a corrente líquida na bateria, não a corrente do carregador."
  val temperatureLabel = "Temperatura"
  val temperatureValue = r.temperature?.let {
   String.format(Locale.forLanguageTag("pt-BR"),"%.1f",if(s.fahrenheit) it*9/5+32 else it)
@@ -191,13 +198,13 @@ private fun MonitorScreen(r: Reading, s: Settings, modifier: Modifier, pageTitle
     val useThreeColumns = maxWidth >= 312.dp && LocalDensity.current.fontScale <= 1.2f
     if(useThreeColumns) {
      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-      MetricTile(currentLabel,currentValue,"mA",Modifier.weight(1f)) { metricDetails=currentLabel to currentDetails }
+      MetricTile(currentLabel,currentValue,currentUnit,Modifier.weight(1f)) { metricDetails=currentLabel to currentDetails }
       MetricTile(temperatureLabel,temperatureValue,if(s.fahrenheit) "°F" else "°C",Modifier.weight(1f)) { metricDetails=temperatureLabel to temperatureDetails }
       MetricTile(rateLabel,rateValue,"%/h",Modifier.weight(1f)) { metricDetails=rateLabel to rateDetails }
      }
     } else {
      Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
-      MetricTile(currentLabel,if(r.current==null) "—" else currentText(r.current),"Corrente da bateria",Modifier.fillMaxWidth()) { metricDetails=currentLabel to currentDetails }
+      MetricTile(currentLabel,if(r.current==null) "—" else currentText(r.current),r.currentInfo.source.label,Modifier.fillMaxWidth()) { metricDetails=currentLabel to currentDetails }
       MetricTile(temperatureLabel,temperatureText(r.temperature,s.fahrenheit),"Sensor da bateria",Modifier.fillMaxWidth()) { metricDetails=temperatureLabel to temperatureDetails }
       MetricTile(rateLabel,if(measuring) rateText(r.rate) else "Indisponível","Pontos percentuais por hora",Modifier.fillMaxWidth()) { metricDetails=rateLabel to rateDetails }
      }
@@ -444,7 +451,7 @@ private fun SessionHistoryChart(samples: List<SessionSample>,accent: Color) {
 }
 
 @Composable
-private fun SettingsPage(s: Settings,active: Boolean,error: String?,vm: PulsoViewModel,onMonitor: (Boolean)->Unit,onLimitations: ()->Unit,modifier: Modifier) {
+private fun SettingsPage(s: Settings,r: Reading,active: Boolean,error: String?,vm: PulsoViewModel,onMonitor: (Boolean)->Unit,onLimitations: ()->Unit,modifier: Modifier) {
  LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
   item { SettingsCard("Aparência") {
    val themes=listOf("system" to "Sistema","dark" to "AMOLED","light" to "Claro")
@@ -481,6 +488,37 @@ private fun SettingsPage(s: Settings,active: Boolean,error: String?,vm: PulsoVie
     }
    }
    Text("30 s é o padrão. Eventos podem antecipar a leitura; o Android pode adiar atualizações durante a suspensão.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  } }
+  item { SettingsCard("Estimativa de corrente (opcional)") {
+   Text("Informe a capacidade ÚTIL aproximada da bateria, somente se souber. Sem esse valor, não estimamos mA a partir de %/h. A corrente estimada será indicada como tal.",style=MaterialTheme.typography.bodySmall)
+   var capacityInput by rememberSaveable(s.capacityMah) { mutableStateOf(s.capacityMah?.toString() ?: "") }
+   val capacityValue = capacityInput.toIntOrNull()
+   val valid = capacityValue != null && capacityValue in 500..30_000
+   OutlinedTextField(value=capacityInput,onValueChange={ value ->
+    if(value.length<=6 && value.all { it.isDigit() }) capacityInput=value
+   },label={Text("Capacidade útil (mAh)")},placeholder={Text("Ex.: 5000")},
+    keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),singleLine=true,
+    isError=capacityInput.isNotEmpty() && !valid,modifier=Modifier.fillMaxWidth())
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+    Button(onClick={vm.capacityMah(capacityValue)},enabled=valid && capacityValue!=s.capacityMah) { Text("Salvar") }
+    TextButton(onClick={vm.capacityMah(null)},enabled=s.capacityMah!=null) { Text("Remover") }
+   }
+   Text("Valor salvo: ${s.capacityMah?.let { "$it mAh" } ?: "não informado"}. Estimativas ignoram degradação e não equivalem a uma leitura de corrente.",style=MaterialTheme.typography.bodySmall)
+  } }
+  item { SettingsCard("Diagnóstico de corrente") {
+   var expanded by rememberSaveable { mutableStateOf(false) }
+   Text("Origem: ${r.currentInfo.source.label}",style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.SemiBold)
+   Text(r.currentInfo.note,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+   TextButton(onClick={expanded=!expanded}) { Text(if(expanded) "Ocultar dados brutos" else "Mostrar dados brutos") }
+   if(expanded) {
+    SessionDetailRow("CURRENT_NOW",r.currentInfo.rawNow?.let { "$it (µA declarados)" } ?: "Indisponível")
+    SessionDetailRow("CURRENT_AVERAGE",r.currentInfo.rawAverage?.let { "$it (µA declarados)" } ?: "Indisponível")
+    SessionDetailRow("CHARGE_COUNTER",r.currentInfo.rawCounter?.let { "$it µAh" } ?: "Indisponível")
+    SessionDetailRow("Média pelo contador",currentText(r.currentInfo.counterMeanMa))
+    SessionDetailRow("Calibração instantânea",r.currentInfo.nowAdjustment)
+    SessionDetailRow("Calibração média",r.currentInfo.averageAdjustment)
+    Text("Os valores brutos não são necessariamente confiáveis. Calibrações não são persistidas e recomeçam ao iniciar o app.",style=MaterialTheme.typography.bodySmall)
+   }
   } }
   item { SettingsCard("Sobre o Pulso") {
    Text("Pulso Bateria ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",fontWeight=FontWeight.SemiBold)

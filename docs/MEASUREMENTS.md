@@ -2,12 +2,16 @@
 
 ## Dados oficiais
 
-`ACTION_BATTERY_CHANGED`: nível/escala, status, conexão e temperatura; `BatteryManager.BATTERY_PROPERTY_CURRENT_NOW`: µA; `computeChargeTimeRemaining()` em API 28+: ms.
+`ACTION_BATTERY_CHANGED`: nível/escala, status, conexão e temperatura; `BatteryManager.BATTERY_PROPERTY_CURRENT_NOW` e `CURRENT_AVERAGE`: µA; `CHARGE_COUNTER`: µAh; `computeChargeTimeRemaining()` em API 28+: ms.
 
 - Porcentagem = arredondamento de `100 × level / scale`. Nível/escala inválidos não viram zero.
 - Temperatura = décimos de °C / 10. Ausência é null. Faixa defensiva -40 a 100 °C; fora disso é indisponível, não alerta de segurança.
-- Corrente = µA / 1000, exibida arredondada em mA. Int.MIN_VALUE/Int.MAX_VALUE e magnitude acima de 30 A são rejeitados. Zero não é considerado ausência automaticamente.
-- Sinal segue o contrato oficial: positivo é entrada líquida na bateria; negativo é saída. Em carga com leitura negativa, ou descarga com leitura positiva, mostramos indisponível e indicamos inconsistência. Não deduzimos o sinal apenas pela presença do cabo e não calibramos automaticamente sensores de fabricantes.
+- Corrente oficial = `CURRENT_NOW` e `CURRENT_AVERAGE` em **µA**, convertidos para mA. `CURRENT_AVERAGE` é média fornecida pelo fabricante; não deve ser chamada de instantânea. Ausência (Int.MIN_VALUE), sentinelas, acima de 30 A, sinal incompatível ou zero em carga/descarga não passam como leitura válida.
+- Corrente positiva significa **entrada líquida na bateria** e negativa significa saída, não corrente da fonte USB. A polaridade pode ser corrigida apenas após **quatro amostras** da mesma direção e estado durante pelo menos 60 s, sem lacunas >3 min. A calibração é volátil e se reinicia com o processo.
+- Unidade do fabricante: valores brutos de magnitude acima de 30 mil seguem µA documentados. Valores menores são ambíguos (µA versus mA) e só são utilizados após comparação com a média independente do contador e **três confirmações** em pelo menos 60 s. Sem referência de unidade, são indisponíveis, sem escala inventada.
+- Contador de carga (`BATTERY_PROPERTY_CHARGE_COUNTER`) é fornecido em **µAh**. Uma diferença de carga observada entre ≥3 pontos por ≥90 s, sem lacunas >3 min, permite média em mA = `ΔµAh × 3600 / Δtempo_ms`, desde que direções e limites sejam consistentes. Esse valor depende da confiabilidade do contador do fabricante e não representa corrente instantânea.
+- Quando não há medição viável, **somente se o usuário informar capacidade útil aproximada** entre 500 e 30.000 mAh e existir taxa de %/h já validada, pode-se mostrar a corrente média **estimada**: `I_mA ≈ taxa_%/h × capacidade_útil_mAh / 100`. Bateria degradada ou percentual não linear podem afetar muito esse número. Sem capacidade fornecida, não fabricar mA.
+- Ordem das fontes: `CURRENT_NOW` validada, `CURRENT_AVERAGE` validada, diferença do contador de carga, estimativa %/h+capacidade, indisponível. A tela e notificação identificam média/estimativa; Configurações mostra os três valores brutos e a decisão dos sensores.
 - Cheia e conectado sem carregar são estados separados. A sessão muda quando o status muda; isso evita misturar carga, manutenção em 100% e descarga.
 
 ## Taxa e previsão
@@ -20,7 +24,7 @@ A média de uma sessão é a variação líquida observada dividida pela duraç�
 
 ## Apresentação das leituras
 
-Na Alpha 4, o indicador de corrente mostra `—` quando o Android não fornece corrente confiável, e a taxa mostra `—` enquanto não satisfaz os critérios ou quando o estado não comporta taxa. O motivo é mostrado ao tocar no cartão. A unidade %/h permanece em pontos percentuais por hora.
+Na Alpha 7, o indicador de corrente mostra a leitura acompanhada de sua origem ou `—` quando não há corrente fundamentada. A taxa em %/h continua disponível quando a variação observada satisfaz os critérios, independentemente do sensor de corrente. O motivo é mostrado ao tocar no cartão; os valores brutos ficam no diagnóstico em Configurações. A unidade %/h permanece em pontos percentuais por hora.
 
 A curva recente usa exclusivamente amostras reais e ajusta a escala vertical para o mínimo e máximo observados com margem de 2 pontos percentuais (limitada a 0–100%). Escala visual não muda as leituras nem produz estimativas: uma curva de 55% constante continua horizontal. O eixo horizontal representa o intervalo real das primeiras às últimas amostras da janela de até 30 minutos, não 30 minutos artificiais.
 

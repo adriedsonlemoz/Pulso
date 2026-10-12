@@ -10,19 +10,22 @@ import kotlinx.coroutines.flow.*
 import java.io.IOException
 
 private val Context.preferences by preferencesDataStore("settings")
-data class Settings(val theme: String = "system", val interval: Int = 30, val fahrenheit: Boolean = false, val continuous: Boolean = false)
+data class Settings(val theme: String = "system", val interval: Int = 30, val fahrenheit: Boolean = false, val continuous: Boolean = false, val capacityMah: Int? = null)
 class SettingsStore(private val context: Context) {
  private val theme = stringPreferencesKey("theme")
  private val interval = intPreferencesKey("interval")
  private val fahrenheit = booleanPreferencesKey("fahrenheit")
  private val continuous = booleanPreferencesKey("continuous")
+ private val capacity = intPreferencesKey("capacity_mah")
  val flow = context.preferences.data.catch { if (it is IOException) emit(emptyPreferences()) else throw it }.map {
-  Settings(it[theme] ?: "system", (it[interval] ?: 30).coerceIn(15,60), it[fahrenheit] ?: false, it[continuous] ?: false)
+  Settings(it[theme] ?: "system", (it[interval] ?: 30).coerceIn(15,60), it[fahrenheit] ?: false, it[continuous] ?: false,
+   it[capacity]?.takeIf { mah -> mah in 500..30_000 })
  }
  suspend fun theme(value: String) { context.preferences.edit { it[theme] = value } }
  suspend fun interval(value: Int) { context.preferences.edit { it[interval] = value.coerceIn(15,60) } }
  suspend fun fahrenheit(value: Boolean) { context.preferences.edit { it[fahrenheit] = value } }
  suspend fun continuous(value: Boolean) { context.preferences.edit { it[continuous] = value } }
+ suspend fun capacityMah(value: Int?) { require(value == null || value in 500..30_000); context.preferences.edit { if (value == null) it.remove(capacity) else it[capacity] = value } }
 }
 @Entity(tableName = "sessions")
 data class Session(
