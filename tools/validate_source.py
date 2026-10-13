@@ -24,8 +24,8 @@ assert manifest.find("application/receiver[@"+ns+"name='.monitor.MonitorBootRece
 
 gradle=(root/'app/build.gradle.kts').read_text()
 version=re.search(r'versionName = "([^"]+)"',gradle).group(1)
-assert version == '0.1.0-alpha.13'
-assert re.search(r'versionCode = 13\b',gradle)
+assert version == '0.1.0-alpha.14'
+assert re.search(r'versionCode = 14\b',gradle)
 for file in ['README.md','CHANGELOG.md','RELEASE_NOTES.md','docs/VERSIONING.md','.github/workflows/android.yml']:
  assert version in (root/file).read_text(), f'Version mismatch: {file}'
 jar=root/'gradle/wrapper/gradle-wrapper.jar'

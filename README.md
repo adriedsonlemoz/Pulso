@@ -1,6 +1,6 @@
 # Pulso Bateria
 
-**0.1.0-alpha.13 • versionCode 13** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.14 • versionCode 14** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Funcionalidades
@@ -18,11 +18,21 @@ Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
 - Backup manual JSON v1, checksum SHA-256, seletor de arquivos, restauração confirmada pelo usuário. O arquivo não é criptografado. Calibração e ativação automática de serviço não são importadas.
 - Sem INTERNET, anúncios, analytics, conta, root ou wake locks. A alpha.13 adiciona somente a permissão normal RECEIVE_BOOT_COMPLETED para a retomada opcional após reiniciar.
 
+## Correção do workflow da alpha.13
+
+O workflow 13 compilou e iniciou 114 testes no módulo core, mas um teste de regressão legado
+(`AuditRegressionTest.netDischargeIsNotFlippedByChargingStatusAlone`) ainda esperava que uma corrente negativa
+fosse exibida como medição principal durante o estado `CHARGING`. Desde a alpha.13, o contrato deliberado
+é manter essa corrente negativa **no diagnóstico**, e não apresentá-la como carregamento confiável.
+A alpha.14 atualiza a asserção para conferir o valor bruto, o valor normalizado, a ausência de
+inversão indevida e a supressão segura da apresentação. Também atualiza um teste legado da notificação
+que ainda esperava exibir +400 mA durante uma descarga. Não muda a lógica de sensores nem o Room.
+
 ## Auditoria e validação
 
 Leia `docs/AUDIT-alpha.11-to-alpha.12.md`: diagnóstico com evidências da alpha.11, causas possíveis das diferenças com AccuBattery, correções, propostas de médias temporais/mAh e protocolo de teste no aparelho.
 
-Na alpha.12 foram executados 132 testes Kotlin/JUnit e 8 testes SQLite. Na alpha.13, o código core compilou localmente e passou em 10 verificações funcionais específicas de direção/fallback. A compilação Android/Compose, lint e testes instrumentados continuam pendentes. Esta entrega contém código-fonte, não APK validado.
+Na alpha.12 foram executados 132 testes Kotlin/JUnit e 8 testes SQLite. No workflow 13, 113/114 testes do core passaram e um teste legado de expectativa ficou desatualizado. A alpha.14 corrige esse teste. Foram aprovados 138 testes Kotlin/JVM no executor local compatível com JUnit e oito testes SQLite. Consulte `docs/VALIDATION.md` para limites dessa verificação. A compilação Android/Compose, lint e testes instrumentados ainda exigem verificação pelo GitHub Actions.
 
 ## Gerar APK pelo GitHub Manager
 

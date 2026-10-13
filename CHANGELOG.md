@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0-alpha.14 (14) — 2026-10-12
+
+- Corrigido o teste de regressão `netDischargeIsNotFlippedByChargingStatusAlone`, único teste que falhou entre 114 no workflow 13, e antecipada a correção do teste de notificação `netCurrentUsesItsOwnSign`, também baseado no comportamento anterior à alpha.13. A expectativa antiga de exibir corrente negativa durante status `CHARGING` conflita com o filtro de apresentação introduzido na alpha.13.
+- O teste agora verifica que os valores brutos/normalizados permanecem negativos para diagnóstico, enquanto `ma` não é disponibilizado como corrente confiável, `source=NONE` e nenhuma calibração de sinal é criada apenas pelo status de conexão.
+- Verificação local: 138 testes Kotlin/JVM em executor compatível com JUnit e 8 testes SQLite aprovados; Gradle/Android pendente por indisponibilidade de `services.gradle.org`. Nenhuma alteração no algoritmo de corrente, na persistência Room, no backup, nas permissões, na assinatura ou nos Secrets.
+
 ## 0.1.0-alpha.13 (13) — 2026-10-12
 
 - Correntes com sinal contrário ao estado de carga/descarga são preservadas no diagnóstico, mas não mostradas como medições confiáveis. Fonte alternativa com direção compatível pode ser usada; sem fonte válida, interface indica sinal em análise, sem inverter artificialmente o valor.

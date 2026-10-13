@@ -11,7 +11,14 @@ class AuditRegressionTest {
  @Test fun netDischargeIsNotFlippedByChargingStatusAlone() {
   val t=CurrentTracker(); var r=CurrentResult()
   for(i in 0..4) r=t.observe(-1_500_000,null,null,Mode.CHARGING,i*30_000L,null,null)
-  assertEquals(-1500.0,r.ma ?: Double.NaN,0.001)
+  // O sinal original não pode ser invertido pelo status de conexão.
+  assertEquals(-1_500_000,r.rawNow)
+  assertEquals(-1500.0,r.nowMa ?: Double.NaN,0.001)
+  // Política alpha.13+: corrente contrária ao status só aparece no diagnóstico.
+  assertNull(r.ma)
+  assertEquals(CurrentSource.NONE,r.source)
+  assertTrue(r.note.contains("Sinal em verificação"))
+  assertNull(t.calibrationRecord("device"))
  }
  @Test fun zeroIsAReadingRatherThanASentinel() {
   assertEquals(0.0,CurrentTracker().observe(0,null,null,Mode.CHARGING,1000,null,null).ma ?: Double.NaN,0.0)

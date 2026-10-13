@@ -1,4 +1,4 @@
-# Medições e decisões técnicas — alpha.13
+# Medições e decisões técnicas — alpha.14
 
 A alpha.13 usa um **filtro de apresentação** sobre as fontes de corrente: quando o estado é carregando, corrente negativa não é considerada confiável; quando descarregando, corrente positiva também não. As leituras originais continuam disponíveis para diagnóstico. Um zero isolado não é preferido a outra fonte compatível não nula; se coexistir com uma leitura contraditória, não é apresentado como confirmação de corrente zero. Não se altera o sinal sem corroboração; um estado transitório pode tornar o valor temporariamente indisponível. A preferência Iniciar com o sistema é opcional; tentativas de serviço após boot/atualização podem ser bloqueadas pelo Android, e lacunas não são preenchidas.
 

@@ -1,0 +1,11 @@
+Pulso Bateria 0.1.0-alpha.14 / versionCode 14
+Data: 2026-10-12
+Fonte: /mnt/data/Pulso-Android-Pulso-Bateria-13-logs.zip
+Falha GitHub Actions alpha.13: :core:test 114 testes, 1 falha em AuditRegressionTest.netDischargeIsNotFlippedByChargingStatusAlone.
+Correção: o teste verifica preservação bruta do sinal e ausência de valor confiável em tela, sem inversão automática.
+Incompatibilidade adicional antecipada: NotificationTextTest.netCurrentUsesItsOwnSign esperava exibir +400 mA em Mode.DISCHARGING; teste atualizado para não exibir corrente contraditória.
+Testes Kotlin/JVM locais: 138 executados, 0 falhas (kotlinc 1.9.0 + executor compatível JUnit 4 de asserções, SEM Gradle).
+Testes SQLite: 8 executados, 0 falhas.
+Validação estrutural: tools/validate_source.py PASS.
+Gradle :core:test :app:assembleDebug: NÃO executado; indisponível download da distribuição 8.11.1 por UnknownHostException services.gradle.org.
+APK não gerado; validação Android real pendente.

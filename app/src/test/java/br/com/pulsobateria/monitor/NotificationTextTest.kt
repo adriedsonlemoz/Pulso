@@ -75,9 +75,12 @@ class NotificationTextTest {
  }
  @Test fun netCurrentUsesItsOwnSign() {
   val n = format(mode=Mode.DISCHARGING,current=400.0,rate=10.0)
-  assertTrue(n.title.contains("400 mA"))
+  // Um valor positivo não é invertido nem rotulado como consumo ao descarregar.
+  assertFalse(n.title.contains("400 mA"))
+  assertFalse(n.expandedText.contains("400 mA"))
   assertFalse(n.expandedText.contains("Gastando:"))
   assertFalse(n.expandedText.contains("Ritmo:"))
+  assertEquals("Autonomia: 25 min",n.summary)
  }
  @Test fun idleCanStillHaveNetCurrent() {
   val n = format(mode=Mode.IDLE)

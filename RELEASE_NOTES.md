@@ -1,11 +1,8 @@
-# Pulso Bateria 0.1.0-alpha.13 • versionCode 13
+# Pulso Bateria 0.1.0-alpha.14 • versionCode 14
 
-- Corrigida a apresentação de corrente positiva durante descarga (ou negativa durante carga): leitura contraditória fica no diagnóstico, não no cartão/notificação como valor confiável. Fallback utiliza apenas fontes com direção compatível.
-- Estimativa de corrente: dez capacidades predefinidas (2.500–7.000 mAh), campo manual e formatação `5.000`, sem alterar o valor numérico armazenado.
-- Monitoramento contínuo com `START_STICKY`, opção **Iniciar com o sistema** e tentativa após `BOOT_COMPLETED`/atualização. A retomada depende das restrições Android/OEM; não garante operação permanente, e força-parada do usuário impede reinício automático.
-- Ação Parar desabilita a opção persistida; tela distingue preferência e serviço efetivamente ativo, com botão Tentar agora.
-- Banco Room v3, backup JSON v1, assinatura via mesmos Secrets e histórico preservados.
+- Corrigidos dois testes antigos: `netDischargeIsNotFlippedByChargingStatusAlone` (falha observada em `:core:test` no workflow 13) e `netCurrentUsesItsOwnSign` (incompatibilidade identificada ao executar os testes locais do app).
+- O teste agora distingue o sinal real recebido (`rawNow`/`nowMa`) do filtro de apresentação (`ma`/`source`): a leitura negativa durante status de carga não é invertida, mas permanece só no diagnóstico até haver confirmação compatível.
+- Algoritmos de corrente, banco Room v3, backup JSON v1, tela, inicialização, assinatura e Secrets permanecem idênticos à alpha.13.
+- Testes locais: 138 Kotlin/JVM aprovados em executor compatível com JUnit 4; 8 testes SQLite aprovados. O APK Debug e a execução Gradle/JUnit real permanecem pendentes no GitHub Actions.
 
-**Teste Android pendente:** validar compilação/foreground service, boot, atualização, permissões, desativação manual, assinatura e medições reais antes de considerar esta alpha estável.
-
-APK esperado no workflow: `Pulso-Bateria-v0.1.0-alpha.13-debug.apk`.
+APK esperado no workflow: `Pulso-Bateria-v0.1.0-alpha.14-debug.apk`.

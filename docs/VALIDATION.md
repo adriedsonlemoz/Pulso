@@ -1,31 +1,30 @@
-# Validação — Pulso Bateria 0.1.0-alpha.13 (13)
+# Validação — Pulso Bateria 0.1.0-alpha.14 (14)
 
-## Alterações e verificações locais
+## Falha recebida do workflow 13
 
-- Modificados os filtros de corrente no core e na notificação; nenhuma alteração de schema Room.
-- `kotlinc` (Kotlin 1.9 do ambiente) compilou os arquivos puros do core da alpha.13 sem erros.
-- Executadas 10 verificações funcionais num programa Kotlin: sinal positivo/negativo, valores não finitos, manutenção de bruto, rejeição de descarga positiva e fallback negativo para fonte média. **10/10 aprovadas.**
-- Novos testes JUnit `CurrentDirectionTest.kt` foram adicionados ao projeto para execução no GitHub Actions; esses testes JUnit não foram executados localmente.
-- `tools/validate_source.py`: **aprovado** em estrutura, manifest/XML, permissão adicional, versões e Gradle Wrapper.
-- `tools/test_storage_sql.py`: mantém testes SQL de migração/consistência sem mudança de schema. Ver resultados registrados após execução.
-- ZIP verificado contra CRC e presença de arquivos principais.
+ZIP: `Pulso-Android-Pulso-Bateria-13-logs.zip`, arquivo `build/10_Testes, lint e APK Debug.txt`.
+O Gradle chegou à tarefa `:core:test`, executou **114 testes, um falhou**:
+`AuditRegressionTest > netDischargeIsNotFlippedByChargingStatusAlone`, `AuditRegressionTest.kt:14`.
+O build foi interrompido em `:core:test`; não existem evidências nesse workflow de sucesso nas tarefas de lint e APK.
 
-## Pendências reais
+## Correção aplicada
 
-1. Compilar Android completo, Compose/KSP, lint e instrumentação no GitHub Actions.
-2. Testar reinicialização física, APP `BOOT_COMPLETED`/`MY_PACKAGE_REPLACED`, assinatura compatível, permissões de notificação e restrições OEM. `START_STICKY` não é garantia de operação permanente.
-3. Verificar máscara `5.000` e a lista suspensa na UI do aparelho, inclusive cursor e fontes ampliadas.
-4. Comparar o diagnóstico com sensores reais durante carga/descarga, verificando as leituras brutas e fallback.
-5. Confirmar preservação de histórico e backup durante upgrade do APK assinado com os Secrets já configurados.
+O teste antigo esperava corrente negativa em `CurrentResult.ma` mesmo com `Mode.CHARGING`.
+A alpha.13 introduziu filtro de apresentação que retém o sinal no diagnóstico mas não exibe
+essa medição como carregamento confiável. O teste agora valida `rawNow`, `nowMa`,
+`ma == null`, `source == NONE`, explicação de sinal e ausência de calibração indevida.
+O teste `NotificationTextTest.netCurrentUsesItsOwnSign` também foi atualizado para exigir que um valor +400 mA durante descarga não apareça no título nem no corpo; a taxa incoerente também deve ser omitida. Sem alteração no algoritmo de sensores nem no schema Room.
 
-Sem `INTERNET`, wake locks ou mecanismos para burlar restrições do Android. A preferência após backup importado continua desabilitada por segurança.
+## Verificações executadas nesta entrega
 
-## Resultado da tentativa de compilação Android
+- **138 testes Kotlin/JVM aprovados, 0 falhas**: compilação com `kotlinc` local 1.9.0 e um executor de asserções/`@Test` compatível com JUnit 4 criado apenas no ambiente de validação (não incluído no ZIP). Executados testes de `core` e `NotificationText`/`Format`, inclusive as duas regressões corrigidas. Isso **não equivale à execução do Gradle/JUnit real nem compila o app Android/Compose**.
+- **8 testes SQLite aprovados**, incluindo migrações históricas, rollback e retenção.
+- `python3 tools/validate_source.py`: aprovado (14 arquivos estruturais, sete XMLs, permissões, versão e integridade do Wrapper).
+- Tentativa `./gradlew --offline :core:test :app:assembleDebug` falhou **antes de iniciar o Gradle**, com `UnknownHostException: services.gradle.org`, pois a distribuição Gradle 8.11.1 não está disponível neste ambiente.
+- Testes reproduzidos e documentados em `docs/test-results/alpha.14-local-tests.txt`.
 
-`./gradlew --offline :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug`: **não executou Gradle** porque o Wrapper não conseguiu obter a distribuição (erro `UnknownHostException: services.gradle.org`). Esse bloqueio não demonstra falha nem sucesso da compilação Android.
+## Pendências
 
-Parser Kotlin PSI local do compilador instalado: **21 arquivos Kotlin, zero erros sintáticos**. Compilação Kotlin/JVM isolada: core, `Format.kt` e `NotificationText.kt` aprovados. A verificação isolada não inclui as APIs Android/Compose.
-
-Teste direto de notificação: ao descarregar, média Android positiva é omitida; o aviso de polaridade aparece; `formatCapacityMah(5000)` e `formatCapacityMah(4500)` produziram `5.000` e `4.500`.
-
-`tools/test_storage_sql.py`: **8 testes SQLite, 0 falhas**.
+- Compilar, executar `:core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` no GitHub Actions.
+- Testar a atualização do APK usando os mesmos quatro Secrets de assinatura da alpha.8 ou posterior.
+- Confirmar a apresentação de correntes contraditórias em aparelho e a preservação do histórico.
