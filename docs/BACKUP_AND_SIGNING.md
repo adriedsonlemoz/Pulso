@@ -53,3 +53,7 @@ Room v5 adiciona `sessions.chargeSource` e `sessions.chargerLabel` opcionais por
 ## Alpha.20
 
 Os alertas inteligentes são opções locais desligadas por padrão. Por segurança, **não são exportados** no JSON v3 e não são reativados ao restaurar um arquivo; as configurações básicas e o histórico permanecem no backup como anteriormente. O Room segue em v5, sem migração nesta versão.
+
+## Alpha.21
+
+Somente interface: Room v5 e backup JSON v3 sem mudanças. Os quatro Secrets de assinatura existentes permanecem os mesmos. Antes de atualizar, faça backup e valide o APK no GitHub Actions.

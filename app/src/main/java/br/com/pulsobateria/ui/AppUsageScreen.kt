@@ -32,11 +32,13 @@ import java.util.Locale
 import kotlin.math.max
 
 /** Quarta aba: correlação temporal, NÃO atribuição de mAh por processo. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppUsageScreen(modifier: Modifier = Modifier) {
  val context=LocalContext.current
  val reader=remember(context) { (context.applicationContext as PulsoApp).usageInsights }
  var refreshKey by rememberSaveable { mutableIntStateOf(0) }
+ var section by rememberSaveable { mutableIntStateOf(0) }
  var granted by remember { mutableStateOf(reader.hasPermission()) }
  var loading by remember { mutableStateOf(false) }
  var error by remember { mutableStateOf<String?>(null) }
@@ -56,52 +58,52 @@ fun AppUsageScreen(modifier: Modifier = Modifier) {
  }
  val extra=MaterialTheme.colorScheme.onSurfaceVariant
  LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-  item {
-   Text("Uso de aplicativos",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold)
-   Text("Últimas 24 horas • dados locais",style=MaterialTheme.typography.bodySmall,color=extra)
-  }
   if(!granted) {
    item {
     Card(colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
-     Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+     Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
       Text("Autorizar acesso ao uso",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
-      Text("O Android exige uma autorização especial para mostrar quanto tempo cada aplicativo ficou em primeiro plano. Esse acesso é opcional; o Pulso continua funcionando sem ele.")
-      Text("Os dados não saem do aparelho e não usamos permissão de acessibilidade nem acesso à internet.",style=MaterialTheme.typography.bodySmall,color=extra)
+      Text("Para mostrar atividade de aplicativos, autorize o acesso às estatísticas do Android. É opcional e os dados permanecem no telefone.",style=MaterialTheme.typography.bodySmall)
       Button(onClick={launcher.launch(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))}) { Text("Abrir acesso ao uso") }
-      OutlinedButton(onClick={refreshKey++}) { Text("Verificar permissão") }
+      TextButton(onClick={refreshKey++}) { Text("Verificar permissão") }
      }
     }
    }
   } else {
    item {
-    Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
-     Text("Estatísticas do Android",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+     Text("Últimas 24 horas",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
      TextButton(onClick={refreshKey++},enabled=!loading) { Text("Atualizar") }
     }
    }
-   if(loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-   if(error!=null) item { Text(error ?: "Erro desconhecido",color=MaterialTheme.colorScheme.error) }
-   val summary=data
-   if(summary!=null) {
-    item { BatteryUsageCard(summary) }
-    item { NightConsumptionCard(summary) }
-    item { ActivityHoursCard(summary) }
-    item {
-     Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
-      Text("Aplicativos mais usados",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
-      Text("Barras proporcionais ao tempo em primeiro plano, não ao gasto de bateria de cada app.",style=MaterialTheme.typography.bodySmall,color=extra)
+   item {
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+     listOf("Resumo","Aplicativos","Noite").forEachIndexed { i,label ->
+      SegmentedButton(selected=section==i,onClick={section=i},shape=SegmentedButtonDefaults.itemShape(i,3),label={Text(label,maxLines=1,overflow=TextOverflow.Ellipsis)})
      }
     }
-    if(summary.apps.isEmpty()) item {
-     Card { Text("Nenhum período de uso identificável nas últimas 24 horas. Os eventos podem estar incompletos ou indisponíveis no Android.",Modifier.padding(16.dp)) }
-    } else {
-     val top=summary.apps.take(20)
-     items(top,key={it.packageName}) { app -> AppTimeCard(app,summary.apps.first().durationMs) }
-     if(summary.apps.size>20) item { Text("Exibindo 20 de ${summary.apps.size} aplicativos.",style=MaterialTheme.typography.bodySmall,color=extra) }
+   }
+   if(loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+   if(error!=null) item { Text(error ?: "Não foi possível atualizar",color=MaterialTheme.colorScheme.error) }
+   val summary=data
+   if(summary!=null) when(section) {
+    0 -> item { BatteryUsageCard(summary) }
+    1 -> {
+     item { ActivityHoursCard(summary) }
+     item {
+      Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+       Text("Aplicativos mais usados",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+       SectionHelpButton("Atividade dos aplicativos","As barras mostram tempo em primeiro plano, não corrente ou mAh atribuídos a cada aplicativo. Rede, tela e sistema também consomem energia.")
+      }
+     }
+     if(summary.apps.isEmpty()) item {
+      Card { Text("Ainda não há dados suficientes de uso nesta janela.",Modifier.padding(16.dp)) }
+     } else {
+      items(summary.apps.take(20),key={it.packageName}) { app -> AppTimeCard(app,summary.apps.first().durationMs) }
+      if(summary.apps.size>20) item { Text("Exibindo os 20 mais utilizados.",style=MaterialTheme.typography.labelSmall,color=extra) }
+     }
     }
-    item {
-     Text("Como interpretar: a queda da bateria é do aparelho inteiro. Tela, rede, sistema e serviços em segundo plano também consomem energia. Usar um aplicativo durante uma queda não prova que ele a causou. Dados anteriores à instalação do Pulso não têm amostras locais da bateria; o histórico de uso do Android é temporário.",style=MaterialTheme.typography.bodySmall,color=extra)
-    }
+    else -> item { NightConsumptionCard(summary) }
    }
   }
  }
@@ -111,25 +113,30 @@ fun AppUsageScreen(modifier: Modifier = Modifier) {
 private fun BatteryUsageCard(s: UsageInsights) {
  val c=MaterialTheme.colorScheme.onSurfaceVariant
  Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
-  Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-   Text("Variação da bateria",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
-   if(s.battery.observedTimeMs==0L) {
-    Text("Sem leituras suficientes no período monitorado.",style=MaterialTheme.typography.bodyMedium)
-   } else {
-    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
-     Column { Text("Bateria caiu",style=MaterialTheme.typography.labelMedium,color=c)
-      Text("${s.battery.observedDrop}%",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold) }
-     Column { Text("Bateria carregou",style=MaterialTheme.typography.labelMedium,color=c)
-      Text("+${s.battery.observedGain}%",style=MaterialTheme.typography.titleLarge) }
-    }
+  Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+    Text("Variação da bateria",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+    SectionHelpButton("Variação da bateria","Os valores somam quedas e recargas em vários ciclos e podem ultrapassar 100%. Uma queda de 80% para 60% aparece como 'Caiu 20%'. Não representam mAh nem consumo isolado de aplicativos. Lacunas não são contadas.")
    }
-   HorizontalDivider()
-   Text("Tela ligada: caiu ${s.battery.onDrop}% • ${usageDuration(s.battery.onTimeMs)} observados",style=MaterialTheme.typography.bodyMedium)
-   Text("Tela desligada: caiu ${s.battery.offDrop}% • ${usageDuration(s.battery.offTimeMs)} observados",style=MaterialTheme.typography.bodyMedium)
-   val unclassified=s.battery.unclassifiedDrop
-   if(unclassified>0) Text("Sem estado de tela conhecido: caiu $unclassified%",style=MaterialTheme.typography.bodySmall,color=c)
-   Text("Tempo monitorado: ${usageDuration(s.battery.observedTimeMs)} • ${s.sampleCount} leituras salvas.",style=MaterialTheme.typography.bodySmall,color=c)
-   Text("Os percentuais mostram a diferença na escala da bateria (ex.: 80% → 60% = caiu 20%). Períodos sem leituras não entram na conta.",style=MaterialTheme.typography.bodySmall,color=c)
+   if(s.battery.observedTimeMs==0L) Text("Ainda não há leituras suficientes.") else {
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+     Column { Text("Caiu (acumulado)",style=MaterialTheme.typography.labelMedium,color=c)
+      Text("${s.battery.observedDrop}%",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold) }
+     Column { Text("Carregou (acumulado)",style=MaterialTheme.typography.labelMedium,color=c)
+      Text("+${s.battery.observedGain}%",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold) }
+    }
+    HorizontalDivider()
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+     Text("Tela ligada",style=MaterialTheme.typography.bodyMedium)
+     Text("Caiu ${s.battery.onDrop}%",fontWeight=FontWeight.Medium)
+    }
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+     Text("Tela apagada",style=MaterialTheme.typography.bodyMedium)
+     Text("Caiu ${s.battery.offDrop}%",fontWeight=FontWeight.Medium)
+    }
+    if(s.battery.unclassifiedDrop>0) Text("Tela sem estado conhecido: caiu ${s.battery.unclassifiedDrop}%",style=MaterialTheme.typography.labelSmall,color=c)
+    Text("Monitorado: ${usageDuration(s.battery.observedTimeMs)}",style=MaterialTheme.typography.labelMedium,color=c)
+   }
   }
  }
 }
@@ -149,7 +156,7 @@ private fun ActivityHoursCard(s: UsageInsights) {
  Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
   Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
    Text("Atividade por horário",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
-   Text("Minutos de aplicativos em primeiro plano, por intervalos de 2 horas",style=MaterialTheme.typography.bodySmall,color=secondary)
+
    Row(Modifier.fillMaxWidth().height(142.dp),verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(5.dp)) {
     blocks.forEachIndexed { i, ms ->
      Column(Modifier.weight(1f),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Bottom) {
@@ -160,7 +167,7 @@ private fun ActivityHoursCard(s: UsageInsights) {
      }
     }
    }
-   Text("Tempo total identificado: ${usageDuration(s.foregroundMs)}. Ausência de eventos não significa ausência de consumo.",style=MaterialTheme.typography.bodySmall,color=secondary)
+   Text("Uso identificado: ${usageDuration(s.foregroundMs)}",style=MaterialTheme.typography.labelMedium,color=secondary)
   }
  }
 }
@@ -213,29 +220,31 @@ private fun usageDuration(millis: Long): String {
 private fun NightConsumptionCard(insights: UsageInsights) {
  val night=insights.night
  val stats=night.battery
- val subtitle=MaterialTheme.colorScheme.onSurfaceVariant
+ val muted=MaterialTheme.colorScheme.onSurfaceVariant
  val formatter=remember { SimpleDateFormat("dd/MM 'às' HH:mm",Locale.forLanguageTag("pt-BR")) }
  Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
   Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-   Text("Consumo noturno",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
-   Text("${formatter.format(Date(night.window.start))} até ${formatter.format(Date(night.window.end))}" +
-    if(!night.window.isComplete) " • noite em andamento" else " • última noite",style=MaterialTheme.typography.bodySmall,color=subtitle)
-   if(stats.observedTimeMs==0L) {
-    Text("Ainda não há períodos contínuos de bateria observados nesta noite.",style=MaterialTheme.typography.bodyMedium)
-   } else {
-    Text("Bateria caiu ${stats.observedDrop}% durante os trechos monitorados",fontWeight=FontWeight.SemiBold)
-    if(stats.observedGain>0) Text("Bateria carregou +${stats.observedGain}% no mesmo período",style=MaterialTheme.typography.bodySmall,color=subtitle)
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+    Text("Consumo noturno",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+    SectionHelpButton("Consumo noturno","Mostra as variações da bateria do telefone durante períodos realmente monitorados. Não mede consumo por aplicativo. A classificação da tela depende da permissão de uso e pode ficar incompleta; períodos sem leituras não são somados.")
+   }
+   Text("${formatter.format(Date(night.window.start))} até ${formatter.format(Date(night.window.end))}",style=MaterialTheme.typography.labelMedium,color=muted)
+   if(stats.observedTimeMs==0L) Text("Ainda não há medições contínuas nesta noite.") else {
+    Text("Caiu ${stats.observedDrop}%",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.SemiBold)
+    if(stats.observedGain>0) Text("Carregou +${stats.observedGain}%",style=MaterialTheme.typography.bodyMedium,color=muted)
     HorizontalDivider()
-    Text("Tela apagada: caiu ${stats.offDrop}% em ${usageDuration(stats.offTimeMs)} observados")
-    Text("Tela ligada: caiu ${stats.onDrop}% em ${usageDuration(stats.onTimeMs)} observados")
-    if(stats.unclassifiedDrop>0) Text("Estado da tela desconhecido: caiu ${stats.unclassifiedDrop}%",style=MaterialTheme.typography.bodySmall,color=subtitle)
-    night.offDropRatePercentHour?.let {
-     Text("Ritmo observado com tela apagada: ${String.format(Locale.forLanguageTag("pt-BR"),"%.1f",it)}%/h",style=MaterialTheme.typography.bodySmall)
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+     Text("Tela apagada")
+     Text("Caiu ${stats.offDrop}%",fontWeight=FontWeight.Medium)
     }
-    Text("Cobertura do intervalo noturno: ${night.coveragePercent}%",style=MaterialTheme.typography.bodySmall,color=subtitle)
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+     Text("Tela ligada")
+     Text("Caiu ${stats.onDrop}%",fontWeight=FontWeight.Medium)
+    }
+    if(stats.unclassifiedDrop>0) Text("Tela sem classificação: caiu ${stats.unclassifiedDrop}%",style=MaterialTheme.typography.labelSmall,color=muted)
+    Text("Cobertura: ${night.coveragePercent}%${if(night.coveragePercent<80) " • dados parciais" else ""}",style=MaterialTheme.typography.labelMedium,color=muted)
     LinearProgressIndicator(progress={night.coveragePercent/100f},modifier=Modifier.fillMaxWidth())
    }
-   Text("Dados da bateria do telefone inteiro, não de um aplicativo. Não são preenchidos intervalos sem leitura e o estado da tela exige eventos de uso autorizados. Percentuais pequenos podem refletir arredondamento do Android.",style=MaterialTheme.typography.bodySmall,color=subtitle)
   }
  }
 }

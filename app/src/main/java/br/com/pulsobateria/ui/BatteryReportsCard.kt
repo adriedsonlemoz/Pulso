@@ -19,7 +19,7 @@ import java.util.Locale
 
 /** Relatório de sete dias: só integra intervalos válidos da série técnica local. */
 @Composable
-fun BatteryReportsCard(telemetry: List<TelemetrySample>) {
+fun BatteryReportsCard(telemetry: List<TelemetrySample>, alwaysExpanded: Boolean = false) {
  var expanded by remember { mutableStateOf(false) }
  val today=LocalDate.now()
  val report=remember(telemetry,today) {
@@ -34,9 +34,10 @@ fun BatteryReportsCard(telemetry: List<TelemetrySample>) {
      Text("Relatório da bateria",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
      Text("Hoje e últimos 7 dias • leituras locais",style=MaterialTheme.typography.bodySmall,color=extra)
     }
-    TextButton(onClick={expanded=!expanded}) { Text(if(expanded) "Ocultar" else "Ver relatório") }
+    if(!alwaysExpanded) TextButton(onClick={expanded=!expanded}) { Text(if(expanded) "Ocultar" else "Ver relatório") }
+    else SectionHelpButton("Relatório da bateria","Este relatório usa apenas leituras reais em intervalos válidos; não preenche lacunas e pode ser parcial. Somar variações de vários ciclos pode superar 100%.")
    }
-   if(expanded) {
+   if(expanded || alwaysExpanded) {
     if(report.observedMs==0L) {
      Text("Ainda não há intervalos contínuos suficientes. Mantenha o monitoramento ativo para formar o histórico.",style=MaterialTheme.typography.bodySmall)
     } else {
@@ -63,8 +64,7 @@ fun BatteryReportsCard(telemetry: List<TelemetrySample>) {
        }
       }
      }
-     Text("As barras representam queda observada no dia, não consumo por aplicativo. Intervalos acima de 3 min, mudanças de sessão e passagens pela meia-noite não são atribuídos. Totais podem ser parciais; porcentagens são diferenças na escala da bateria, não mAh.",
-      style=MaterialTheme.typography.bodySmall,color=extra)
+     Text("Totais observados; períodos sem leitura não entram no cálculo.",style=MaterialTheme.typography.labelSmall,color=extra)
     }
    }
   }

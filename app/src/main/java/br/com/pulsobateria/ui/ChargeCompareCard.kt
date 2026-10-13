@@ -37,7 +37,9 @@ fun ChargeCompareCard(chargingSessions: List<Session>, vm: PulsoViewModel) {
  Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
   Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
    Text("Comparar recargas",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
-   Text("Selecione duas sessões e identifique o carregador, se souber. O Android não informa o modelo do cabo ou da fonte.",style=MaterialTheme.typography.bodySmall,color=muted)
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End) {
+    SectionHelpButton("Comparação de carregadores","Compara somente a mesma faixa de bateria observada em duas recargas. O Android não identifica o modelo do cabo ou da fonte. mAh só aparecem com contador de carga válido. Velocidade em %/h não comprova potência elétrica.")
+   }
    ChargerChooser("Recarga 1",first,sessions,second.id,{firstChoice=it})
    ChargerChooser("Recarga 2",second,sessions,first.id,{secondChoice=it})
    if(comparison.comparable) {
@@ -51,13 +53,15 @@ fun ChargeCompareCard(chargingSessions: List<Session>, vm: PulsoViewModel) {
     Text("Na faixa comparável, a recarga ${if(diff>=0) "1" else "2"} foi ${String.format(Locale.forLanguageTag("pt-BR"),"%.1f",kotlin.math.abs(diff))}%/h mais rápida.",style=MaterialTheme.typography.bodySmall)
    } else {
     Text(comparison.message,style=MaterialTheme.typography.bodySmall,color=muted)
-    Text("Os percentuais totais e a duração das sessões continuam disponíveis nos cartões abaixo. Não comparamos velocidades de faixas diferentes.",style=MaterialTheme.typography.bodySmall,color=muted)
+    Text("Veja os totais de cada recarga no histórico.",style=MaterialTheme.typography.bodySmall,color=muted)
    }
    HorizontalDivider()
-   Text("Nomear carregadores (opcional)",fontWeight=FontWeight.SemiBold,style=MaterialTheme.typography.titleSmall)
-   ChargerLabelEditor(first,vm)
-   ChargerLabelEditor(second,vm)
-   Text("As temperaturas são médias das amostras da faixa comparável; mAh só aparecem quando há contador de carga válido. Uma taxa em %/h não comprova potência elétrica do carregador. Trocar de cabo sem alterar o tipo de conexão não é detectado automaticamente.",style=MaterialTheme.typography.bodySmall,color=muted)
+   var showFirst by rememberSaveable(first.id) { mutableStateOf(false) }
+   var showSecond by rememberSaveable(second.id) { mutableStateOf(false) }
+   TextButton(onClick={showFirst=!showFirst}) { Text(if(showFirst) "Ocultar identificação da recarga 1" else "Identificar carregador da recarga 1") }
+   if(showFirst) ChargerLabelEditor(first,vm)
+   TextButton(onClick={showSecond=!showSecond}) { Text(if(showSecond) "Ocultar identificação da recarga 2" else "Identificar carregador da recarga 2") }
+   if(showSecond) ChargerLabelEditor(second,vm)
   }
  }
 }

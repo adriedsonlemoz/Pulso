@@ -33,3 +33,7 @@ O módulo utiliza `UsageStatsManager.queryEvents` (`MOVE_TO_FOREGROUND/BACKGROUN
 ## Consumo noturno (alpha.19)
 
 A aba Uso ganhou cartão da última noite local (22h–7h) na consulta manual já autorizada. Depende de eventos do Android e de histórico próprio da bateria, sem instalar outro serviço em segundo plano. Não é monitoramento por aplicativo, não mede mAh individuais e não extrapola lacunas. Se o Android negar eventos, ou faltar histórico válido, permanece sem informação suficiente.
+
+## Organização da aba Uso (alpha.21)
+
+A autorização de estatísticas permanece opcional. Escolha **Resumo** (variação acumulada da bateria e tela ligada/apagada), **Aplicativos** (tempo em primeiro plano e gráfico de atividade) ou **Noite** (última janela 22h–7h). As seções não fazem medições adicionais e o ranking não atribui energia elétrica individual por aplicativo. Textos explicativos aparecem no ícone ⓘ; números indisponíveis e cobertura parcial não são escondidos.

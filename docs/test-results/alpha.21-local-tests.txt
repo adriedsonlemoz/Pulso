@@ -1,0 +1,8 @@
+Pulso Bateria 0.1.0-alpha.21 / versionCode 21
+PASS: 12 testes SQLite (tools/test_storage_sql.py).
+PASS: 27 fontes Kotlin analisadas pelo parser PSI / 0 erros sintáticos.
+PASS: 11 verificações estáticas de navegação (tools/test_navigation_contract.py).
+PASS: tools/validate_source.py (versão, XML, Manifest, scripts, assinatura wrapper).
+FAIL (infraestrutura): ./gradlew --offline :core:test :app:assembleDebug --no-daemon: UnknownHostException services.gradle.org (download gradle-8.11.1-bin.zip).
+PENDENTE: suíte Kotlin/JUnit completa (tentativa de compilação local excedeu limite de execução).
+PENDENTE: compilar Compose/Android e validar em aparelho.

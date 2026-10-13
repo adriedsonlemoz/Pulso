@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.21 (21) — 2026-10-13
+
+### Navegação e hierarquia visual
+- Página inicial simplificada: resumo 5/20/60 min e atalho para análise completa; textos extensos deslocados para ícones de ajuda. Gráfico de percentual recente mais compacto.
+- Histórico sem comparador extenso acima das sessões: atalhos Comparar e Relatórios levam a telas próprias; edição dos nomes dos carregadores aparece sob opção de expansão.
+- Aba Uso dividida em Resumo / Aplicativos / Noite, preservando o acesso autorizado e as consultas locais; card resumido de variação e informação de ciclos cumulativos acima de 100%.
+- Avisos de dados insuficientes ou cobertura parcial ficam visíveis. Navegação Voltar e barra inferior preservadas.
+- Room v5 / JSON v3 / Secrets / permissões / cálculos intactos. Sem migração.
+
 ## 0.1.0-alpha.20 (20) — 2026-10-13
 
 - Alertas opcionais de bateria baixa, alta temperatura, meta de recarga e descarga acelerada. Limiares ajustáveis, confirmação por duas amostras, canal de alerta separado, bloqueio persistido por episódio e pausa mínima de uma hora.

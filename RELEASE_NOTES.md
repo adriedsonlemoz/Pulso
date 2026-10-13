@@ -1,10 +1,13 @@
-# Pulso Bateria 0.1.0-alpha.20
+# Pulso Bateria 0.1.0-alpha.21
 
-- **Alertas inteligentes:** ative em Configurações, defina limites de bateria baixa, temperatura, meta de recarga e descarga acelerada. O sistema exige confirmação por duas leituras e evita repetições. Notificações precisam de autorização do Android.
-- **Relatórios:** em Sessões → Relatório da bateria → Ver relatório. Consulte totais observados de hoje e sete dias com queda e recarga em %, tempo de acompanhamento, sessões e maior temperatura observada. Não preenche interrupções ou leituras históricas inexistentes.
-- **Compatibilidade:** Room v5, backup JSON v3, calibragem, assinatura, Secrets e identificador `br.com.pulsobateria` mantidos. Alertas desativados por padrão, não exportados pelo backup. Nenhuma permissão de rede adicionada.
-- **Limites:** alertas só surgem quando o Pulso coleta leituras; Android pode atrasar o monitoramento. Relatórios parciais não equivalem ao consumo total do período. Percentuais representam diferença dos níveis 0–100%.
+**Foco: simplificar a interface sem perder funcionalidades.**
 
-**Validação pendente:** compilação Android, instrumentação Room e verificação de notificações e relatórios em aparelho físico. Não foi gerado APK local.
+- **Início:** cartão compacto Consumo por período com 5/20/60 min, corrente, mAh e estado dos dados. Use **Ver análise completa** para gráficos e detalhes técnicos.
+- **Sessões:** compare recargas e consulte relatórios em páginas independentes pelos atalhos acima do histórico. Rótulos de carregador ficam atrás de **Identificar carregador**.
+- **Uso:** navegue por **Resumo / Aplicativos / Noite**. O resumo esclarece os totais acumulados; acima de 100% é possível quando há várias cargas e descargas.
+- **Ajuda contextual:** textos técnicos em botões ⓘ, sem esconder falta de dados e coberturas parciais. Mantido o uso de % e %/h.
+- **Sem alteração de banco:** Room v5, backup JSON v3, preferências, assinatura, Secrets e `br.com.pulsobateria` preservados.
 
-APK esperado: `Pulso-Bateria-v0.1.0-alpha.20-debug.apk`.
+**Validação pendente:** compilar Android/Compose, testar navegação e toque no aparelho; não foi gerado APK local.
+
+APK esperado: `Pulso-Bateria-v0.1.0-alpha.21-debug.apk`.

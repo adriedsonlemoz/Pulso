@@ -63,6 +63,7 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
  val reading by vm.reading.collectAsStateWithLifecycle()
  val sessions by vm.sessions.collectAsStateWithLifecycle()
  val telemetry by vm.telemetry.collectAsStateWithLifecycle()
+ val weeklyTelemetry by vm.weeklyTelemetry.collectAsStateWithLifecycle()
  val active by vm.active.collectAsStateWithLifecycle()
  val error by vm.error.collectAsStateWithLifecycle()
  val dark = settings.theme == "dark" || (settings.theme == "system" && isSystemInDarkTheme())
@@ -80,6 +81,7 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
  else lightColorScheme(primary=Color(0xFF0061A7),secondary=Color(0xFF006C59),background=Color(0xFFF3F7FC),
   surface=Color.White,surfaceVariant=Color(0xFFE6EEF7),onSurface=Color(0xFF101C2A),onBackground=Color(0xFF101C2A))
  var tab by rememberSaveable { mutableIntStateOf(0) }
+ var detailPage by rememberSaveable { mutableStateOf("") }
  var limitations by rememberSaveable { mutableStateOf(false) }
  val exportLauncher=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
   if(uri!=null) vm.exportBackup(uri)
@@ -87,30 +89,45 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
  val importLauncher=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
   if(uri!=null) vm.inspectBackup(uri)
  }
- BackHandler(tab != 0) { tab = 0 }
+ BackHandler(detailPage.isNotEmpty() || tab != 0) {
+  if(detailPage.isNotEmpty()) detailPage="" else tab=0
+ }
  MaterialTheme(colorScheme=colors) {
   Scaffold(containerColor=colors.background, topBar={
-   TopAppBar(title={ Column {
-    Text(when(tab) { 0 -> "Pulso Bateria"; 1 -> "Suas sessões"; 2 -> "Uso de aplicativos"; else -> "Configurações" },fontWeight=FontWeight.Bold)
+   TopAppBar(navigationIcon={ if(detailPage.isNotEmpty()) IconButton(onClick={detailPage=""}) { Icon(Icons.Default.ArrowBack,"Voltar") } },title={ Column {
+    Text(when(detailPage) { "analysis" -> "Análise de medições"; "compare" -> "Comparar recargas"; "reports" -> "Relatórios"; else -> when(tab) { 0 -> "Pulso Bateria"; 1 -> "Suas sessões"; 2 -> "Uso da bateria"; else -> "Configurações" } },fontWeight=FontWeight.Bold)
     Text(if(tab==0) "ENERGIA EM TEMPO REAL" else "PULSO • ALPHA",style=MaterialTheme.typography.labelSmall,color=colors.primary,letterSpacing=2.sp)
-   } }, actions={ if(tab!=3) IconButton(onClick={tab=3}) { Icon(Icons.Default.Settings,"Configurações") } },
+   } }, actions={ if(tab!=3 && detailPage.isEmpty()) IconButton(onClick={tab=3;detailPage=""}) { Icon(Icons.Default.Settings,"Configurações") } },
     colors=TopAppBarDefaults.topAppBarColors(containerColor=colors.background))
   },bottomBar={
    NavigationBar(containerColor=colors.surface) {
     listOf("Início","Sessões","Uso","Config.").forEachIndexed { index,label ->
-     NavigationBarItem(selected=tab==index,onClick={tab=index},icon={
+     NavigationBarItem(selected=tab==index,onClick={tab=index;detailPage=""},icon={
       if(index==2) UsageTabIcon() else Icon(when(index){0->Icons.Default.Home;1->Icons.Default.DateRange;else->Icons.Default.Settings},label)
      },label={Text(label)})
     }
    }
   }) { padding ->
-   when(tab) {
-    0 -> when(reading.mode) {
-     Mode.CHARGING -> ChargingScreen(reading,settings,telemetry,Modifier.padding(padding)) { limitations=true }
-     Mode.DISCHARGING -> DischargingScreen(reading,settings,telemetry,Modifier.padding(padding)) { limitations=true }
-     else -> MonitorScreen(reading,settings,telemetry,Modifier.padding(padding),"Visão da bateria",onLimitations={limitations=true})
+   if(detailPage=="analysis") {
+    LazyColumn(Modifier.fillMaxSize().padding(padding),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+     item { Text("Corrente, temperatura e bateria",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold) }
+     item { Column(verticalArrangement=Arrangement.spacedBy(12.dp)) { TelemetryPanel(telemetry,System.currentTimeMillis()) } }
     }
-    1 -> History(sessions,settings,vm,Modifier.padding(padding))
+   } else if(detailPage=="compare") {
+    LazyColumn(Modifier.fillMaxSize().padding(padding),contentPadding=PaddingValues(16.dp)) {
+     item { ChargeCompareCard(sessions,vm) }
+    }
+   } else if(detailPage=="reports") {
+    LazyColumn(Modifier.fillMaxSize().padding(padding),contentPadding=PaddingValues(16.dp)) {
+     item { BatteryReportsCard(weeklyTelemetry,alwaysExpanded=true) }
+    }
+   } else when(tab) {
+    0 -> when(reading.mode) {
+     Mode.CHARGING -> ChargingScreen(reading,settings,telemetry,Modifier.padding(padding),onDetails={detailPage="analysis"}) { limitations=true }
+     Mode.DISCHARGING -> DischargingScreen(reading,settings,telemetry,Modifier.padding(padding),onDetails={detailPage="analysis"}) { limitations=true }
+     else -> MonitorScreen(reading,settings,telemetry,Modifier.padding(padding),"Visão da bateria",onDetails={detailPage="analysis"},onLimitations={limitations=true})
+    }
+    1 -> History(sessions,settings,vm,Modifier.padding(padding),onCompare={detailPage="compare"},onReports={detailPage="reports"})
     2 -> AppUsageScreen(Modifier.padding(padding))
     else -> SettingsPage(settings,reading,active,error,vm,onMonitor,{limitations=true},
      onExport={exportLauncher.launch("Pulso-Bateria-backup-${System.currentTimeMillis()}.json")},
@@ -138,15 +155,15 @@ private fun UsageTabIcon() {
 }
 
 @Composable
-private fun ChargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, modifier: Modifier, onLimitations: () -> Unit) {
- MonitorScreen(r,s,telemetry,modifier,"Recarga",onLimitations)
+private fun ChargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, modifier: Modifier, onDetails: () -> Unit, onLimitations: () -> Unit) {
+ MonitorScreen(r,s,telemetry,modifier,"Recarga",onDetails,onLimitations)
 }
 @Composable
-private fun DischargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, modifier: Modifier, onLimitations: () -> Unit) {
- MonitorScreen(r,s,telemetry,modifier,"Autonomia",onLimitations)
+private fun DischargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, modifier: Modifier, onDetails: () -> Unit, onLimitations: () -> Unit) {
+ MonitorScreen(r,s,telemetry,modifier,"Autonomia",onDetails,onLimitations)
 }
 @Composable
-private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, modifier: Modifier, pageTitle: String, onLimitations: () -> Unit) {
+private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, modifier: Modifier, pageTitle: String, onDetails: () -> Unit, onLimitations: () -> Unit) {
  val isDark = MaterialTheme.colorScheme.background == Color.Black
  val accent by animateColorAsState(
   if(r.mode==Mode.CHARGING) (if(isDark) Color(0xFF38E8C4) else Color(0xFF00785D)) else MaterialTheme.colorScheme.primary,
@@ -215,12 +232,7 @@ private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySamp
     Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=14.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
      Text(if(charging) "TEMPO ESTIMADO ATÉ 100%" else "AUTONOMIA ESTIMADA",style=MaterialTheme.typography.labelMedium,color=accent,letterSpacing=1.sp)
      Text(if(measuring) durationText(r.remaining) else "Indisponível",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
-     Text(when {
-      !measuring -> "Sem previsão para este estado da bateria"
-      r.remaining == null -> "Aguardando 5 min e variação de 2%"
-      r.systemEstimate -> "Aproximação do Android compatível com a tendência • pode mudar"
-      else -> "Extrapolação do percentual • não modela temperatura nem redução de carga"
-     },style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     if(r.remaining==null) Text("Aguardando dados suficientes",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     }
    }
   }
@@ -256,21 +268,20 @@ private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySamp
     Text(if(charging) "Carga média observada" else if(r.mode==Mode.DISCHARGING) "Consumo médio observado" else "Corrente média observada",
      style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
     Text(mean?.let(::currentText) ?: "Aguardando média confiável",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold)
-    Text(when {
-     fromCounter -> "Calculada pela mudança da carga armazenada${r.currentInfo.counterWindowMs?.let { " em ${durationText(it)}" } ?: ""}."
-     androidAverage!=null -> "Média fornecida pelo Android; intervalo não informado pelo fabricante."
-     else -> "O sensor ainda não forneceu dados suficientes para uma média."
-    },style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-    TextButton(onClick={showDetails=!showDetails}) { Text(if(showDetails) "Ocultar detalhes da medição" else "Detalhes da medição") }
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+     Text(if(fromCounter) "Pelo contador da bateria" else if(androidAverage!=null) "Informada pelo Android" else "Dados insuficientes",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     SectionHelpButton("Corrente da bateria", "Valor líquido que entra ou sai da bateria, não a potência do cabo. Contador e Android podem usar períodos diferentes. Um zero não confirmado durante carga ou descarga é mostrado como ausência de leitura útil.")
+    }
+    TextButton(onClick={showDetails=!showDetails}) { Text(if(showDetails) "Ocultar detalhes" else "Detalhes da medição") }
     if(showDetails) {
      SessionDetailRow("Média do contador",counter?.let(::currentText) ?: "Sem leitura válida")
      SessionDetailRow("Média informada pelo Android",androidAverage?.let(::currentText) ?: "Sem leitura válida")
-     Text("A corrente média representa o que entra ou sai da bateria, não o consumo de cada aplicativo. As duas fontes podem usar intervalos diferentes.",style=MaterialTheme.typography.bodySmall)
+
     }
    }
   }
   item { Chart(r.points,accent) }
-  item { TelemetryPanel(telemetry,System.currentTimeMillis()) }
+  item { TelemetrySummaryCard(telemetry,System.currentTimeMillis(),onDetails) }
   if(r.error!=null) item { Text(r.error,color=MaterialTheme.colorScheme.error) }
   item { TextButton(onClick=onLimitations) { Icon(Icons.Default.Info,null); Spacer(Modifier.width(8.dp)); Text("Entenda as medições") } }
  }
@@ -316,9 +327,9 @@ private fun Chart(points: List<Point>,accent: Color) {
     val difference=(upper-lower).coerceAtLeast(1)
     val elapsed=(points.last().elapsed-points.first().elapsed).coerceAtLeast(0L)
     val timeLabel=if(elapsed<60_000L) "há menos de 1 min" else "há ${elapsed/60_000L} min"
-    Text("Janela de até 30 min • escala $lower–$upper%",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    Text("Últimos 30 min",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     val track=MaterialTheme.colorScheme.surfaceVariant
-    Row(Modifier.fillMaxWidth().height(112.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.fillMaxWidth().height(88.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
      Column(Modifier.fillMaxHeight(),verticalArrangement=Arrangement.SpaceBetween) {
       Text("$upper%",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
       Text("$lower%",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -346,8 +357,7 @@ private fun Chart(points: List<Point>,accent: Color) {
  }
 }
 @Composable
-private fun History(sessions: List<Session>, settings: Settings, vm: PulsoViewModel, modifier: Modifier) {
- val reportSamples by vm.weeklyTelemetry.collectAsStateWithLifecycle()
+private fun History(sessions: List<Session>, settings: Settings, vm: PulsoViewModel, modifier: Modifier, onCompare: () -> Unit, onReports: () -> Unit) {
  var filter by rememberSaveable { mutableIntStateOf(0) }
  var showInfo by rememberSaveable { mutableStateOf(false) }
  val filtered = remember(sessions,filter) {
@@ -374,7 +384,16 @@ private fun History(sessions: List<Session>, settings: Settings, vm: PulsoViewMo
     IconButton(onClick={showInfo=true}) { Icon(Icons.Default.Info,"Como funcionam as sessões") }
    }
   }
-  item(key="battery-reports") { BatteryReportsCard(reportSamples) }
+  item(key="history-tools") {
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+    OutlinedButton(onClick=onCompare,enabled=sessions.count { it.mode=="CHARGING" && it.closed && it.samples>=2 }>=2,modifier=Modifier.weight(1f)) {
+     Icon(Icons.Default.DateRange,null,Modifier.size(18.dp)); Spacer(Modifier.width(4.dp)); Text("Comparar",maxLines=1)
+    }
+    OutlinedButton(onClick=onReports,modifier=Modifier.weight(1f)) {
+     Icon(Icons.Default.Info,null,Modifier.size(18.dp)); Spacer(Modifier.width(4.dp)); Text("Relatórios",maxLines=1)
+    }
+   }
+  }
   item(key="history-filters") {
    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
     listOf("Todas","Carga","Descarga").forEachIndexed { index,label ->
@@ -383,9 +402,6 @@ private fun History(sessions: List<Session>, settings: Settings, vm: PulsoViewMo
      })
     }
    }
-  }
-  if(filter!=2 && sessions.count { it.mode=="CHARGING" && it.closed && it.samples>=2 }>=2) {
-   item(key="charge-comparison") { ChargeCompareCard(sessions,vm) }
   }
   if(filtered.isEmpty()) item(key="history-empty") {
    Card(colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface),shape=RoundedCornerShape(20.dp)) {

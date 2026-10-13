@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -22,6 +23,39 @@ import kotlin.math.abs
 private val BR = Locale.forLanguageTag("pt-BR")
 private fun signedMah(v: Double): String = String.format(BR,"%+.1f mAh",v)
 
+/** Resumo da tela inicial. Metadados técnicos permanecem acessíveis em outra tela. */
+@Composable
+fun TelemetrySummaryCard(samples: List<TelemetrySample>, now: Long, onDetails: () -> Unit) {
+ var minutes by remember { mutableIntStateOf(20) }
+ val readings=remember(samples) { samples.map { TelemetryDatum(it.sessionId,it.timestamp,it.elapsedMs,it.mode,
+  it.percent,it.currentMa,it.currentSource,it.temperatureC,it.counterUah) } }
+ val result=remember(readings,now,minutes) { TelemetryAnalysis.summarize(readings,now,minutes) }
+ Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
+  Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+   Row(verticalAlignment=Alignment.CenterVertically) {
+    Text("Consumo por período",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+    SectionHelpButton("Consumo por período","Corrente líquida na bateria, não no cabo ou por aplicativo. A carga em mAh só cobre intervalos válidos. Cobertura indica tempo efetivamente observado, não precisão do sensor.")
+   }
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+    listOf(5,20,60).forEach { n -> FilterChip(selected=minutes==n,onClick={minutes=n},label={Text("$n min")},modifier=Modifier.weight(1f)) }
+   }
+   Text(result.meanMa?.let(::currentText) ?: "Sem média suficiente",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.SemiBold)
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+    Column {
+     Text("Carga acumulada",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     Text(result.deltaMah?.let(::signedMah) ?: "Indisponível",style=MaterialTheme.typography.bodyLarge,fontWeight=FontWeight.Medium)
+    }
+    Column(horizontalAlignment=Alignment.End) {
+     Text("Dados disponíveis",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     Text(if(result.meanMa==null) "Insuficientes" else if(result.coveragePercent<80) "Parciais" else "${result.coveragePercent}% do período",
+      style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.Medium)
+    }
+   }
+   TextButton(onClick=onDetails,modifier=Modifier.fillMaxWidth()) { Text("Ver análise completa"); Spacer(Modifier.width(8.dp)); Text("›") }
+  }
+ }
+}
+
 /** Valores reais da telemetria Room. Gráficos não unem sessões ou lacunas >3 minutos. */
 @Composable
 fun TelemetryPanel(samples: List<TelemetrySample>, now: Long) {
@@ -34,8 +68,9 @@ fun TelemetryPanel(samples: List<TelemetrySample>, now: Long) {
  Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
   Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
    Text("Médias por período",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
-   Text("Corrente líquida na bateria, não no cabo USB.",style=MaterialTheme.typography.bodySmall,
-    color=MaterialTheme.colorScheme.onSurfaceVariant)
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.End) {
+    SectionHelpButton("Médias por período","A corrente é líquida na bateria, não no cabo USB. Cobertura elétrica é tempo com medidas válidas, não precisão do sensor. mAh parciais não representam toda a janela.")
+   }
    Row(horizontalArrangement=Arrangement.spacedBy(8.dp),modifier=Modifier.fillMaxWidth()) {
     listOf(5,20,60).forEach { n ->
      FilterChip(selected=selectedMinutes==n,onClick={selectedMinutes=n},label={Text("$n min")},modifier=Modifier.weight(1f))
@@ -51,8 +86,7 @@ fun TelemetryPanel(samples: List<TelemetrySample>, now: Long) {
    Text(window.origin?.let { "Origem: $it • ${window.intervalCount} intervalos válidos" }
     ?: "Sem uma sequência de corrente ou contador confiável no período.",
     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-   Text("Cobertura é tempo com dados válidos, não precisão do sensor. Valores parciais não representam toda a janela.",
-    style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+
   }
  }
  Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {

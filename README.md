@@ -1,7 +1,15 @@
 # Pulso Bateria
 
-**0.1.0-alpha.20 • versionCode 20** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.21 • versionCode 21** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
+
+## Novidades da alpha.21 — navegação mais limpa
+
+- **Início:** resumo compacto dos últimos 5/20/60 minutos com corrente, mAh e indicador de dados parciais. O botão **Ver análise completa** abre página com séries detalhadas de corrente, temperatura e bateria, sem eliminar dados técnicos; o gráfico recente foi reduzido.
+- **Sessões:** os cartões e filtros ficam no início; os atalhos **Comparar** e **Relatórios** abrem páginas separadas, com botão Voltar e navegação inferior preservada. Campos para nomear carregadores aparecem somente ao expandir a identificação das recargas selecionadas.
+- **Uso:** subseções **Resumo / Aplicativos / Noite**. Cada uma mostra apenas seus dados, sem longa rolagem por cartões de outros assuntos. Totais acumulados de vários ciclos podem superar 100% e são rotulados como tal.
+- **Ajuda contextual:** explicações de sensores, cobertura, mAh, limites, comparação e eventos ficam em ícones de informação acessíveis. Alertas de indisponibilidade e cobertura parcial continuam visíveis sem abrir a ajuda.
+- **Sem alterações nas medições ou persistência:** Room v5, backup JSON v3, assinatura, permissões, coleta e histórico preservados. Não são atribuídos mAh a aplicativos. A versão depende de compilação e teste visual no GitHub Actions/aparelho.
 
 ## Evolução alpha.17
 
