@@ -1,25 +1,20 @@
-# Validação — Pulso Bateria 0.1.0-alpha.17 (17)
+# Validação — Pulso Bateria 0.1.0-alpha.19 (19)
 
 ## Escopo
 
-- Nome/ícone de aplicativos via PackageManager com `<queries>` limitado a `MAIN/LAUNCHER`; fallback para pacotes invisíveis.
-- Aba **Uso** com ícone próprio, títulos mais legíveis.
-- Variação da bateria apresentada em `%`, mantendo diferença de níveis 0–100; testes `SessionHistoryTextTest` atualizados.
-- Cartão **Corrente da bateria** com média útil, origem e detalhes expansíveis.
-- Room v3, backup JSON v1, assinatura, receitas do GitHub Actions e cálculos de corrente não modificados.
+Duas melhorias: análise noturna com eventos de tela e leitura histórica local, e comparador de duas recargas com faixa percentual realmente comum, nome de fonte opcional e métrica mAh quando disponível. Room v5, migração 4→5, backup JSON v3 preservam versões anteriores. Nenhuma permissão de internet ou wake lock nova.
 
-## Testes e limitações
+## Verificações locais
 
-- `python3 tools/validate_source.py`: **PASS**, 14 arquivos obrigatórios, 7 XMLs, versão, permissões e integridade do Wrapper.
-- `python3 tools/test_storage_sql.py`: **8 testes SQLite aprovados**, não executam Room em Android.
-- Kotlin/JVM compilado usando `kotlinc` 1.9.0 local, com um executor de asserções compatível com JUnit 4 (não Gradle/JUnit oficial): **148 testes aprovados, 0 falhas**, inclusive novos resultados em `%` de `SessionHistoryTextTest`. O teste primeiro falhou por esperar um espaço antes de `%/h`; a expectativa foi corrigida e a suíte reexecutada.
-- `./gradlew :core:test :app:assembleDebug --no-daemon`: **não concluiu**, o Gradle Wrapper falhou no download da distribuição por ausência de acesso de rede. Não foi possível compilar Compose/Android, nem executar lint ou validar APK.
-- O manifesto inclui `<queries>` restrito a `MAIN/LAUNCHER` e não inclui `QUERY_ALL_PACKAGES`.
+- `python3 tools/test_storage_sql.py`: 12 testes SQLite, incluindo 4→5 e cadeia 1→5; não substituem Room/KSP em dispositivo.
+- `python3 tools/validate_source.py`: checagem de versionamento, permissões, Wrapper e arquivos.
+- **9 testes novos de Kotlin/JVM aprovados**, compilando `NightAndChargingAnalysis.kt`, `TelemetryAnalysis.kt` e `UsageAnalysisMath.kt` com Kotlin 1.9 e um executor mínimo compatível com as asserções JUnit. Cobrem limites noturnos, lacunas, faixa comum, contador regressivo e ausência de dados. Não equivale à suíte Gradle com Kotlin 2.1.
+- A suíte Kotlin/JVM completa excedeu o tempo de execução local e não foi declarada aprovada. A compilação Gradle foi tentada, mas bloqueada por `UnknownHostException: services.gradle.org` ao baixar Gradle 8.11.1, antes de compilar fontes Android.
+- Verificação CRC e listagem do ZIP de fontes, sem keystore nem Secrets.
 
+## Pendências
 
-## Pendências em aparelho
-
-1. Build completo `:core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` no GitHub Actions.
-2. Conferir nomes e ícones de jogos e apps conhecidos em Android 11+ com permissão de uso, incluindo pacotes ocultos ou apps sem launcher.
-3. Visualizar a nova aba e o gráfico de barras em tela pequena/fonte grande; conferir layout dos cards de média e a expansão técnica.
-4. Atualização assinada com os mesmos quatro Secrets; verificar persistência do histórico, permissões e backup.
+- Executar `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest` no GitHub Actions.
+- Testar em dispositivo real migração 1→5/2→5/3→5/4→5 e schema JSON gerado pelo KSP.
+- Verificar a consulta noturna no fuso local e diferentes estados de tela, a identificação de fontes, a persistência do nome manual e a comparação de recargas com amostras reais.
+- Validar exportação v3/restauração v1/v2/v3 e manter backup da instalação atual antes de atualizar.

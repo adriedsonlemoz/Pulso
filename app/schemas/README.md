@@ -12,3 +12,7 @@ Room v3: as colunas anuláveis `currentMa`, `temperatureC`, `currentSource` são
 ## Alpha.12
 
 Banco permanece v3: nenhuma mudança de entidades ou nova migração. Foram adicionados testes de reabertura v3 e atomicidade do DAO. O workflow guarda os JSONs reais produzidos pelo KSP em artefatos de validação. Ainda é necessário obtê-los de um build Android bem-sucedido e versioná-los.
+
+- **Room v4:** migração `MIGRATION_3_4` em Store.kt e SQL de referência `room-migration-3-4.sql`. O JSON oficial gerado pelo KSP para v4 ainda deve ser capturado e versionado após um build Android bem-sucedido.
+
+- **Room v5:** migração `MIGRATION_4_5`, adicionando `chargeSource` e `chargerLabel` anuláveis à tabela `sessions`; SQL de referência em `room-migration-4-5.sql`. JSON oficial v5 deve ser obtido do KSP após build Android, nunca escrito manualmente.

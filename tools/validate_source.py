@@ -26,8 +26,8 @@ assert (root/'app/src/main/java/br/com/pulsobateria/usage/UsageInsightsReader.kt
 
 gradle=(root/'app/build.gradle.kts').read_text()
 version=re.search(r'versionName = "([^"]+)"',gradle).group(1)
-assert version == '0.1.0-alpha.17'
-assert re.search(r'versionCode = 17\b',gradle)
+assert version == '0.1.0-alpha.19'
+assert re.search(r'versionCode = 19\b',gradle)
 for file in ['README.md','CHANGELOG.md','RELEASE_NOTES.md','docs/VERSIONING.md','.github/workflows/android.yml']:
  assert version in (root/file).read_text(), f'Version mismatch: {file}'
 jar=root/'gradle/wrapper/gradle-wrapper.jar'
@@ -37,12 +37,17 @@ with zipfile.ZipFile(jar) as archive:
  assert 'org/gradle/wrapper/GradleWrapperMain.class' in archive.namelist()
 assert 'distributionSha256Sum=f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6' in (root/'gradle/wrapper/gradle-wrapper.properties').read_text()
 store=(root/'app/src/main/java/br/com/pulsobateria/data/Store.kt').read_text()
-assert 'version = 3' in store and 'MIGRATION_1_2' in store and 'MIGRATION_2_3' in store
-assert '.addMigrations(BatteryDatabase.MIGRATION_1_2, BatteryDatabase.MIGRATION_2_3)' in (root/'app/src/main/java/br/com/pulsobateria/PulsoApp.kt').read_text()
+assert 'version = 5' in store and 'MIGRATION_1_2' in store and 'MIGRATION_2_3' in store and 'MIGRATION_3_4' in store and 'MIGRATION_4_5' in store
+assert '.addMigrations(BatteryDatabase.MIGRATION_1_2, BatteryDatabase.MIGRATION_2_3, BatteryDatabase.MIGRATION_3_4, BatteryDatabase.MIGRATION_4_5)' in (root/'app/src/main/java/br/com/pulsobateria/PulsoApp.kt').read_text()
 workflow=(root/'.github/workflows/android.yml').read_text()
 assert f'Pulso-Bateria-v{version}-debug.apk' in workflow
 assert 'actions/upload-artifact@v4' in workflow and 'KEYSTORE_BASE64' in workflow
 assert (root/'app/src/main/java/br/com/pulsobateria/data/BackupManager.kt').exists()
 assert (root/'app/schemas/room-migration-2-3.sql').exists()
+assert (root/'app/schemas/room-migration-3-4.sql').exists()
+assert (root/'app/schemas/room-migration-4-5.sql').exists()
+assert (root/'app/src/main/java/br/com/pulsobateria/ui/TelemetryPanel.kt').is_file()
+assert (root/'core/src/main/kotlin/br/com/pulsobateria/core/TelemetryAnalysis.kt').is_file()
+assert 'const val VERSION = 3' in (root/'app/src/main/java/br/com/pulsobateria/data/BackupManager.kt').read_text()
 assert all(not list(root.rglob(ext)) for ext in ('*.p12','*.jks','*.keystore'))
 print(f'PASS: {len(required)} required files, {len(xmls)} XMLs, permissions, version references and official Wrapper SHA-256/CRC.')

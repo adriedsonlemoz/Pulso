@@ -55,6 +55,7 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
  val settings by vm.settings.collectAsStateWithLifecycle()
  val reading by vm.reading.collectAsStateWithLifecycle()
  val sessions by vm.sessions.collectAsStateWithLifecycle()
+ val telemetry by vm.telemetry.collectAsStateWithLifecycle()
  val active by vm.active.collectAsStateWithLifecycle()
  val error by vm.error.collectAsStateWithLifecycle()
  val dark = settings.theme == "dark" || (settings.theme == "system" && isSystemInDarkTheme())
@@ -98,9 +99,9 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
   }) { padding ->
    when(tab) {
     0 -> when(reading.mode) {
-     Mode.CHARGING -> ChargingScreen(reading,settings,Modifier.padding(padding)) { limitations=true }
-     Mode.DISCHARGING -> DischargingScreen(reading,settings,Modifier.padding(padding)) { limitations=true }
-     else -> MonitorScreen(reading,settings,Modifier.padding(padding),"Visão da bateria",onLimitations={limitations=true})
+     Mode.CHARGING -> ChargingScreen(reading,settings,telemetry,Modifier.padding(padding)) { limitations=true }
+     Mode.DISCHARGING -> DischargingScreen(reading,settings,telemetry,Modifier.padding(padding)) { limitations=true }
+     else -> MonitorScreen(reading,settings,telemetry,Modifier.padding(padding),"Visão da bateria",onLimitations={limitations=true})
     }
     1 -> History(sessions,settings,vm,Modifier.padding(padding))
     2 -> AppUsageScreen(Modifier.padding(padding))
@@ -130,15 +131,15 @@ private fun UsageTabIcon() {
 }
 
 @Composable
-private fun ChargingScreen(r: Reading, s: Settings, modifier: Modifier, onLimitations: () -> Unit) {
- MonitorScreen(r,s,modifier,"Recarga",onLimitations)
+private fun ChargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, modifier: Modifier, onLimitations: () -> Unit) {
+ MonitorScreen(r,s,telemetry,modifier,"Recarga",onLimitations)
 }
 @Composable
-private fun DischargingScreen(r: Reading, s: Settings, modifier: Modifier, onLimitations: () -> Unit) {
- MonitorScreen(r,s,modifier,"Autonomia",onLimitations)
+private fun DischargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, modifier: Modifier, onLimitations: () -> Unit) {
+ MonitorScreen(r,s,telemetry,modifier,"Autonomia",onLimitations)
 }
 @Composable
-private fun MonitorScreen(r: Reading, s: Settings, modifier: Modifier, pageTitle: String, onLimitations: () -> Unit) {
+private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, modifier: Modifier, pageTitle: String, onLimitations: () -> Unit) {
  val isDark = MaterialTheme.colorScheme.background == Color.Black
  val accent by animateColorAsState(
   if(r.mode==Mode.CHARGING) (if(isDark) Color(0xFF38E8C4) else Color(0xFF00785D)) else MaterialTheme.colorScheme.primary,
@@ -262,6 +263,7 @@ private fun MonitorScreen(r: Reading, s: Settings, modifier: Modifier, pageTitle
    }
   }
   item { Chart(r.points,accent) }
+  item { TelemetryPanel(telemetry,System.currentTimeMillis()) }
   if(r.error!=null) item { Text(r.error,color=MaterialTheme.colorScheme.error) }
   item { TextButton(onClick=onLimitations) { Icon(Icons.Default.Info,null); Spacer(Modifier.width(8.dp)); Text("Entenda as medições") } }
  }
@@ -373,6 +375,9 @@ private fun History(sessions: List<Session>, settings: Settings, vm: PulsoViewMo
     }
    }
   }
+  if(filter!=2 && sessions.count { it.mode=="CHARGING" && it.closed && it.samples>=2 }>=2) {
+   item(key="charge-comparison") { ChargeCompareCard(sessions,vm) }
+  }
   if(filtered.isEmpty()) item(key="history-empty") {
    Card(colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface),shape=RoundedCornerShape(20.dp)) {
     Column(Modifier.fillMaxWidth().padding(20.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
@@ -463,6 +468,10 @@ private fun SessionHistoryCard(session: Session,settings: Settings,vm: PulsoView
     SessionDetailRow("Temperatura média (amostras)",temperatureText(BatteryMath.averageTemperature(session.temperatureSum,session.temperatureCount),settings.fahrenheit))
     SessionDetailRow("Amostras coletadas",session.samples.toString())
     SessionDetailRow("Motivo",session.reason)
+    if(mode==Mode.CHARGING) {
+     SessionDetailRow("Tipo de fonte",session.chargeSource ?: "Não registrado")
+     session.chargerLabel?.let { SessionDetailRow("Nome do carregador (manual)",it) }
+    }
     Text("Evolução da bateria",style=MaterialTheme.typography.titleSmall,fontWeight=FontWeight.SemiBold,modifier=Modifier.padding(top=4.dp))
     val sampleFlow = remember(session.id) { vm.sessionSamples(session.id) }
     val savedSamples by sampleFlow.collectAsStateWithLifecycle(initialValue=emptyList())

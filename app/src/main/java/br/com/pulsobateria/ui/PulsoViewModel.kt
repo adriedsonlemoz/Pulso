@@ -9,6 +9,7 @@ import br.com.pulsobateria.data.BackupData
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.pulsobateria.PulsoApp
+import br.com.pulsobateria.data.TelemetrySample
 import br.com.pulsobateria.data.SessionSample
 import br.com.pulsobateria.data.Settings
 import kotlinx.coroutines.flow.*
@@ -18,6 +19,12 @@ class PulsoViewModel(application: Application): AndroidViewModel(application) {
  private val app = application as PulsoApp
  val reading = app.repository.reading
  fun sessionSamples(sessionId: Long): Flow<List<SessionSample>> = app.repository.sessionSamples(sessionId)
+ fun sessionTelemetry(sessionId: Long): Flow<List<TelemetrySample>> = app.repository.sessionTelemetry(sessionId)
+ fun setChargerLabel(id: Long, value: String) {
+  val cleaned=value.trim().take(40).takeIf { it.isNotBlank() }
+  viewModelScope.launch { app.repository.setChargerLabel(id,cleaned) }
+ }
+ val telemetry = app.repository.telemetry.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList<TelemetrySample>())
  val sessions = app.repository.sessions.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
  val settings = app.settings.flow.stateIn(viewModelScope,SharingStarted.Eagerly,Settings())
  val active = app.repository.serviceActive

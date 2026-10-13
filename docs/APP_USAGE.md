@@ -29,3 +29,7 @@ O módulo utiliza `UsageStatsManager.queryEvents` (`MOVE_TO_FOREGROUND/BACKGROUN
 4. Verificar que uma sessão interrompida ou lacuna >3min não gera queda atribuída ao intervalo ausente.
 5. Revogar permissão, atualizar e conferir que o acesso não permanece habilitado.
 6. Testar em Android 8.0 e versões mais recentes, aparelho bloqueado e idioma português.
+
+## Consumo noturno (alpha.19)
+
+A aba Uso ganhou cartão da última noite local (22h–7h) na consulta manual já autorizada. Depende de eventos do Android e de histórico próprio da bateria, sem instalar outro serviço em segundo plano. Não é monitoramento por aplicativo, não mede mAh individuais e não extrapola lacunas. Se o Android negar eventos, ou faltar histórico válido, permanece sem informação suficiente.

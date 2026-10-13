@@ -72,9 +72,9 @@ Temperatura média de sessão é aritmética por amostras, agora rotulada como t
 
 Sem serviço, observar somente com Activity visível. Polling 15/30/60 s e broadcasts, com mínimo de 1 s por estado. Um coletor serializado atende Activity/serviço. Não há wake lock. Registros incompletos são fechados na reabertura, sem fabricar dados de processo morto/reinício.
 
-## Evoluções propostas, ainda não implementadas
+## Histórico das propostas de telemetria
 
-Médias temporais próprias de 5/20 min, integral mAh e média de sessão requerem pontos por coleta ou acumuladores transacionais, identificação de segmentos, cobertura e política de retenção. Ver projeto matemático, casos de teste e diferenças entre observado/estimado em `AUDIT-alpha.11-to-alpha.12.md`.
+Antes da alpha.18, médias temporais próprias de 5/20 min e integrais mAh ainda não estavam implementadas. Desde a alpha.18, as novas janelas usam série técnica e cobertura de amostras válidas, conforme explicado abaixo. Ver o projeto matemático e as limitações em `AUDIT-alpha.11-to-alpha.12.md`.
 
 ## Referências oficiais
 
@@ -82,3 +82,19 @@ Médias temporais próprias de 5/20 min, integral mAh e média de sessão requer
 - https://source.android.com/docs/core/power/device
 - https://developer.android.com/training/data-storage/room/migrating-db-versions
 - https://developer.android.com/topic/libraries/architecture/datastore
+
+## Janelas de telemetria (alpha.18)
+
+A coleta agora salva amostras adicionais em `telemetry_samples` (Room v4), com os relógios do sistema e `elapsedRealtime`, fonte e contador bruto válido. Leituras de eventos recebidas em intervalos <15 s não são persistidas nessa tabela. A poda mantém as 1.440 amostras mais recentes por sessão, com poda global de aproximadamente 30 mil pontos realizada ao iniciar uma nova sessão. A consulta da tela limita-se aos 1.500 pontos recentes; janelas longas e sessões muito antigas podem ter cobertura parcial.
+
+Médias de 5, 20 e 60 minutos só integram **pares completos** registrados na mesma sessão e no mesmo estado, com deltas de tempo civil e monotônico consistentes (≤5 s de diferença), intervalo de 1–180s e sem salto de sessão. Prioridade ao CHARGE_COUNTER em µAh, cuja diferença deve ter o sinal compatível com o estado e média ≤30 A; se não houver cobertura suficiente, considera a integral trapezoidal de CURRENT_NOW/AVERAGE normalizados. Uma única fonte é escolhida para toda a janela, **sem somar fontes diferentes**. CAPACITY (percentual × capacidade configurada) não é integrado como medição.
+
+O mAh é apenas a integral dos intervalos válidos cobertos, não uma extrapolação para o período completo. A média mA divide a carga integrada pelo **tempo válido**. Cobertura elétrica = tempo válido / duração solicitada. Cobertura de monitoramento = intervalos temporais de mesma sessão / duração. Cobertura não corresponde a precisão metrológica.
+
+Gráfico permite selecionar corrente, temperatura e nível (cada um com escala própria) e 1/6h. Não liga intervalos maiores que 180s nem sessões diferentes. Percentuais e temperaturas vêm do sensor; correntes CAPACITY não aparecem como medidas no gráfico de corrente. Gráficos técnicos antes da alpha.18 não existem e não são inventados.
+
+## Consumo noturno e comparação de carregamentos (alpha.19)
+
+A última noite civil local vai das 22h às 7h, ou termina no instante atual quando ainda em andamento. Usa eventos `SCREEN_INTERACTIVE`/`SCREEN_NON_INTERACTIVE` do Android, com autorização explícita de acesso ao uso e amostras da bateria realmente armazenadas. Pares devem pertencer à mesma sessão, separados por ≤3 min. Se o estado da tela mudou entre duas amostras ou é desconhecido, a queda não é atribuída à tela ligada/apagada. O percentual indicado é diferença de nível na escala 0–100. A cobertura é tempo observado/duração da janela, **não confiabilidade metrológica**. Ritmo de descarga noturno só aparece com pelo menos 20 min observados de tela apagada e queda ≥2%.
+
+O comparador exige duas sessões `CHARGING` encerradas, com pontos da telemetria Room v4 e o mesmo par de níveis (uma faixa ≥5%) registrado em ambas. Para evitar interpolação e médias inventadas, cada trecho precisa de pontos consecutivos com intervalos civil/monotônico ≤3 min e coerência ≤5 s, sem redução de percentual durante a faixa. Compara %/h e tempo **somente nessa mesma faixa observada**, nunca duas sessões completas com faixas diferentes. Temperatura é média simples das amostras no trecho; mAh são `ΔCHARGE_COUNTER/1000` somente quando contador válido e média implícita entre 10 e 30.000 mA. Sem dados, informar indisponível. O Android fornece o **tipo de conexão** (Tomada, USB, Sem fio) e não a identidade do carregador. Rótulos são manuais; mudar a fonte USB para Tomada durante carga pode iniciar nova sessão.

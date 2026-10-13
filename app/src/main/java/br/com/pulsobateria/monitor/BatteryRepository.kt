@@ -25,7 +25,10 @@ class BatteryRepository(
  private val mutable = MutableStateFlow(Reading())
  val reading = mutable.asStateFlow()
  val sessions = dao.observe()
+ val telemetry = dao.observeRecentTelemetry()
  fun sessionSamples(id: Long): Flow<List<SessionSample>> = dao.observeSamples(id)
+ fun sessionTelemetry(id: Long): Flow<List<TelemetrySample>> = dao.observeSessionTelemetry(id)
+ suspend fun setChargerLabel(id: Long, label: String?) { dao.setChargerLabel(id,label) }
  val serviceActive = MutableStateFlow(false)
  val serviceError = MutableStateFlow<String?>(null)
  private val preferences = settings.flow.stateIn(scope, SharingStarted.Eagerly, Settings())
@@ -54,6 +57,7 @@ class BatteryRepository(
  private val points = mutableListOf<Point>()
  private var lastStoredTimestamp: Long? = null
  private var lastStoredPercent: Int? = null
+ private var lastTelemetryElapsed: Long? = null
  private val receiver = object: BroadcastReceiver() {
   override fun onReceive(c: Context?, intent: Intent?) { commands.trySend(Command("read")) }
  }
@@ -78,7 +82,7 @@ class BatteryRepository(
       }
       command == "resumeRestore" && restoring -> {
        restoring=false; active=null
-       lastStoredTimestamp=null; lastStoredPercent=null
+       lastStoredTimestamp=null; lastStoredPercent=null; lastTelemetryElapsed=null
        if(owners.isNotEmpty()) commands.trySend(Command("read"))
       }
       command.startsWith("+") -> {
@@ -125,7 +129,7 @@ class BatteryRepository(
  private suspend fun close(reason: String) {
   active?.let { dao.update(it.copy(closed = true, reason = reason)) }
   active = null
-  lastStoredTimestamp = null; lastStoredPercent = null
+  lastStoredTimestamp = null; lastStoredPercent = null; lastTelemetryElapsed=null
  }
  private suspend fun sample() {
   val now = SystemClock.elapsedRealtime()
@@ -148,6 +152,21 @@ class BatteryRepository(
   val rawNow = runCatching { manager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW) }.getOrDefault(Int.MIN_VALUE)
   val rawAverage = runCatching { manager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE) }.getOrDefault(Int.MIN_VALUE)
   val rawCounter = runCatching { manager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER) }.getOrDefault(Int.MIN_VALUE)
+  val chargeSource=if(mode==Mode.CHARGING) when {
+   plugged and BatteryManager.BATTERY_PLUGGED_AC != 0 -> "Tomada"
+   plugged and BatteryManager.BATTERY_PLUGGED_USB != 0 -> "USB"
+   plugged and BatteryManager.BATTERY_PLUGGED_WIRELESS != 0 -> "Sem fio"
+   plugged != 0 -> "Fonte externa"
+   else -> null
+  } else null
+  // Se o Android identificar a troca de tipo de fonte, encerrar a sessão anterior.
+  // Fontes do mesmo tipo ainda podem ser acessórios diferentes: só o nome manual distingue.
+  if (active?.mode==Mode.CHARGING.name && mode==Mode.CHARGING &&
+      active?.chargeSource!=null && chargeSource!=null && active?.chargeSource!=chargeSource) {
+   close("Fonte de carga alterada")
+   points.clear(); currentTracker=CurrentTracker(); calibrationLoaded=false
+   lastElapsed=0L
+  }
   if (paused && active != null && !BatteryMath.canResumePause(lastMode,mode,active!!.final,level ?: -1,lastElapsed,now,lastWall,wall)) {
    close("Intervalo sem observação")
   }
@@ -174,15 +193,20 @@ class BatteryRepository(
   }
   if(level!=null && mode!=Mode.UNKNOWN) {
    val previous=active ?: Session(mode=mode.name,started=wall,ended=wall,durationMs=0,initial=level,final=level,
-    temperatureSum=0.0,temperatureCount=0,samples=0)
-   val candidate=previous.copy(ended=wall,
+    temperatureSum=0.0,temperatureCount=0,samples=0,chargeSource=chargeSource)
+   val candidate=previous.copy(ended=wall,chargeSource=previous.chargeSource ?: chargeSource,
     durationMs=BatteryMath.observedDuration(previous.durationMs,lastElapsed,now,paused,previous.samples),final=level,
     temperatureSum=previous.temperatureSum+(temperature ?: 0.0),
     temperatureCount=previous.temperatureCount+(if(temperature!=null) 1 else 0),samples=previous.samples+1,reason="Em observação")
    val shouldStore=BatteryMath.shouldStoreSessionSample(lastStoredTimestamp,lastStoredPercent,wall,level)
    val sample=if(shouldStore) SessionSample(sessionId=previous.id,timestamp=wall,percent=level,
     currentMa=currentInfo.ma,temperatureC=temperature,currentSource=currentInfo.source.name) else null
-   active=dao.saveObservation(candidate,sample)
+   val shouldTelemetry=lastTelemetryElapsed==null || now < lastTelemetryElapsed!! || now-lastTelemetryElapsed!!>=15_000L
+   val telemetry=if(shouldTelemetry) TelemetrySample(sessionId=previous.id,timestamp=wall,elapsedMs=now,
+    mode=mode.name,percent=level,currentMa=currentInfo.ma,currentSource=currentInfo.source.name,
+    temperatureC=temperature,counterUah=rawCounter.takeIf { it in 0..100_000_000 }) else null
+   active=dao.saveObservation(candidate,sample,telemetry)
+   if(shouldTelemetry) lastTelemetryElapsed=now
    if(shouldStore) { lastStoredTimestamp=wall; lastStoredPercent=level }
   }
   points.clear(); points.addAll(candidatePoints)

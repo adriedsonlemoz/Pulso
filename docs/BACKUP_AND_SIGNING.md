@@ -41,3 +41,11 @@ Somente considere o resgate concluído depois de conferir que o TAR contém `dat
 ## Auditoria alpha.12
 
 Schema Room v3 e backup JSON v1 preservados. A gravação de resumo, ponto e retenção passa a usar uma transação única. O leitor de backup rejeita contagens de temperatura incoerentes e pontos fora do período da sessão. Decisões antigas de calibração são descartadas; a nova identidade local de calibração fica em noBackupFilesDir, ligada ao firmware. Não apaga históricos/configurações. Ver `AUDIT-alpha.11-to-alpha.12.md` e `VALIDATION.md`.
+
+## Telemetria e backup (alpha.18)
+
+O exportador passa a produzir JSON **v2** com o campo `telemetry`, preservando o envelope SHA-256. A importação continua aceitando backups v1, nos quais a série técnica fica vazia. Novos backups devem ser testados no aparelho antes de descartar os antigos. O formato não é criptografado e o SHA-256 detecta integridade, não autenticidade. A tabela Room v4 só é preenchida após a atualização e não retroage ao histórico salvo.
+
+## Fonte de carga e backup (alpha.19)
+
+Room v5 adiciona `sessions.chargeSource` e `sessions.chargerLabel` opcionais por migração 4→5. O app registra apenas o tipo relatado pelo Android para novas recargas; rótulos de até 40 caracteres são digitados manualmente pelo usuário. O exportador passa ao envelope JSON **v3**, com esses campos em cada sessão e o array de telemetria da v2. O importador aceita backups v1/v2 sem esses campos, deixando-os nulos. Não restaurar monitoramento contínuo automaticamente. Recomendamos exportar backup antes da atualização e testar restauração em dispositivo de teste.

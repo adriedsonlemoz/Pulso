@@ -40,11 +40,11 @@ class StorageSQLTest(unittest.TestCase):
   with sqlite3.connect(':memory:') as db:
    schema(db,2); migration(db,2)
    self.assertEqual((1,1,1000,40,None,None,None),db.execute('SELECT * FROM session_samples').fetchone())
- def test_v3_has_same_schema_no_migration_in_alpha12(self):
+ def test_v3_values_remain_after_adding_telemetry(self):
   with sqlite3.connect(':memory:') as db:
    schema(db,3)
    self.assertEqual(437.0,db.execute('SELECT currentMa FROM session_samples').fetchone()[0])
-   self.assertIn('version = 3',STORE)
+   self.assertIn('version = 5',STORE)
  def test_foreign_key_cascades(self):
   with sqlite3.connect(':memory:') as db:
    schema(db,3); db.execute('DELETE FROM sessions WHERE id=1')
@@ -71,6 +71,43 @@ class StorageSQLTest(unittest.TestCase):
    db.execute(sql)
    self.assertEqual(500,db.execute('SELECT COUNT(*) FROM sessions').fetchone()[0])
    self.assertEqual(0,db.execute('SELECT COUNT(*) FROM session_samples').fetchone()[0])
+ def test_v3_to_v4_preserves_old_history(self):
+  with sqlite3.connect(':memory:') as db:
+   schema(db,3)
+   before=db.execute('SELECT * FROM sessions').fetchall()
+   points=db.execute('SELECT * FROM session_samples').fetchall()
+   migration(db,3)
+   self.assertEqual(before,db.execute('SELECT * FROM sessions').fetchall())
+   self.assertEqual(points,db.execute('SELECT * FROM session_samples').fetchall())
+   self.assertEqual([],db.execute('SELECT * FROM telemetry_samples').fetchall())
+   self.assertEqual([],db.execute('PRAGMA foreign_key_check').fetchall())
+ def test_v4_to_v5_preserves_sessions_and_telemetry(self):
+  with sqlite3.connect(':memory:') as db:
+   schema(db,3); migration(db,3)
+   db.execute("INSERT INTO telemetry_samples (sessionId,timestamp,elapsedMs,mode,percent) VALUES(1,1500,1500,'CHARGING',41)")
+   before=db.execute('SELECT * FROM telemetry_samples').fetchall()
+   migration(db,4)
+   self.assertEqual(before,db.execute('SELECT * FROM telemetry_samples').fetchall())
+   self.assertEqual((None,None),db.execute('SELECT chargeSource,chargerLabel FROM sessions WHERE id=1').fetchone())
+   db.execute("UPDATE sessions SET chargeSource='USB',chargerLabel='Carregador de casa' WHERE id=1")
+   self.assertEqual(('USB','Carregador de casa'),db.execute('SELECT chargeSource,chargerLabel FROM sessions').fetchone())
+   self.assertEqual([],db.execute('PRAGMA foreign_key_check').fetchall())
+ def test_v1_to_v5_retains_old_history(self):
+  with sqlite3.connect(':memory:') as db:
+   schema(db,1)
+   for v in range(1,5): migration(db,v)
+   self.assertEqual((41,None,None),db.execute('SELECT final,chargeSource,chargerLabel FROM sessions').fetchone())
+   self.assertEqual([],db.execute('SELECT * FROM session_samples').fetchall())
+
+ def test_telemetry_retention_and_cascade(self):
+  with sqlite3.connect(':memory:') as db:
+   schema(db,3); migration(db,3)
+   db.executemany("INSERT INTO telemetry_samples(sessionId,timestamp,elapsedMs,mode,percent) VALUES(1,?,?,'CHARGING',50)",[(i,i) for i in range(1500)])
+   sql=re.search(r'@Query\("(DELETE FROM telemetry_samples WHERE sessionId.*?)"\)',STORE)[1]
+   db.execute(sql,{'sessionId':1})
+   self.assertEqual(1440,db.execute('SELECT COUNT(*) FROM telemetry_samples').fetchone()[0])
+   db.execute('DELETE FROM sessions WHERE id=1')
+   self.assertEqual(0,db.execute('SELECT COUNT(*) FROM telemetry_samples').fetchone()[0])
  def test_transaction_rolls_back_both_changes(self):
   db=sqlite3.connect(':memory:'); schema(db,3)
   try:

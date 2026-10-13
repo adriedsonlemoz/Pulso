@@ -1,0 +1,13 @@
+Pulso Bateria 0.1.0-alpha.19 / versionCode 19
+
+Testes efetivamente executados no ambiente local:
+- python3 tools/test_storage_sql.py: 12 testes SQLite PASS, incluindo 4→5 e 1→5.
+- Compilação isolada Kotlin 1.9 das fontes UsageAnalysisMath, TelemetryAnalysis e NightAndChargingAnalysis + NightAndChargingAnalysisTest: PASS.
+- Runner local mínimo de asserções JUnit: 9 testes da classe NightAndChargingAnalysisTest PASS.
+- python3 tools/validate_source.py: PASS (versão, permissões, XML, Gradle Wrapper, SHA-256).
+- ZIP CRC: a conferir no empacotamento final.
+
+Pendências e bloqueios:
+- Suíte Kotlin/JVM completa não concluída por tempo de execução local.
+- ./gradlew --offline :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon: falhou ANTES de compilar por UnknownHostException: services.gradle.org ao baixar Gradle 8.11.1.
+- APK Debug, Room KSP v5, migração instrumentada e aparência em aparelho não verificados localmente.

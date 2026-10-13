@@ -84,6 +84,7 @@ fun AppUsageScreen(modifier: Modifier = Modifier) {
    val summary=data
    if(summary!=null) {
     item { BatteryUsageCard(summary) }
+    item { NightConsumptionCard(summary) }
     item { ActivityHoursCard(summary) }
     item {
      Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
@@ -204,4 +205,37 @@ private fun usageDuration(millis: Long): String {
  val minutes=millis/60_000L
  if(minutes==0L) return "< 1 min"
  return if(minutes>=60) "${minutes/60}h${(minutes%60).toString().padStart(2,'0')}" else "$minutes min"
+}
+
+
+/** A análise noturna é do aparelho inteiro. Sem eventos de tela não há atribuição. */
+@Composable
+private fun NightConsumptionCard(insights: UsageInsights) {
+ val night=insights.night
+ val stats=night.battery
+ val subtitle=MaterialTheme.colorScheme.onSurfaceVariant
+ val formatter=remember { SimpleDateFormat("dd/MM 'às' HH:mm",Locale.forLanguageTag("pt-BR")) }
+ Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
+  Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+   Text("Consumo noturno",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+   Text("${formatter.format(Date(night.window.start))} até ${formatter.format(Date(night.window.end))}" +
+    if(!night.window.isComplete) " • noite em andamento" else " • última noite",style=MaterialTheme.typography.bodySmall,color=subtitle)
+   if(stats.observedTimeMs==0L) {
+    Text("Ainda não há períodos contínuos de bateria observados nesta noite.",style=MaterialTheme.typography.bodyMedium)
+   } else {
+    Text("Bateria caiu ${stats.observedDrop}% durante os trechos monitorados",fontWeight=FontWeight.SemiBold)
+    if(stats.observedGain>0) Text("Bateria carregou +${stats.observedGain}% no mesmo período",style=MaterialTheme.typography.bodySmall,color=subtitle)
+    HorizontalDivider()
+    Text("Tela apagada: caiu ${stats.offDrop}% em ${usageDuration(stats.offTimeMs)} observados")
+    Text("Tela ligada: caiu ${stats.onDrop}% em ${usageDuration(stats.onTimeMs)} observados")
+    if(stats.unclassifiedDrop>0) Text("Estado da tela desconhecido: caiu ${stats.unclassifiedDrop}%",style=MaterialTheme.typography.bodySmall,color=subtitle)
+    night.offDropRatePercentHour?.let {
+     Text("Ritmo observado com tela apagada: ${String.format(Locale.forLanguageTag("pt-BR"),"%.1f",it)}%/h",style=MaterialTheme.typography.bodySmall)
+    }
+    Text("Cobertura do intervalo noturno: ${night.coveragePercent}%",style=MaterialTheme.typography.bodySmall,color=subtitle)
+    LinearProgressIndicator(progress={night.coveragePercent/100f},modifier=Modifier.fillMaxWidth())
+   }
+   Text("Dados da bateria do telefone inteiro, não de um aplicativo. Não são preenchidos intervalos sem leitura e o estado da tela exige eventos de uso autorizados. Percentuais pequenos podem refletir arredondamento do Android.",style=MaterialTheme.typography.bodySmall,color=subtitle)
+  }
+ }
 }

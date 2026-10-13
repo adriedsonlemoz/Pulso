@@ -1,0 +1,7 @@
+Pulso Bateria 0.1.0-alpha.18 / versionCode 18
+Data: 2026-10-13
+
+PASS: 9 testes Kotlin de TelemetryAnalysisTest compilados/executados com Kotlin local e asserções compatíveis JUnit (não Gradle).
+PASS: 10 testes SQLite via tools/test_storage_sql.py, incluindo migração Room SQL 3→4 e retenção/cascata (não teste Room instrumentado).
+PASS: tools/validate_source.py, Wrapper SHA-256, arquivos XML, permissões e versões.
+PENDENTE: :core:test completo no Gradle 2.1, compilação Android/Compose e KSP/Room, schema oficial v4, testes instrumentados e em aparelho.

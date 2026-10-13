@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.19 (18) — 2026-10-13
+
+- Adicionadas médias de corrente de 5/20/60 minutos, carga acumulada em mAh por fonte, cobertura temporal e rótulo de origem. Apenas pares contínuos, sem mudanças de sessão/estado e sem sinal contraditório; estimativas CAPACITY não viram leitura medida.
+- Gráfico técnico na tela inicial: corrente (mA), temperatura (°C) ou bateria (%), com janelas de 1 ou 6 horas. Séries sem ligação entre lacunas >180s ou sessões diferentes.
+- Room 3→4 com tabela independente `telemetry_samples`, migração explícita, retenção de 1.440 por sessão e poda global aproximada 30 mil, sem modificar registros anteriores.
+- Backup JSON v2 para telemetria, importando também o v1 sem inventar pontos. Versões, testes e documentação sincronizados.
+
 ## 0.1.0-alpha.17 (17) — 2026-10-13
 
 - Aba **Apps** renomeada para **Uso** com ícone de gráfico de barras; cabeçalho **Uso de aplicativos**.

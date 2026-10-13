@@ -71,7 +71,8 @@ data class Session(
  val durationMs: Long, val initial: Int, val final: Int,
  val temperatureSum: Double, val temperatureCount: Int,
  val samples: Int, val closed: Boolean = false,
- val reason: String = "Em observação"
+ val reason: String = "Em observação",
+ val chargeSource: String? = null, val chargerLabel: String? = null
 )
 @Entity(
  tableName = "session_samples",
@@ -84,9 +85,35 @@ data class SessionSample(
  val currentMa: Double? = null, val temperatureC: Double? = null, val currentSource: String? = null
 )
 
+
+/** Amostras técnicas independentes dos pontos compactados do gráfico de porcentagem. */
+@Entity(tableName = "telemetry_samples",
+ foreignKeys=[ForeignKey(entity=Session::class,parentColumns=["id"],childColumns=["sessionId"],onDelete=ForeignKey.CASCADE)],
+ indices=[Index("sessionId"),Index("timestamp")])
+data class TelemetrySample(
+ @PrimaryKey(autoGenerate=true) val id: Long=0,
+ val sessionId: Long, val timestamp: Long, val elapsedMs: Long,
+ val mode: String, val percent: Int, val currentMa: Double?,
+ val currentSource: String?, val temperatureC: Double?, val counterUah: Int?
+)
+
 @Dao
 interface SessionDao {
  @Query("SELECT * FROM sessions ORDER BY id DESC LIMIT 500") fun observe(): Flow<List<Session>>
+ @Query("SELECT * FROM telemetry_samples ORDER BY id DESC LIMIT 1500")
+ fun observeRecentTelemetry(): Flow<List<TelemetrySample>>
+ @Query("SELECT * FROM telemetry_samples WHERE sessionId = :sessionId ORDER BY timestamp ASC, id ASC LIMIT 1440")
+ fun observeSessionTelemetry(sessionId: Long): Flow<List<TelemetrySample>>
+ @Query("UPDATE sessions SET chargerLabel = :label WHERE id = :id AND mode = 'CHARGING'")
+ suspend fun setChargerLabel(id: Long, label: String?): Int
+ @Query("SELECT * FROM telemetry_samples ORDER BY sessionId ASC, id ASC") suspend fun exportTelemetry(): List<TelemetrySample>
+ @Query("DELETE FROM telemetry_samples") suspend fun clearTelemetry()
+ @Insert suspend fun insertTelemetry(items: List<TelemetrySample>)
+ @Insert suspend fun insertTelemetry(item: TelemetrySample)
+ @Query("DELETE FROM telemetry_samples WHERE sessionId = :sessionId AND id NOT IN (SELECT id FROM telemetry_samples WHERE sessionId=:sessionId ORDER BY id DESC LIMIT 1440)")
+ suspend fun trimTelemetrySession(sessionId: Long)
+ @Query("DELETE FROM telemetry_samples WHERE id NOT IN (SELECT id FROM telemetry_samples ORDER BY id DESC LIMIT 30000)")
+ suspend fun trimTelemetryGlobal()
  @Query("UPDATE sessions SET closed = 1, reason = 'Observação interrompida' WHERE closed = 0") suspend fun closeInterrupted()
  @Query("SELECT * FROM session_samples WHERE sessionId = :sessionId ORDER BY timestamp ASC, id ASC")
  fun observeSamples(sessionId: Long): Flow<List<SessionSample>>
@@ -95,9 +122,14 @@ interface SessionDao {
  suspend fun batterySamplesWindow(start: Long, end: Long): List<SessionSample>
  /** Resumo, amostra e retenção são confirmados juntos, ou revertidos juntos. */
  @Transaction
- suspend fun saveObservation(session: Session, sample: SessionSample?): Session {
+ suspend fun saveObservation(session: Session, sample: SessionSample?, telemetry: TelemetrySample?=null): Session {
   val stored=if(session.id==0L) session.copy(id=insert(session)) else session.also { update(it) }
   if(sample!=null) { insertSample(sample.copy(sessionId=stored.id)); trimSamples(stored.id) }
+  if(telemetry!=null) {
+   insertTelemetry(telemetry.copy(sessionId=stored.id))
+   trimTelemetrySession(stored.id)
+   if(session.id==0L) trimTelemetryGlobal()
+  }
   if(session.id==0L) trim()
   return stored
  }
@@ -116,7 +148,7 @@ interface SessionDao {
  @Update suspend fun update(session: Session)
  @Query("DELETE FROM sessions WHERE id NOT IN (SELECT id FROM sessions ORDER BY id DESC LIMIT 500)") suspend fun trim()
 }
-@Database(entities = [Session::class, SessionSample::class], version = 3, exportSchema = true)
+@Database(entities = [Session::class, SessionSample::class, TelemetrySample::class], version = 5, exportSchema = true)
 abstract class BatteryDatabase: RoomDatabase() {
  abstract fun sessions(): SessionDao
  companion object {
@@ -131,6 +163,31 @@ abstract class BatteryDatabase: RoomDatabase() {
       FOREIGN KEY(`sessionId`) REFERENCES `sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
      )""")
     db.execSQL("CREATE INDEX IF NOT EXISTS `index_session_samples_sessionId` ON `session_samples` (`sessionId`)")
+   }
+  }
+  val MIGRATION_4_5 = object : Migration(4, 5) {
+   override fun migrate(db: SupportSQLiteDatabase) {
+    db.execSQL("ALTER TABLE `sessions` ADD COLUMN `chargeSource` TEXT")
+    db.execSQL("ALTER TABLE `sessions` ADD COLUMN `chargerLabel` TEXT")
+   }
+  }
+  val MIGRATION_3_4 = object : Migration(3, 4) {
+   override fun migrate(db: SupportSQLiteDatabase) {
+    db.execSQL("""CREATE TABLE IF NOT EXISTS `telemetry_samples` (
+      `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+      `sessionId` INTEGER NOT NULL,
+      `timestamp` INTEGER NOT NULL,
+      `elapsedMs` INTEGER NOT NULL,
+      `mode` TEXT NOT NULL,
+      `percent` INTEGER NOT NULL,
+      `currentMa` REAL,
+      `currentSource` TEXT,
+      `temperatureC` REAL,
+      `counterUah` INTEGER,
+      FOREIGN KEY(`sessionId`) REFERENCES `sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE
+     )""")
+    db.execSQL("CREATE INDEX IF NOT EXISTS `index_telemetry_samples_sessionId` ON `telemetry_samples` (`sessionId`)")
+    db.execSQL("CREATE INDEX IF NOT EXISTS `index_telemetry_samples_timestamp` ON `telemetry_samples` (`timestamp`)")
    }
   }
   val MIGRATION_2_3 = object : Migration(2, 3) {

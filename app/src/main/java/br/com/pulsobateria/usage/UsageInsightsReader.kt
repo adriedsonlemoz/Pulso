@@ -18,7 +18,8 @@ data class UsageInsights(
  val hourlyMs: List<Long>, val foregroundMs: Long,
  val battery: ScreenBatteryStats,
  val sampleCount: Int,
- val hasUsageEvents: Boolean
+ val hasUsageEvents: Boolean,
+ val night: NightAnalysis
 )
 
 class UsageInsightsReader(private val context: Context, private val dao: SessionDao) {
@@ -55,6 +56,11 @@ class UsageInsightsReader(private val context: Context, private val dao: Session
    ObservedBatteryPoint(it.sessionId,it.timestamp,it.percent)
   }
   val battery=UsageAnalysisMath.battery(points,events,start,until)
+  val nightWindow=NightConsumptionAnalysis.window(until)
+  val nightPoints=dao.batterySamplesWindow(nightWindow.start,nightWindow.end+1L).map {
+   ObservedBatteryPoint(it.sessionId,it.timestamp,it.percent)
+  }
+  val night=NightConsumptionAnalysis.analyze(until,nightPoints,events)
   val pm=context.packageManager
   // Em Android 11+, a consulta limitada no Manifest permite resolver apps iniciáveis.
   // Nunca recorrer a QUERY_ALL_PACKAGES ou a nomes inventados em um catálogo fixo.
@@ -72,6 +78,6 @@ class UsageInsightsReader(private val context: Context, private val dao: Session
     catch (_: Exception) { null }
    AppUsageEntry(stat.packageName,direct ?: launcherLabel ?: stat.packageName,stat.durationMs)
   }
-  UsageInsights(start,until,apps,foreground.hourlyForegroundMs,foreground.observedForegroundMs,battery,points.size,events.isNotEmpty())
+  UsageInsights(start,until,apps,foreground.hourlyForegroundMs,foreground.observedForegroundMs,battery,points.size,events.isNotEmpty(),night)
  }
 }

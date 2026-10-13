@@ -1,11 +1,12 @@
-# Pulso Bateria 0.1.0-alpha.17
+# Pulso Bateria 0.1.0-alpha.19
 
-- Nova apresentação **Uso de aplicativos**, com aba **Uso** e ícone de gráfico.
-- Nome e ícone real de aplicativos visíveis no sistema, com indicação neutra quando a identificação for restrita pelo Android.
-- Quedas e recargas exibidas em `%` (por exemplo, **Caiu 20%**), ritmo em `%/h`. Os percentuais indicam diferenças na escala da bateria; não estimam mAh individuais.
-- **Corrente da bateria** apresenta média e origem em linguagem clara, com detalhes expansíveis das fontes.
-- Sem alteração de Room v3, backup, assinatura, coleta ou cálculos.
+- **Consumo noturno:** nova seção na aba Uso com a última noite (22h–7h local), estado da tela, percentuais de queda/recarga, duração observada e cobertura. Acesso ao uso é opcional; intervalos ausentes não são estimados.
+- **Comparar recargas:** em Sessões, escolha duas recargas finalizadas. Cálculos comparáveis exigem uma faixa comum real de pelo menos 5% com telemetria contínua; mostra tempos, ritmo em %/h, temperatura média e mAh de contador válido.
+- **Identificação de fontes:** salva tipo de alimentação reportada pelo Android e permite nome manual de carregador por sessão. Não identifica marca/modelo ou cabo automaticamente.
+- **Banco Room v5:** migração explícita e não destrutiva 4→5 com colunas opcionais `chargeSource` e `chargerLabel`. Histórico antigo preservado sem inventar origem de carregador.
+- **Backup JSON v3:** inclui os campos novos de sessão e aceita backups v1/v2, preservando verificação SHA-256.
+- Mantém monitoramento offline, segurança, identidade `br.com.pulsobateria`, assinatura estável opcional e toda funcionalidade alpha.18.
 
-**Validação Android e compatibilidade visual ainda pendentes**, inclusive resolução de nomes/ícones no aparelho. Gerar pelo workflow para confirmar compilação.
+**Pendente:** compilar e executar os testes de instrumentação Android/Room em GitHub Actions ou aparelho real. A validação local de SQL não prova a migração real.
 
-APK: `Pulso-Bateria-v0.1.0-alpha.17-debug.apk`. Preserve os mesmos Secrets de assinatura das versões anteriores ao atualizar.
+APK esperado: `Pulso-Bateria-v0.1.0-alpha.19-debug.apk`.

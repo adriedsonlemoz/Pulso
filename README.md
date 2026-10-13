@@ -1,6 +1,6 @@
 # Pulso Bateria
 
-**0.1.0-alpha.17 • versionCode 17** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.19 • versionCode 19** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Evolução alpha.17
@@ -11,9 +11,22 @@ Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
 - O cartão da página inicial **Corrente da bateria** apresenta a média aproveitável, o período observado quando disponível e a origem da medição, deixando os valores das fontes separados em **Detalhes da medição**. Zero fornecido pelo Android durante carga/descarga não vira automaticamente uma média útil.
 - Alteração de interface/consulta de informações dos aplicativos. **Room v3, backup JSON v1, assinatura, coleta e cálculo das médias permanecem inalterados.**
 
+## Novidades da alpha.18
+
+- **Médias de 5, 20 e 60 minutos:** corrente líquida, mAh integrados, fonte e cobertura. A cobertura parcial não é extrapolada à janela toda. Prioriza a variação de CHARGE_COUNTER, sem misturar fontes dentro da mesma soma.
+- **Gráfico técnico** de corrente/temperatura/percentual para 1 e 6 horas, com lacunas sem linha. A série Room v4 é independente dos resumos de sessão e tem limites de retenção.
+- **Backup v2** inclui essa série e importa backups v1. Não reconstrói amostras antigas. A migração 3→4 precisa ser validada em aparelho; manter assinatura estável e exportar backup antes da atualização.
+
+## Novidades da alpha.19
+
+- **Consumo noturno (aba Uso):** analisa a última noite local (22h–7h, ou até o horário atual se estiver em andamento), comparando quedas com tela apagada/ligada por eventos do Android. Exibe cobertura e deixa intervalos sem leitura fora dos resultados. Exige autorização opcional ao acesso de uso; os dados continuam locais.
+- **Comparador de recargas (aba Sessões):** escolhe duas sessões encerradas, compara somente a mesma faixa percentual com telemetria contínua nas duas, duração, velocidade em %/h, temperatura média das amostras e mAh pelo contador de carga quando válido. Sem faixa adequada, mostra indisponibilidade em vez de inventar medidas.
+- **Fonte e nome manual do carregador:** salva o tipo de fonte declarado pelo Android (Tomada, USB, Sem fio ou Fonte externa), sem inventar marca, cabo ou potência. O usuário pode identificar uma sessão com rótulo de até 40 caracteres. Alteração detectável do tipo de fonte encerra a sessão anterior.
+- **Persistência:** Room v5 com migração explícita 4→5 (dois campos opcionais em `sessions`) e backup JSON v3 (importa v1/v2). Identidade e assinatura preservadas. Dados anteriores não recebem fonte ou rótulo retroativos.
+
 ## Funcionalidades
 
-- **Nova aba Apps (alpha.16):** acesso especial opcional às estatísticas de uso do Android (`PACKAGE_USAGE_STATS`, habilitado manualmente), ranking por tempo aproximado em primeiro plano e gráfico de atividade por blocos de duas horas nas últimas 24 h. Sem estimar mAh individuais de aplicativos: a queda total da bateria é correlacionada apenas a intervalos com amostras Room preservadas e classificação de tela do sistema. A UI explicita cobertura parcial, ausência de eventos e incertezas. A consulta ocorre apenas quando a aba é aberta ou atualizada, sem monitoramento adicional nem dados enviados pela rede.
+- **Aba Uso (desde alpha.16):** acesso especial opcional às estatísticas de uso do Android (`PACKAGE_USAGE_STATS`, habilitado manualmente), ranking por tempo aproximado em primeiro plano e gráfico de atividade por blocos de duas horas nas últimas 24 h. Sem estimar mAh individuais de aplicativos: a queda total da bateria é correlacionada apenas a intervalos com amostras Room preservadas e classificação de tela do sistema. A UI explicita cobertura parcial, ausência de eventos e incertezas. A consulta ocorre apenas quando a aba é aberta ou atualizada, sem monitoramento adicional nem dados enviados pela rede.
 - Porcentagem, estado, temperatura, fonte externa e corrente líquida da bateria.
 - CURRENT_NOW e CURRENT_AVERAGE em µA, convertidos em mA. Zero e pequenas correntes não são automaticamente descartados. Uma fonte cujo sinal contradiz carga/descarga é preservada no diagnóstico, mas não apresentada como consumo/carga confiável; outras fontes compatíveis podem fornecer fallback.
 - Hipóteses de correção OEM da instantânea exigem três blocos estáveis com integral temporal comparada ao contador. Não se calibra a média do hardware usando uma janela desconhecida.
@@ -24,7 +37,7 @@ Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
 - Gráfico ao vivo de até 30 minutos. Pausas curtas podem retomar sessões; tempo sem observação é excluído da duração. O gráfico persistido não possui marcador de pausa curta: veja limitações no relatório.
 - Temas Sistema/AMOLED/Claro; °C/°F; intervalos 15/30/60 s, padrão 30. Eventos do Android podem antecipar leituras; suspensão pode atrasá-las.
 - Notificação opcional e serviço specialUse iniciado pelo usuário; ao ativar monitoramento contínuo, pode continuar após fechar a interface. O sistema pode recriar o serviço via START_STICKY. Com opção separada "Iniciar com o sistema", tenta retomar após reiniciar o aparelho; tenta também após atualização. Essas tentativas dependem das permissões e restrições do Android/fabricante, sem garantia de serviço ininterrupto.
-- Backup manual JSON v1, checksum SHA-256, seletor de arquivos, restauração confirmada pelo usuário. O arquivo não é criptografado. Calibração e ativação automática de serviço não são importadas.
+- Backup manual JSON v3 (importa v1/v2), checksum SHA-256, seletor de arquivos, restauração confirmada pelo usuário. O arquivo não é criptografado. Calibração e ativação automática de serviço não são importadas.
 - Sem INTERNET, anúncios, analytics, conta, root ou wake locks. A alpha.13 adiciona somente a permissão normal RECEIVE_BOOT_COMPLETED para a retomada opcional após reiniciar.
 
 ## Aplicativos e limites (alpha.16)
