@@ -2,6 +2,7 @@ package br.com.pulsobateria.monitor
 
 import br.com.pulsobateria.core.CurrentSource
 import br.com.pulsobateria.core.Mode
+import br.com.pulsobateria.core.matchesModeDirection
 import br.com.pulsobateria.ui.currentText
 import br.com.pulsobateria.ui.durationText
 import br.com.pulsobateria.ui.rateText
@@ -43,14 +44,14 @@ object BatteryNotificationFormatter {
   remainingMs: Long?, currentMa: Double?, source: CurrentSource,
   counterMeanMa: Double?, ratePercentPerHour: Double?,
   nowEpochMillis: Long? = null, timeZone: ZoneId = ZoneId.systemDefault(),
-  androidAverageMa: Double? = null
+  androidAverageMa: Double? = null, directionWarning: Boolean = false
  ): BatteryNotificationText {
   val titleParts = mutableListOf(percent?.takeIf { it in 0..100 }?.let { "$it%" } ?: "—")
   titleParts += temperatureC?.takeIf { it.isFinite() && it in -40.0..100.0 }
    ?.let { temperatureText(it, fahrenheit) } ?: "— °${if (fahrenheit) "F" else "C"}"
 
   val validCurrent = currentMa?.takeIf { it.isFinite() && abs(it) <= 30_000.0 &&
-   mode != Mode.UNKNOWN && source != CurrentSource.NONE }
+   mode != Mode.UNKNOWN && source != CurrentSource.NONE && matchesModeDirection(mode,it) }
   if (validCurrent != null) titleParts += currentText(validCurrent)
 
   val status = when (mode) {
@@ -81,15 +82,16 @@ object BatteryNotificationFormatter {
   }
   // Fontes diferentes não viram a mesma média; igualdade numérica não as torna redundantes.
   if(source != CurrentSource.AVERAGE) androidAverageMa?.takeIf {
-   it.isFinite() && abs(it)<=30_000.0 && mode!=Mode.UNKNOWN
+   it.isFinite() && abs(it)<=30_000.0 && mode!=Mode.UNKNOWN && matchesModeDirection(mode,it)
   }?.let { lines += "Média Android: ${currentText(it)}" }
   if(source != CurrentSource.COUNTER) counterMeanMa?.takeIf {
-   it.isFinite() && abs(it)<=30_000.0 && mode!=Mode.UNKNOWN
+   it.isFinite() && abs(it)<=30_000.0 && mode!=Mode.UNKNOWN && matchesModeDirection(mode,it)
   }?.let { lines += "Média contador: ${currentText(it)}" }
 
   val validRate = ratePercentPerHour?.takeIf { it.isFinite() && abs(it) <= 200.0 &&
    (mode == Mode.CHARGING && it > 0 || mode == Mode.DISCHARGING && it < 0) }
   if (validRate != null) lines += "Ritmo: ${rateText(validRate)}"
+  if (directionWarning) lines += "Corrente: sinal em verificação"
 
   return BatteryNotificationText(titleParts.joinToString(" • "), status, lines.joinToString("\n"))
  }

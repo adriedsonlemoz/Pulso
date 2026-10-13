@@ -1,22 +1,31 @@
-# Validação — Pulso Bateria 0.1.0-alpha.12 (12)
+# Validação — Pulso Bateria 0.1.0-alpha.13 (13)
 
-## Resultado executado
+## Alterações e verificações locais
 
-- Kotlin compiler embeddable **2.1.20**, JVM target 17, Java 17, **JUnit real 4.13.2**, Hamcrest 1.3: **132 testes aprovados** no core e na formatação pura de notificações. Log: `test-results/alpha.12-junit.txt`. Não foram usados stubs de asserções para executar estes testes.
-- O core original da alpha.11 passou nos seus 96 testes antigos (`alpha.11-baseline-junit.txt`). Oito casos portáveis novos falham contra ele (`alpha.11-audit-regressions.txt`) e passam contra a alpha.12. As falhas desse log são evidência da auditoria, não falhas do código entregue.
-- `python3 tools/test_storage_sql.py`: **8 testes SQLite aprovados**, executando SQL real das migrações/queries. Não valida o processador Room nem a implementação gerada do DAO.
-- Parser Kotlin PSI: **19 arquivos Kotlin, zero erros sintáticos**. Não valida tipos Android, Compose ou Room/KSP. Log `test-results/alpha.12-syntax.txt`.
-- `python3 tools/validate_source.py`: aprovado; 14 arquivos essenciais, 7 XML, permissões originais, versão sincronizada e SHA-256/CRC do Wrapper.
-- CRC do ZIP final e exclusão de caches/build/local.properties/keystores conferidos no empacotamento. SHA-256 do Wrapper: `2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046`.
+- Modificados os filtros de corrente no core e na notificação; nenhuma alteração de schema Room.
+- `kotlinc` (Kotlin 1.9 do ambiente) compilou os arquivos puros do core da alpha.13 sem erros.
+- Executadas 10 verificações funcionais num programa Kotlin: sinal positivo/negativo, valores não finitos, manutenção de bruto, rejeição de descarga positiva e fallback negativo para fonte média. **10/10 aprovadas.**
+- Novos testes JUnit `CurrentDirectionTest.kt` foram adicionados ao projeto para execução no GitHub Actions; esses testes JUnit não foram executados localmente.
+- `tools/validate_source.py`: **aprovado** em estrutura, manifest/XML, permissão adicional, versões e Gradle Wrapper.
+- `tools/test_storage_sql.py`: mantém testes SQL de migração/consistência sem mudança de schema. Ver resultados registrados após execução.
+- ZIP verificado contra CRC e presença de arquivos principais.
 
-## Limites e pendências
+## Pendências reais
 
-O comando Gradle requerido foi tentado, mas falhou no download de Gradle 8.11.1 por indisponibilidade de rede. **Não houve build do APK, lint Android, compilação Compose/KSP nem execução instrumentada.** O script local JVM compila os arquivos puros relevantes, não o app inteiro.
+1. Compilar Android completo, Compose/KSP, lint e instrumentação no GitHub Actions.
+2. Testar reinicialização física, APP `BOOT_COMPLETED`/`MY_PACKAGE_REPLACED`, assinatura compatível, permissões de notificação e restrições OEM. `START_STICKY` não é garantia de operação permanente.
+3. Verificar máscara `5.000` e a lista suspensa na UI do aparelho, inclusive cursor e fontes ampliadas.
+4. Comparar o diagnóstico com sensores reais durante carga/descarga, verificando as leituras brutas e fallback.
+5. Confirmar preservação de histórico e backup durante upgrade do APK assinado com os Secrets já configurados.
 
-Foram preparados quatro testes instrumentados Room: migrações 1→3 e 2→3, preservação ao abrir v3 e rollback conjunto de resumo/ponto. Executar `:app:connectedDebugAndroidTest` em emulador/aparelho de teste. Os schemas JSON reais precisam ser gerados pelo KSP e versionados; o workflow passa a guardá-los como artefato quando produzidos.
+Sem `INTERNET`, wake locks ou mecanismos para burlar restrições do Android. A preferência após backup importado continua desabilitada por segurança.
 
-Pendentes: round-trip do backup completo no Android, importação de backup legado, falhas de armazenamento/pressão de memória, matar processo/reiniciar, atualização sobre alpha.11 com certificado compatível, aparência/notificação e séries sincronizadas com AccuBattery. Room v3 e backup v1 foram mantidos.
+## Resultado da tentativa de compilação Android
 
-Leituras de hardware não foram simuladas como medições reais. As tolerâncias de calibração são heurísticas explícitas e testadas, não limites de erro físico. Médias 5/20 min e mAh de sessão foram avaliados/propostos; não estão implementados.
+`./gradlew --offline :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug`: **não executou Gradle** porque o Wrapper não conseguiu obter a distribuição (erro `UnknownHostException: services.gradle.org`). Esse bloqueio não demonstra falha nem sucesso da compilação Android.
 
-Relatório completo: `AUDIT-alpha.11-to-alpha.12.md`.
+Parser Kotlin PSI local do compilador instalado: **21 arquivos Kotlin, zero erros sintáticos**. Compilação Kotlin/JVM isolada: core, `Format.kt` e `NotificationText.kt` aprovados. A verificação isolada não inclui as APIs Android/Compose.
+
+Teste direto de notificação: ao descarregar, média Android positiva é omitida; o aviso de polaridade aparece; `formatCapacityMah(5000)` e `formatCapacityMah(4500)` produziram `5.000` e `4.500`.
+
+`tools/test_storage_sql.py`: **8 testes SQLite, 0 falhas**.

@@ -17,17 +17,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private val Context.preferences by preferencesDataStore("settings")
-data class Settings(val theme: String = "system", val interval: Int = 30, val fahrenheit: Boolean = false, val continuous: Boolean = false, val capacityMah: Int? = null, val calibration: String? = null)
+data class Settings(val theme: String = "system", val interval: Int = 30, val fahrenheit: Boolean = false, val continuous: Boolean = false, val capacityMah: Int? = null, val calibration: String? = null, val startOnBoot: Boolean = false)
 class SettingsStore(private val context: Context) {
  private val theme = stringPreferencesKey("theme")
  private val interval = intPreferencesKey("interval")
  private val fahrenheit = booleanPreferencesKey("fahrenheit")
  private val continuous = booleanPreferencesKey("continuous")
+ private val startOnBoot = booleanPreferencesKey("start_on_boot")
  private val capacity = intPreferencesKey("capacity_mah")
  private val calibration = stringPreferencesKey("current_calibration")
  val flow = context.preferences.data.catch { if (it is IOException) emit(emptyPreferences()) else throw it }.map {
   Settings(it[theme] ?: "system", (it[interval] ?: 30).coerceIn(15,60), it[fahrenheit] ?: false, it[continuous] ?: false,
-   it[capacity]?.takeIf { mah -> mah in 500..30_000 }, it[calibration])
+   it[capacity]?.takeIf { mah -> mah in 500..30_000 }, it[calibration], it[startOnBoot] ?: false)
  }
  /** Identidade local excluída de backup + firmware: não confundir ajuste entre instalações. */
  suspend fun calibrationScope(): String = withContext(Dispatchers.IO) {
@@ -45,6 +46,7 @@ class SettingsStore(private val context: Context) {
  suspend fun interval(value: Int) { context.preferences.edit { it[interval] = value.coerceIn(15,60) } }
  suspend fun fahrenheit(value: Boolean) { context.preferences.edit { it[fahrenheit] = value } }
  suspend fun continuous(value: Boolean) { context.preferences.edit { it[continuous] = value } }
+ suspend fun startOnBoot(value: Boolean) { context.preferences.edit { it[startOnBoot] = value } }
  suspend fun capacityMah(value: Int?) { require(value == null || value in 500..30_000); context.preferences.edit { if (value == null) it.remove(capacity) else it[capacity] = value } }
  suspend fun calibration(value: String?) { context.preferences.edit { if(value==null) it.remove(calibration) else it[calibration]=value } }
  suspend fun replaceFromBackup(value: Settings) {
@@ -54,6 +56,7 @@ class SettingsStore(private val context: Context) {
    it[theme] = value.theme; it[interval] = value.interval; it[fahrenheit] = value.fahrenheit
    // Segurança: a preferência restaurada nunca inicia um serviço sem intervenção do usuário.
    it[continuous] = false
+   it[startOnBoot] = false
    if(value.capacityMah != null) it[capacity] = value.capacityMah else it.remove(capacity)
    // Nunca importar calibração específica de hardware de outro aparelho.
    it.remove(calibration)

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.13 (13) — 2026-10-12
+
+- Correntes com sinal contrário ao estado de carga/descarga são preservadas no diagnóstico, mas não mostradas como medições confiáveis. Fonte alternativa com direção compatível pode ser usada; sem fonte válida, interface indica sinal em análise, sem inverter artificialmente o valor.
+- Notificação e médias exibidas filtram valores contraditórios e identificam a verificação de sinal.
+- Configurações de capacidade ganham dez valores predefinidos (2.500–7.000 mAh), opção de digitação e formatação local de milhares, mantendo o armazenamento numérico e o intervalo 500–30.000 mAh.
+- Serviço de monitoramento retorna START_STICKY para solicitar recriação após encerramento pelo Android. Nova preferência opt-in Iniciar com o sistema e receptor de BOOT_COMPLETED/MY_PACKAGE_REPLACED; retorno automático condicionado às permissões e políticas Android. O botão Parar desativa a preferência, e há opção Tentar agora quando solicitado mas inativo.
+- Room v3, backup JSON v1, histórico, assinatura e Secrets mantidos. Adicionada apenas a permissão normal RECEIVE_BOOT_COMPLETED. Sem Internet ou wake locks.
+- Testes específicos de direção/fallback executados localmente; build Android completo e reboot real pendentes.
+
 ## 0.1.0-alpha.12 (12)
 
 - Auditoria profunda registrada em `docs/AUDIT-alpha.11-to-alpha.12.md`.

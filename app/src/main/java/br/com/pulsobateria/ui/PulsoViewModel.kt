@@ -65,6 +65,7 @@ class PulsoViewModel(application: Application): AndroidViewModel(application) {
   }
  } }
  fun theme(value: String) { viewModelScope.launch { app.settings.theme(value) } }
+ fun startOnBoot(value: Boolean) { viewModelScope.launch { app.settings.startOnBoot(value) } }
  fun interval(value: Int) { viewModelScope.launch { app.settings.interval(value) } }
  fun fahrenheit(value: Boolean) { viewModelScope.launch { app.settings.fahrenheit(value) } }
  fun resetCalibration() { app.repository.resetCalibration() }

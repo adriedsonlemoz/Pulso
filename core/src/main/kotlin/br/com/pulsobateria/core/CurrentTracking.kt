@@ -18,6 +18,12 @@ data class CurrentResult(
  val counterWindowMs: Long? = null, val comparison: String = "Sem comparação temporal suficiente."
 )
 
+/** Evita apresentar corrente contraditória como carga/consumo confiável.
+ * Nunca inverte sinal só com base no estado; preserva a leitura bruta no diagnóstico.
+ */
+fun matchesModeDirection(mode: Mode, ma: Double?): Boolean = ma != null && ma.isFinite() &&
+ (mode != Mode.CHARGING || ma >= 0.0) && (mode != Mode.DISCHARGING || ma <= 0.0)
+
 /** As propriedades Android declaram µA. Zero não é sentinela para targetSdk >= 28. */
 internal fun validRawCurrent(raw: Int?): Boolean = raw != null && raw != Int.MIN_VALUE &&
  raw != Int.MAX_VALUE && abs(raw.toLong()) <= 30_000_000L
@@ -199,21 +205,31 @@ class CurrentTracker {
   val avg=rawAverage?.takeIf { validRawCurrent(it) && mode != Mode.UNKNOWN }?.div(1000.0)
   val avgNote=if(avg==null) "Média Android indisponível" else "µA → mA; sinal Android; janela definida pelo hardware"
   val estimate=BatteryMath.estimatedCurrentMa(ratePercentHour,capacityMah,mode)
+  val incompatible = listOf(now,avg,mean).any { it != null && !matchesModeDirection(mode,it) }
+  // Zero é preservado no diagnóstico, mas não vence uma média não nula compatível.
+  // Se outra fonte é contraditória, zero isolado não comprova corrente nula.
   val source=when {
-   now != null -> CurrentSource.NOW; avg != null -> CurrentSource.AVERAGE
-   mean != null -> CurrentSource.COUNTER; estimate != null -> CurrentSource.CAPACITY
+   now != null && now != 0.0 && matchesModeDirection(mode,now) -> CurrentSource.NOW
+   avg != null && avg != 0.0 && matchesModeDirection(mode,avg) -> CurrentSource.AVERAGE
+   mean != null && mean != 0.0 && matchesModeDirection(mode,mean) -> CurrentSource.COUNTER
+   matchesModeDirection(mode,estimate) -> CurrentSource.CAPACITY
+   !incompatible && matchesModeDirection(mode,now) -> CurrentSource.NOW
+   !incompatible && matchesModeDirection(mode,avg) -> CurrentSource.AVERAGE
+   !incompatible && matchesModeDirection(mode,mean) -> CurrentSource.COUNTER
    else -> CurrentSource.NONE
   }
   val value=when(source) {
    CurrentSource.NOW -> now; CurrentSource.AVERAGE -> avg; CurrentSource.COUNTER -> mean
    CurrentSource.CAPACITY -> estimate; CurrentSource.NONE -> null
   }
+  val warning=if (incompatible) " Sinal em verificação: há leitura com direção contrária ao estado informado; não foi invertida automaticamente." else ""
   val note=when(source) {
-   CurrentSource.NOW -> "Corrente líquida na bateria. $adjustment. Não é corrente USB."
-   CurrentSource.AVERAGE -> "$avgNote. Não representa leitura instantânea."
-   CurrentSource.COUNTER -> "Média calculada por ΔµAh/Δtempo; pode sofrer ajustes do medidor do fabricante."
-   CurrentSource.CAPACITY -> "Estimativa por %/h e capacidade informada; não é leitura de sensor."
-   CurrentSource.NONE -> "Sem leitura utilizável. $adjustment. $avgNote."
+   CurrentSource.NOW -> "Corrente líquida na bateria. $adjustment. Não é corrente USB.$warning"
+   CurrentSource.AVERAGE -> "$avgNote. Não representa leitura instantânea.$warning"
+   CurrentSource.COUNTER -> "Média calculada por ΔµAh/Δtempo; pode sofrer ajustes do medidor do fabricante.$warning"
+   CurrentSource.CAPACITY -> "Estimativa por %/h e capacidade informada; não é leitura de sensor.$warning"
+   CurrentSource.NONE -> if (incompatible) "Sinal em verificação. Valores contraditórios mantidos somente no diagnóstico. $adjustment. $avgNote."
+    else "Sem leitura utilizável. $adjustment. $avgNote."
   }
   // Preservar sentinelas no diagnóstico permite distinguir ausência real de zero.
   return CurrentResult(value,source,note,rawNow,rawAverage,rawCounter,mean,adjustment,avgNote,

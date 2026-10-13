@@ -5,6 +5,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private val pt = Locale.forLanguageTag("pt-BR")
+fun formatCapacityMah(value: Int): String = java.text.NumberFormat.getIntegerInstance(pt).format(value)
 fun currentText(ma: Double?): String = ma?.takeIf { it.isFinite() }?.let {
  val signal = if (it > 0) "+" else if (it < 0) "−" else ""
  val magnitude = if(abs(it) in 0.001..0.999999)

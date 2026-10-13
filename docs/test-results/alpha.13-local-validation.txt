@@ -1,0 +1,12 @@
+Pulso Bateria 0.1.0-alpha.13 / versionCode 13
+Data: 2026-10-12
+
+PASS Python tools/validate_source.py: estrutura, XML, permissões, versões e Wrapper.
+PASS Python tools/test_storage_sql.py: 8 testes SQL, 0 falhas.
+PASS Kotlin standalone: compilação do core + ui/Format.kt + monitor/NotificationText.kt.
+PASS Smoke Kotlin standalone: 10 verificações de direção, rejeição e fallback (classe JUnit nova incluída, não executada via JUnit).
+PASS Smoke Kotlin standalone: notificação sem corrente incompatível; mensagem de sinal em verificação; máscaras 5.000/4.500.
+PASS Kotlin PSI parser: 21 arquivos Kotlin, 0 erros sintáticos.
+
+PENDENTE Android/Gradle/Compose/KSP/lint/emulador. ./gradlew --offline abortou antes de executar tarefas: UnknownHostException services.gradle.org.
+PENDENTE testes físicos de boot, atualização, restrições OEM, ação Parar, UI e assinatura.

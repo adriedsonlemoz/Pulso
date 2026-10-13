@@ -20,6 +20,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class MonitorService: Service() {
@@ -41,12 +42,15 @@ class MonitorService: Service() {
 
  override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
   if (intent?.action == "STOP") {
-   app.scope.launch { app.settings.continuous(false) }
-   stopForeground(STOP_FOREGROUND_REMOVE)
-   stopSelf()
+   // Gravar a escolha antes de encerrar evita que um restart sticky recrie o serviço.
+   app.scope.launch {
+    app.settings.continuous(false)
+    stopForeground(STOP_FOREGROUND_REMOVE)
+    stopSelf()
+   }
    return START_NOT_STICKY
   }
-  if (started) return START_NOT_STICKY
+  if (started) return START_STICKY
   if (!NotificationManagerCompat.from(this).areNotificationsEnabled() ||
    (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this,Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)) {
    fail("Permita as notificações para ativar o monitoramento.")
@@ -72,7 +76,17 @@ class MonitorService: Service() {
   app.repository.serviceActive.value = true
   app.repository.serviceError.value = null
   app.repository.acquire("service")
-  app.scope.launch { app.settings.continuous(true) }
+  if (intent == null) {
+   // START_STICKY: Android recria com intent nulo. Não retomar se o usuário desativou.
+   scope.launch {
+    if (!app.settings.flow.first().continuous) {
+     stopForeground(STOP_FOREGROUND_REMOVE)
+     stopSelf()
+    }
+   }
+  } else {
+   app.scope.launch { app.settings.continuous(true) }
+  }
 
   scope.launch {
    combine(app.repository.reading, app.settings.flow) { reading, settings ->
@@ -87,7 +101,8 @@ class MonitorService: Service() {
      counterMeanMa = reading.currentInfo.counterMeanMa,
      ratePercentPerHour = reading.rate,
      nowEpochMillis = reading.updated.takeIf { it > 0 },
-     androidAverageMa = reading.currentInfo.androidAverageMa
+     androidAverageMa = reading.currentInfo.androidAverageMa,
+     directionWarning = reading.currentInfo.note.contains("Sinal em verificação")
     )
    }.collect { content ->
     try {
@@ -97,7 +112,7 @@ class MonitorService: Service() {
     }
    }
   }
-  return START_NOT_STICKY
+  return START_STICKY
  }
 
  private fun fail(message: String) {

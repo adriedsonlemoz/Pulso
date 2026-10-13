@@ -15,6 +15,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import br.com.pulsobateria.monitor.MonitorService
 import br.com.pulsobateria.ui.PulsoScreen
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 class MainActivity: ComponentActivity() {
  private val app get() = application as PulsoApp
@@ -27,12 +28,22 @@ class MainActivity: ComponentActivity() {
   enableEdgeToEdge()
   setContent { PulsoScreen(onMonitor = ::setMonitoring) }
  }
- override fun onStart() { super.onStart(); app.repository.acquire("activity") }
+ override fun onStart() {
+  super.onStart()
+  app.repository.acquire("activity")
+  // Tentar com Activity visível após encerramento pelo fabricante, respeitando a permissão.
+  app.scope.launch {
+   if (app.settings.flow.first().continuous && !app.repository.serviceActive.value) setMonitoring(true)
+  }
+ }
  override fun onStop() { if (!isChangingConfigurations) app.repository.release("activity"); super.onStop() }
  private fun setMonitoring(enabled: Boolean) {
   if (!enabled) {
-   stopService(Intent(this,MonitorService::class.java))
-   app.scope.launch { app.settings.continuous(false) }
+   app.scope.launch {
+    app.settings.continuous(false)
+    // A ação STOP também desarma o reinício sticky do serviço.
+    startService(Intent(this@MainActivity,MonitorService::class.java).setAction("STOP"))
+   }
   } else if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this,Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
    permission.launch(Manifest.permission.POST_NOTIFICATIONS)
   } else startMonitor()

@@ -1,28 +1,28 @@
 # Pulso Bateria
 
-**0.1.0-alpha.12 • versionCode 12** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.13 • versionCode 13** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Funcionalidades
 
 - Porcentagem, estado, temperatura, fonte externa e corrente líquida da bateria.
-- CURRENT_NOW e CURRENT_AVERAGE em µA, convertidos em mA. Zero e pequenas correntes não são automaticamente descartados. Um sinal diferente do status é informado no diagnóstico.
+- CURRENT_NOW e CURRENT_AVERAGE em µA, convertidos em mA. Zero e pequenas correntes não são automaticamente descartados. Uma fonte cujo sinal contradiz carga/descarga é preservada no diagnóstico, mas não apresentada como consumo/carga confiável; outras fontes compatíveis podem fornecer fallback.
 - Hipóteses de correção OEM da instantânea exigem três blocos estáveis com integral temporal comparada ao contador. Não se calibra a média do hardware usando uma janela desconhecida.
 - Média Android e média calculada do CHARGE_COUNTER exibidas separadamente. Não são médias próprias de 5 ou 20 minutos.
-- Capacidade útil opcional (500–30.000 mAh) permite estimativa identificada por %/h quando não há corrente disponível; nenhuma capacidade é inventada.
+- Capacidade útil opcional (500–30.000 mAh), com 10 opções de 2.500 a 7.000 mAh, além de campo livre formatado com milhar (ex.: 5.000). Estimativas por %/h são identificadas, sem capacidade inventada.
 - Taxa em pontos percentuais por hora e estimativas aproximadas após pelo menos cinco minutos e dois pontos percentuais. Não há modelo térmico nem previsão garantida da fase final de carga.
 - Sessões Room: até 500 resumos, filtros, agrupamento por data, cartões expansíveis e gráfico individual. Até 480 pontos por sessão (primeiro e 479 mais recentes). Pontos são reduzidos: não servem para reconstituir a integral completa da corrente.
 - Gráfico ao vivo de até 30 minutos. Pausas curtas podem retomar sessões; tempo sem observação é excluído da duração. O gráfico persistido não possui marcador de pausa curta: veja limitações no relatório.
 - Temas Sistema/AMOLED/Claro; °C/°F; intervalos 15/30/60 s, padrão 30. Eventos do Android podem antecipar leituras; suspensão pode atrasá-las.
-- Notificação opcional, serviço specialUse iniciado pelo usuário, ação Parar e horário aproximado de carga arredondado para cima em cinco minutos.
+- Notificação opcional e serviço specialUse iniciado pelo usuário; ao ativar monitoramento contínuo, pode continuar após fechar a interface. O sistema pode recriar o serviço via START_STICKY. Com opção separada "Iniciar com o sistema", tenta retomar após reiniciar o aparelho; tenta também após atualização. Essas tentativas dependem das permissões e restrições do Android/fabricante, sem garantia de serviço ininterrupto.
 - Backup manual JSON v1, checksum SHA-256, seletor de arquivos, restauração confirmada pelo usuário. O arquivo não é criptografado. Calibração e ativação automática de serviço não são importadas.
-- Sem INTERNET, anúncios, analytics, conta, root, wake locks ou permissões novas.
+- Sem INTERNET, anúncios, analytics, conta, root ou wake locks. A alpha.13 adiciona somente a permissão normal RECEIVE_BOOT_COMPLETED para a retomada opcional após reiniciar.
 
 ## Auditoria e validação
 
 Leia `docs/AUDIT-alpha.11-to-alpha.12.md`: diagnóstico com evidências da alpha.11, causas possíveis das diferenças com AccuBattery, correções, propostas de médias temporais/mAh e protocolo de teste no aparelho.
 
-**132 testes Kotlin/JUnit e 8 SQLite passaram localmente.** Oito testes de regressão reproduzem falhas no código original e passam no corrigido. Compilação Android, lint, testes instrumentados e teste de atualização ainda estão pendentes. Esta entrega contém código-fonte, não APK validado.
+Na alpha.12 foram executados 132 testes Kotlin/JUnit e 8 testes SQLite. Na alpha.13, o código core compilou localmente e passou em 10 verificações funcionais específicas de direção/fallback. A compilação Android/Compose, lint e testes instrumentados continuam pendentes. Esta entrega contém código-fonte, não APK validado.
 
 ## Gerar APK pelo GitHub Manager
 
@@ -53,7 +53,7 @@ AGP 8.9.2, Gradle 8.11.1, Kotlin/Compose Compiler 2.1.20, Compose BOM 2025.04.01
 
 Room permanece v3, com migrações explícitas 1→2→3. Não há migração destrutiva. Resumo e ponto são gravados em transação. DataStore preserva configurações. Atualização com identidade e assinatura compatíveis deve manter os dados; validação no aparelho ainda é necessária.
 
-Morte do processo fecha sessões abertas como interrompidas na reabertura. Não há boot receiver nem reinício automático do serviço. Reative o monitoramento após reinício. Não se reconstrói o período em que o app não observou a bateria.
+Morte do processo fecha sessões abertas como interrompidas na reabertura, sem inventar observações. Com o monitoramento contínuo habilitado, o Android pode recriar o serviço START_STICKY. A opção separada Iniciar com o sistema permite uma tentativa no BOOT_COMPLETED; após atualização é feita outra tentativa se o monitoramento estava ativo. Se o Android impedir, o app pode tentar quando for aberto. Parar desativa a preferência. Não é garantido funcionamento ininterrupto; nem reboot, nem força-parada do usuário permitem coletar dados durante o período inativo.
 
 Calibração antiga é invalidada porque usava critérios inadequados; somente esse dado derivado muda. Novo ajuste é vinculado a ID privado em noBackupFilesDir e fingerprint do firmware, expira em sete dias e precisa de confirmação atual após pausas. O ID não é enviado para fora do aparelho.
 

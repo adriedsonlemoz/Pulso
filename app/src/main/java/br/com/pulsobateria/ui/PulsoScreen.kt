@@ -136,7 +136,7 @@ private fun MonitorScreen(r: Reading, s: Settings, modifier: Modifier, pageTitle
  var metricDetails by remember { mutableStateOf<Pair<String,String>?>(null) }
  val currentLabel = if(charging) "Corrente" else "Consumo"
  val currentValue = r.current?.let { currentText(it).removeSuffix(" mA") } ?: "—"
- val currentUnit = when(r.currentInfo.source) {
+ val currentUnit = if (r.currentInfo.source==CurrentSource.NONE && r.currentInfo.note.contains("Sinal em verificação")) "mA • sinal em análise" else when(r.currentInfo.source) {
   CurrentSource.CAPACITY -> "mA • estim."
   CurrentSource.COUNTER, CurrentSource.AVERAGE -> "mA • média"
   else -> "mA"
@@ -222,9 +222,9 @@ private fun MonitorScreen(r: Reading, s: Settings, modifier: Modifier, pageTitle
    }
   }
   item { SettingsCard("Médias de corrente") {
-   SessionDetailRow("Média Android",currentText(r.currentInfo.androidAverageMa))
+   SessionDetailRow("Média Android",if(r.currentInfo.androidAverageMa==null) "Indisponível" else if(matchesModeDirection(r.mode,r.currentInfo.androidAverageMa)) currentText(r.currentInfo.androidAverageMa) else "Sinal em verificação")
    Text("Janela definida pelo hardware, não informada pelo Android.",style=MaterialTheme.typography.bodySmall)
-   SessionDetailRow("Média pelo contador",currentText(r.currentInfo.counterMeanMa))
+   SessionDetailRow("Média pelo contador",if(r.currentInfo.counterMeanMa==null) "Indisponível" else if(matchesModeDirection(r.mode,r.currentInfo.counterMeanMa)) currentText(r.currentInfo.counterMeanMa) else "Sinal em verificação")
    r.currentInfo.counterWindowMs?.let { Text("Intervalo observado: ${it/1000} s. Calculada por variação de µAh.",style=MaterialTheme.typography.bodySmall) }
   } }
   item { Chart(r.points,accent) }
@@ -473,6 +473,7 @@ private fun SessionHistoryChart(samples: List<SessionSample>,accent: Color) {
  }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsPage(s: Settings,r: Reading,active: Boolean,error: String?,vm: PulsoViewModel,
  onMonitor: (Boolean)->Unit,onLimitations: ()->Unit,onExport: ()->Unit,onImport: ()->Unit,modifier: Modifier) {
@@ -489,11 +490,19 @@ private fun SettingsPage(s: Settings,r: Reading,active: Boolean,error: String?,v
   } }
   item { SettingsCard("Monitoramento contínuo") {
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-    Text(if(active) "Notificação ativa" else "Notificação desativada",Modifier.weight(1f))
-    Switch(checked=active,onCheckedChange=onMonitor)
+    Text(if(active) "Notificação ativa" else if(s.continuous) "Monitoramento solicitado" else "Notificação desativada",Modifier.weight(1f))
+    Switch(checked=s.continuous || active,onCheckedChange=onMonitor)
    }
    Text("Mantém as leituras e sessões com o app em segundo plano. Pode ser interrompido pelo Android. Sem bloqueio de suspensão da tela.",style=MaterialTheme.typography.bodySmall)
-   if(s.continuous && !active) Text("Monitoramento interrompido. Ative novamente para retomar.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.primary)
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+    Text("Iniciar com o sistema",Modifier.weight(1f))
+    Switch(checked=s.startOnBoot,onCheckedChange=vm::startOnBoot)
+   }
+   Text("Tenta retomar após reiniciar o celular, quando o monitoramento contínuo estiver habilitado e o Android permitir. Também tenta retomar após atualização.",style=MaterialTheme.typography.bodySmall)
+   if(s.continuous && !active) {
+    Text("Serviço interrompido ou aguardando Android. O monitoramento será tentado ao abrir o app.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.primary)
+    TextButton(onClick={onMonitor(true)}) { Text("Tentar agora") }
+   }
    if(error!=null) Text(error,color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall)
   } }
   item { SettingsCard("Leituras e unidades") {
@@ -515,19 +524,40 @@ private fun SettingsPage(s: Settings,r: Reading,active: Boolean,error: String?,v
   } }
   item { SettingsCard("Estimativa de corrente (opcional)") {
    Text("Informe a capacidade ÚTIL aproximada da bateria, somente se souber. Sem esse valor, não estimamos mA a partir de %/h. A corrente estimada será indicada como tal.",style=MaterialTheme.typography.bodySmall)
+   val presets=listOf(2500,3000,3500,4000,4500,5000,5500,6000,6500,7000)
+   var capacityOption by rememberSaveable(s.capacityMah) {
+    mutableStateOf(if(s.capacityMah != null && s.capacityMah in presets) s.capacityMah.toString() else "outro")
+   }
    var capacityInput by rememberSaveable(s.capacityMah) { mutableStateOf(s.capacityMah?.toString() ?: "") }
-   val capacityValue = capacityInput.toIntOrNull()
-   val valid = capacityValue != null && capacityValue in 500..30_000
-   OutlinedTextField(value=capacityInput,onValueChange={ value ->
-    if(value.length<=6 && value.all { it.isDigit() }) capacityInput=value
-   },label={Text("Capacidade útil (mAh)")},placeholder={Text("Ex.: 5000")},
+   var capacityMenuExpanded by remember { mutableStateOf(false) }
+   ExposedDropdownMenuBox(expanded=capacityMenuExpanded,onExpandedChange={capacityMenuExpanded=it}) {
+    OutlinedTextField(value=if(capacityOption=="outro") "Digitar outro valor" else "${formatCapacityMah(capacityOption.toInt())} mAh",
+     onValueChange={},readOnly=true,label={Text("Capacidade predefinida")},
+     trailingIcon={ExposedDropdownMenuDefaults.TrailingIcon(expanded=capacityMenuExpanded)},
+     modifier=Modifier.menuAnchor().fillMaxWidth())
+    ExposedDropdownMenu(expanded=capacityMenuExpanded,onDismissRequest={capacityMenuExpanded=false}) {
+     presets.forEach { amount ->
+      DropdownMenuItem(text={Text("${formatCapacityMah(amount)} mAh")},onClick={capacityOption=amount.toString();capacityMenuExpanded=false})
+     }
+     DropdownMenuItem(text={Text("Digitar outro valor…")},onClick={capacityOption="outro";capacityMenuExpanded=false})
+    }
+   }
+   if(capacityOption=="outro") OutlinedTextField(
+    value=capacityInput.toIntOrNull()?.let(::formatCapacityMah) ?: capacityInput,
+    onValueChange={ value ->
+     val digits=value.filter(Char::isDigit)
+     if(digits.length<=5) capacityInput=digits
+    },label={Text("Capacidade útil (mAh)")},placeholder={Text("Ex.: 5.000")},
     keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),singleLine=true,
-    isError=capacityInput.isNotEmpty() && !valid,modifier=Modifier.fillMaxWidth())
+    isError=capacityInput.toIntOrNull()?.let { it !in 500..30_000 } ?: false,
+    modifier=Modifier.fillMaxWidth())
+   val capacityValue = if(capacityOption=="outro") capacityInput.toIntOrNull() else capacityOption.toIntOrNull()
+   val valid = capacityValue != null && capacityValue in 500..30_000
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
     Button(onClick={vm.capacityMah(capacityValue)},enabled=valid && capacityValue!=s.capacityMah) { Text("Salvar") }
     TextButton(onClick={vm.capacityMah(null)},enabled=s.capacityMah!=null) { Text("Remover") }
    }
-   Text("Valor salvo: ${s.capacityMah?.let { "$it mAh" } ?: "não informado"}. Estimativas ignoram degradação e não equivalem a uma leitura de corrente.",style=MaterialTheme.typography.bodySmall)
+   Text("Valor salvo: ${s.capacityMah?.let { "${formatCapacityMah(it)} mAh" } ?: "não informado"}. Estimativas ignoram degradação e não equivalem a uma leitura de corrente.",style=MaterialTheme.typography.bodySmall)
   } }
   item { SettingsCard("Diagnóstico de corrente") {
    var expanded by rememberSaveable { mutableStateOf(false) }
@@ -540,7 +570,7 @@ private fun SettingsPage(s: Settings,r: Reading,active: Boolean,error: String?,v
     SessionDetailRow("CURRENT_AVERAGE",r.currentInfo.rawAverage?.let { "$it (µA declarados)" } ?: "Indisponível")
     SessionDetailRow("CHARGE_COUNTER",r.currentInfo.rawCounter?.let { "$it µAh" } ?: "Indisponível")
     SessionDetailRow("Média Android convertida",currentText(r.currentInfo.androidAverageMa))
-    SessionDetailRow("Média pelo contador",currentText(r.currentInfo.counterMeanMa))
+    SessionDetailRow("Média pelo contador",if(r.currentInfo.counterMeanMa==null) "Indisponível" else if(matchesModeDirection(r.mode,r.currentInfo.counterMeanMa)) currentText(r.currentInfo.counterMeanMa) else "Sinal em verificação")
     SessionDetailRow("Calibração instantânea",r.currentInfo.nowAdjustment)
     SessionDetailRow("Calibração média",r.currentInfo.averageAdjustment)
     Text(r.currentInfo.comparison,style=MaterialTheme.typography.bodySmall)
