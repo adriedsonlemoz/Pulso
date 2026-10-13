@@ -49,3 +49,7 @@ O exportador passa a produzir JSON **v2** com o campo `telemetry`, preservando o
 ## Fonte de carga e backup (alpha.19)
 
 Room v5 adiciona `sessions.chargeSource` e `sessions.chargerLabel` opcionais por migração 4→5. O app registra apenas o tipo relatado pelo Android para novas recargas; rótulos de até 40 caracteres são digitados manualmente pelo usuário. O exportador passa ao envelope JSON **v3**, com esses campos em cada sessão e o array de telemetria da v2. O importador aceita backups v1/v2 sem esses campos, deixando-os nulos. Não restaurar monitoramento contínuo automaticamente. Recomendamos exportar backup antes da atualização e testar restauração em dispositivo de teste.
+
+## Alpha.20
+
+Os alertas inteligentes são opções locais desligadas por padrão. Por segurança, **não são exportados** no JSON v3 e não são reativados ao restaurar um arquivo; as configurações básicas e o histórico permanecem no backup como anteriormente. O Room segue em v5, sem migração nesta versão.

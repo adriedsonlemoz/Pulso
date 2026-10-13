@@ -1,6 +1,18 @@
 # Changelog
 
-## 0.1.0-alpha.19 (18) — 2026-10-13
+## 0.1.0-alpha.20 (20) — 2026-10-13
+
+- Alertas opcionais de bateria baixa, alta temperatura, meta de recarga e descarga acelerada. Limiares ajustáveis, confirmação por duas amostras, canal de alerta separado, bloqueio persistido por episódio e pausa mínima de uma hora.
+- Relatórios por dia e últimos sete dias no Histórico com % de queda/recarga, duração efetivamente monitorada, sessões de carga e temperatura máxima. Despreza lacunas de mais de três minutos e travessias da meia-noite.
+- Room v5, JSON v3, identidade Android, assinatura e histórico anteriores preservados, sem migração nova. Alertas não são importados de backup.
+- Documentação, testes JVM e versionamento do CI sincronizados; APK Android ainda requer validação.
+
+## 0.1.0-alpha.19 (19) — 2026-10-13
+
+- Análise de consumo noturno no Uso com separação de tela ligada/apagada, janelas reais e cobertura.
+- Comparador de duas recargas na mesma faixa medida, identificação opcional da fonte de carga e migração Room 4→5, backup JSON v3 compatível com v1/v2.
+
+## 0.1.0-alpha.18 (18) — 2026-10-13
 
 - Adicionadas médias de corrente de 5/20/60 minutos, carga acumulada em mAh por fonte, cobertura temporal e rótulo de origem. Apenas pares contínuos, sem mudanças de sessão/estado e sem sinal contraditório; estimativas CAPACITY não viram leitura medida.
 - Gráfico técnico na tela inicial: corrente (mA), temperatura (°C) ou bateria (%), com janelas de 1 ou 6 horas. Séries sem ligação entre lacunas >180s ou sessões diferentes.

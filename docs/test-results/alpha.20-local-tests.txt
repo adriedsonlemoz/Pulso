@@ -1,0 +1,11 @@
+Pulso Bateria 0.1.0-alpha.20 / versionCode 20
+
+PASS: 8 testes novos de Kotlin/JVM com kotlinc 1.9.0 e executor mínimo compatível JUnit.
+- SmartAlertsTest: regras por estado, temperatura ausente/NaN, duração e limites.
+- BatteryReportsTest: diferenças reais da bateria, lacunas, sessões distintas, carregamento e meia-noite.
+PASS: python3 tools/test_storage_sql.py — 12 testes SQLite para migrações anteriores e retenção.
+PASS: python3 tools/validate_source.py — identidade, permissões, versões, workflow, wrapper e XML.
+PENDENTE: suíte Kotlin/JUnit completa (tentativa excedeu o tempo do ambiente).
+PENDENTE: ./gradlew --offline :core:test :app:assembleDebug --no-daemon falhou antes da compilação Android devido a UnknownHostException do download de services.gradle.org.
+PENDENTE: compilar Compose/Android, validar Room/KSP e testes no aparelho real.
+PENDENTE: validação de notificações e relatórios em aparelhos reais.

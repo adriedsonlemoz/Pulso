@@ -37,6 +37,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.LocalView
 import android.app.Activity
+import android.Manifest
+import android.os.Build
+import android.content.pm.PackageManager
+import android.content.Context
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -340,6 +347,7 @@ private fun Chart(points: List<Point>,accent: Color) {
 }
 @Composable
 private fun History(sessions: List<Session>, settings: Settings, vm: PulsoViewModel, modifier: Modifier) {
+ val reportSamples by vm.weeklyTelemetry.collectAsStateWithLifecycle()
  var filter by rememberSaveable { mutableIntStateOf(0) }
  var showInfo by rememberSaveable { mutableStateOf(false) }
  val filtered = remember(sessions,filter) {
@@ -366,6 +374,7 @@ private fun History(sessions: List<Session>, settings: Settings, vm: PulsoViewMo
     IconButton(onClick={showInfo=true}) { Icon(Icons.Default.Info,"Como funcionam as sessões") }
    }
   }
+  item(key="battery-reports") { BatteryReportsCard(reportSamples) }
   item(key="history-filters") {
    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
     listOf("Todas","Carga","Descarga").forEachIndexed { index,label ->
@@ -588,6 +597,35 @@ private fun SettingsPage(s: Settings,r: Reading,active: Boolean,error: String?,v
    }
    Text("30 s é o padrão. Eventos podem antecipar a leitura; o Android pode adiar atualizações durante a suspensão.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
   } }
+  item { SettingsCard("Alertas inteligentes") {
+   val context=LocalContext.current
+   var permissionHint by remember { mutableStateOf(false) }
+   val permissionLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+    permissionHint=!granted
+    if(granted) vm.alertsEnabled(true)
+   }
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+    Column(Modifier.weight(1f)) {
+     Text("Avisar sobre alterações importantes",fontWeight=FontWeight.SemiBold)
+     Text("Desativado por padrão",style=MaterialTheme.typography.bodySmall)
+    }
+    Switch(checked=s.alertsEnabled,onCheckedChange={ enable ->
+     if(!enable) vm.alertsEnabled(false)
+     else if(Build.VERSION.SDK_INT>=33 && ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)
+      permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+     else if(NotificationManagerCompat.from(context).areNotificationsEnabled()) vm.alertsEnabled(true)
+     else permissionHint=true
+    })
+   }
+   if(permissionHint) Text("Permita notificações para o Pulso nas configurações do Android e tente novamente.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
+   if(s.alertsEnabled) {
+    AlertThresholdRow("Bateria baixa (%)",s.lowBatteryAlert,listOf(10,15,20,25,30),vm::alertLow)
+    AlertThresholdRow("Temperatura máxima (°C)",s.hotBatteryAlert,listOf(40,43,45,48),vm::alertTemp)
+    AlertThresholdRow("Meta de carga (%)",s.chargeTargetAlert,listOf(75,80,85,90),vm::alertTarget)
+    AlertThresholdRow("Descarga rápida (%/h)",s.fastDrainAlert,listOf(15,20,25,30),vm::alertDrain)
+   }
+   Text("Avisos locais após duas leituras consecutivas, no máximo uma vez por episódio e com intervalo mínimo de 1 hora. Não interrompe carregamento, não usa Internet nem garante alerta se o Android suspender o monitoramento.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  } }
   item { SettingsCard("Estimativa de corrente (opcional)") {
    Text("Informe a capacidade ÚTIL aproximada da bateria, somente se souber. Sem esse valor, não estimamos mA a partir de %/h. A corrente estimada será indicada como tal.",style=MaterialTheme.typography.bodySmall)
    val presets=listOf(2500,3000,3500,4000,4500,5000,5500,6000,6500,7000)
@@ -706,6 +744,19 @@ private fun SettingsCard(title: String,content: @Composable ColumnScope.()->Unit
   Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
    Text(title,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
    content()
+  }
+ }
+}
+
+@Composable
+private fun AlertThresholdRow(label: String,selected: Int,values: List<Int>,onChange: (Int)->Unit) {
+ Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
+  Text(label,style=MaterialTheme.typography.labelMedium)
+  SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+   values.forEachIndexed { i,value ->
+    SegmentedButton(selected=selected==value,onClick={onChange(value)},
+     shape=SegmentedButtonDefaults.itemShape(i,values.size),label={ Text("$value",style=MaterialTheme.typography.labelSmall) })
+   }
   }
  }
 }

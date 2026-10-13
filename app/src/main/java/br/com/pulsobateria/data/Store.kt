@@ -17,7 +17,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 private val Context.preferences by preferencesDataStore("settings")
-data class Settings(val theme: String = "system", val interval: Int = 30, val fahrenheit: Boolean = false, val continuous: Boolean = false, val capacityMah: Int? = null, val calibration: String? = null, val startOnBoot: Boolean = false)
+data class Settings(val theme: String = "system", val interval: Int = 30, val fahrenheit: Boolean = false, val continuous: Boolean = false, val capacityMah: Int? = null, val calibration: String? = null, val startOnBoot: Boolean = false,
+ val alertsEnabled: Boolean = false, val lowBatteryAlert: Int = 20, val hotBatteryAlert: Int = 43,
+ val chargeTargetAlert: Int = 80, val fastDrainAlert: Int = 20)
 class SettingsStore(private val context: Context) {
  private val theme = stringPreferencesKey("theme")
  private val interval = intPreferencesKey("interval")
@@ -26,9 +28,18 @@ class SettingsStore(private val context: Context) {
  private val startOnBoot = booleanPreferencesKey("start_on_boot")
  private val capacity = intPreferencesKey("capacity_mah")
  private val calibration = stringPreferencesKey("current_calibration")
+ private val alertsEnabled = booleanPreferencesKey("alerts_enabled")
+ private val alertLow = intPreferencesKey("alert_low")
+ private val alertTemp = intPreferencesKey("alert_temp")
+ private val alertTarget = intPreferencesKey("alert_target")
+ private val alertDrain = intPreferencesKey("alert_drain")
  val flow = context.preferences.data.catch { if (it is IOException) emit(emptyPreferences()) else throw it }.map {
   Settings(it[theme] ?: "system", (it[interval] ?: 30).coerceIn(15,60), it[fahrenheit] ?: false, it[continuous] ?: false,
-   it[capacity]?.takeIf { mah -> mah in 500..30_000 }, it[calibration], it[startOnBoot] ?: false)
+   it[capacity]?.takeIf { mah -> mah in 500..30_000 }, it[calibration], it[startOnBoot] ?: false,
+   it[alertsEnabled] ?: false, (it[alertLow] ?: 20).takeIf { x -> x in 5..40 } ?: 20,
+   (it[alertTemp] ?: 43).takeIf { x -> x in 35..55 } ?: 43,
+   (it[alertTarget] ?: 80).takeIf { x -> x in 60..100 } ?: 80,
+   (it[alertDrain] ?: 20).takeIf { x -> x in 10..40 } ?: 20)
  }
  /** Identidade local excluída de backup + firmware: não confundir ajuste entre instalações. */
  suspend fun calibrationScope(): String = withContext(Dispatchers.IO) {
@@ -47,6 +58,11 @@ class SettingsStore(private val context: Context) {
  suspend fun fahrenheit(value: Boolean) { context.preferences.edit { it[fahrenheit] = value } }
  suspend fun continuous(value: Boolean) { context.preferences.edit { it[continuous] = value } }
  suspend fun startOnBoot(value: Boolean) { context.preferences.edit { it[startOnBoot] = value } }
+ suspend fun alertsEnabled(value: Boolean) { context.preferences.edit { it[alertsEnabled] = value } }
+ suspend fun alertLow(value: Int) { require(value in 5..40); context.preferences.edit { it[alertLow] = value } }
+ suspend fun alertTemp(value: Int) { require(value in 35..55); context.preferences.edit { it[alertTemp] = value } }
+ suspend fun alertTarget(value: Int) { require(value in 60..100); context.preferences.edit { it[alertTarget] = value } }
+ suspend fun alertDrain(value: Int) { require(value in 10..40); context.preferences.edit { it[alertDrain] = value } }
  suspend fun capacityMah(value: Int?) { require(value == null || value in 500..30_000); context.preferences.edit { if (value == null) it.remove(capacity) else it[capacity] = value } }
  suspend fun calibration(value: String?) { context.preferences.edit { if(value==null) it.remove(calibration) else it[calibration]=value } }
  suspend fun replaceFromBackup(value: Settings) {
@@ -57,6 +73,9 @@ class SettingsStore(private val context: Context) {
    // Segurança: a preferência restaurada nunca inicia um serviço sem intervenção do usuário.
    it[continuous] = false
    it[startOnBoot] = false
+   // Não ativar alertas silenciosamente após restaurar um backup.
+   it[alertsEnabled] = false
+   it[alertLow] = 20; it[alertTemp] = 43; it[alertTarget] = 80; it[alertDrain] = 20
    if(value.capacityMah != null) it[capacity] = value.capacityMah else it.remove(capacity)
    // Nunca importar calibração específica de hardware de outro aparelho.
    it.remove(calibration)
@@ -100,6 +119,9 @@ data class TelemetrySample(
 @Dao
 interface SessionDao {
  @Query("SELECT * FROM sessions ORDER BY id DESC LIMIT 500") fun observe(): Flow<List<Session>>
+ /** Somente leituras reais da última semana; até o limite já imposto de 30 mil amostras. */
+ @Query("SELECT * FROM telemetry_samples WHERE timestamp >= :since ORDER BY timestamp ASC, id ASC LIMIT 30000")
+ fun observeWeeklyTelemetry(since: Long): Flow<List<TelemetrySample>>
  @Query("SELECT * FROM telemetry_samples ORDER BY id DESC LIMIT 1500")
  fun observeRecentTelemetry(): Flow<List<TelemetrySample>>
  @Query("SELECT * FROM telemetry_samples WHERE sessionId = :sessionId ORDER BY timestamp ASC, id ASC LIMIT 1440")

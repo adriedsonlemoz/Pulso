@@ -25,6 +25,8 @@ class PulsoViewModel(application: Application): AndroidViewModel(application) {
   viewModelScope.launch { app.repository.setChargerLabel(id,cleaned) }
  }
  val telemetry = app.repository.telemetry.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList<TelemetrySample>())
+ val weeklyTelemetry = app.repository.weeklyTelemetry(System.currentTimeMillis()-8L*24*60*60*1000)
+  .stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList<TelemetrySample>())
  val sessions = app.repository.sessions.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000),emptyList())
  val settings = app.settings.flow.stateIn(viewModelScope,SharingStarted.Eagerly,Settings())
  val active = app.repository.serviceActive
@@ -75,6 +77,11 @@ class PulsoViewModel(application: Application): AndroidViewModel(application) {
  fun startOnBoot(value: Boolean) { viewModelScope.launch { app.settings.startOnBoot(value) } }
  fun interval(value: Int) { viewModelScope.launch { app.settings.interval(value) } }
  fun fahrenheit(value: Boolean) { viewModelScope.launch { app.settings.fahrenheit(value) } }
+ fun alertsEnabled(value: Boolean) { viewModelScope.launch { app.settings.alertsEnabled(value) } }
+ fun alertLow(value: Int) { viewModelScope.launch { app.settings.alertLow(value) } }
+ fun alertTemp(value: Int) { viewModelScope.launch { app.settings.alertTemp(value) } }
+ fun alertTarget(value: Int) { viewModelScope.launch { app.settings.alertTarget(value) } }
+ fun alertDrain(value: Int) { viewModelScope.launch { app.settings.alertDrain(value) } }
  fun resetCalibration() { app.repository.resetCalibration() }
  fun capacityMah(value: Int?) { viewModelScope.launch { app.settings.capacityMah(value) } }
 }

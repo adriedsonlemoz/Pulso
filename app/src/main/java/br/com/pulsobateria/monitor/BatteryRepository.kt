@@ -26,6 +26,7 @@ class BatteryRepository(
  val reading = mutable.asStateFlow()
  val sessions = dao.observe()
  val telemetry = dao.observeRecentTelemetry()
+ fun weeklyTelemetry(since: Long): Flow<List<TelemetrySample>> = dao.observeWeeklyTelemetry(since)
  fun sessionSamples(id: Long): Flow<List<SessionSample>> = dao.observeSamples(id)
  fun sessionTelemetry(id: Long): Flow<List<TelemetrySample>> = dao.observeSessionTelemetry(id)
  suspend fun setChargerLabel(id: Long, label: String?) { dao.setChargerLabel(id,label) }

@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.room.Room
 import br.com.pulsobateria.data.*
 import br.com.pulsobateria.monitor.BatteryRepository
+import br.com.pulsobateria.monitor.SmartAlertDispatcher
 import br.com.pulsobateria.usage.UsageInsightsReader
 import kotlinx.coroutines.*
 
@@ -20,5 +21,6 @@ class PulsoApp: Application() {
   backup = BackupManager(this, database, settings)
   repository = BatteryRepository(this, database.sessions(), settings, scope)
   usageInsights = UsageInsightsReader(this, database.sessions())
+  SmartAlertDispatcher(this, repository, settings, scope).start()
  }
 }

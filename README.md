@@ -1,6 +1,6 @@
 # Pulso Bateria
 
-**0.1.0-alpha.19 • versionCode 19** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.20 • versionCode 20** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Evolução alpha.17
@@ -23,6 +23,12 @@ Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
 - **Comparador de recargas (aba Sessões):** escolhe duas sessões encerradas, compara somente a mesma faixa percentual com telemetria contínua nas duas, duração, velocidade em %/h, temperatura média das amostras e mAh pelo contador de carga quando válido. Sem faixa adequada, mostra indisponibilidade em vez de inventar medidas.
 - **Fonte e nome manual do carregador:** salva o tipo de fonte declarado pelo Android (Tomada, USB, Sem fio ou Fonte externa), sem inventar marca, cabo ou potência. O usuário pode identificar uma sessão com rótulo de até 40 caracteres. Alteração detectável do tipo de fonte encerra a sessão anterior.
 - **Persistência:** Room v5 com migração explícita 4→5 (dois campos opcionais em `sessions`) e backup JSON v3 (importa v1/v2). Identidade e assinatura preservadas. Dados anteriores não recebem fonte ou rótulo retroativos.
+
+## Novidades da alpha.20
+
+- **Alertas inteligentes (Configurações):** quatro regras opt-in de bateria baixa, aquecimento, meta de carga e descarga rápida, com limiares ajustáveis. Exigem duas leituras consecutivas e dispõem de deduplicação persistida por episódio e intervalo mínimo de 1 hora. Notificações usam canal separado de importância padrão e respeitam permissões Android. Não interrompem o carregamento, não iniciam monitoramento oculto e só funcionam durante a observação ativa.
+- **Relatório diário e dos últimos sete dias (Sessões):** resume a queda e carga em %, tempo de observação, sessões de recarga e maior temperatura, com barras diárias. Calcula sobre `telemetry_samples` persistidos, sem completar lacunas acima de três minutos ou cruzamentos de meia-noite; não atribui gasto a aplicativos. Histórico anterior à alpha.18 pode não ter telemetria.
+- **Persistência:** sem migração; mantém Room v5 e JSON v3. Configurações de alertas ficam em DataStore, não são incluídas no backup e são desativadas após restauração por segurança. Não exige rede, root, wakelock ou nova permissão.
 
 ## Funcionalidades
 
