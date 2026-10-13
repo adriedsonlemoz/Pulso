@@ -1,7 +1,16 @@
 # Pulso Bateria
 
-**0.1.0-alpha.21 • versionCode 21** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.22 • versionCode 22** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
+
+## Novidades da alpha.22 — notificação de monitoramento
+
+- **Compacta:** percentual, temperatura e corrente aproveitável aparecem uma vez; linha de estado mostra previsão de 100% ou autonomia quando disponíveis. Sem repetição de corrente no painel expandido.
+- **Expandida:** estado, origem da medição quando necessário e médias independentes somente quando divergirem de forma relevante. Média zero do Android durante recarga/descarga não aparece como média útil; valores brutos permanecem em Configurações > Diagnóstico.
+- **Aos 100%:** apenas o estado `FULL` informado pelo Android recebe o rótulo **Bateria cheia**. `CHARGING` em 100% continua **Carregando • 100%**, sem previsão. Zero de corrente não prova ausência de consumo.
+- **Temperatura:** acima do limite já configurável, aparece **Temperatura elevada** na própria notificação do serviço, sem disparar som ou substituir as regras opt-in de alertas inteligentes.
+- **Ações e economia:** botão Abrir antes de Parar, canal silencioso e `onlyAlertOnce`; coleta, intervalos e frequência de amostragem inalterados.
+- **Compatibilidade:** sem migração, mantém Room v5, backup JSON v3, assinatura/Secrets, histórico e identidade Android. Pendente compilação pelo GitHub Actions.
 
 ## Novidades da alpha.21 — navegação mais limpa
 

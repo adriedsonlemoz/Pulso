@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.22 (22) — 2026-10-13
+
+### Notificação mais enxuta e estados claros
+- Notificação compacta mostra nível, temperatura e uma corrente aproveitável; expandida mostra estado/previsão e fonte ou média independente quando relevante, sem duplicar corrente exibida no título.
+- Corrente zero durante carga/descarga não vira afirmação de ausência de consumo; contador/média não nulos podem assumir a apresentação, identificados como média. Média Android 0 mA é omitida da notificação, mas não do diagnóstico.
+- Estado `CHARGING` em 100% não é rotulado como bateria cheia; apenas `FULL` recebe esse estado. ETA não é inventado perto de 100%, respeitando os cálculos existentes.
+- Temperatura acima do limite configurado recebe aviso passivo na notificação de monitoramento, sem mudar canal, som ou regras de alertas opt-in. Abrir antecede Parar nas ações.
+- Room v5, backup JSON v3, medições, coleta, permissão e assinatura preservados. Novos testes de renderização e segurança do texto.
+
 ## 0.1.0-alpha.21 (21) — 2026-10-13
 
 ### Navegação e hierarquia visual

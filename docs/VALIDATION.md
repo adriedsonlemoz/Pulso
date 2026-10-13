@@ -1,21 +1,23 @@
-# Validação — Pulso Bateria 0.1.0-alpha.21 (21)
+# Validação — Pulso Bateria 0.1.0-alpha.22 (22)
 
-## Alterações
+## Escopo
 
-- Reorganização exclusiva de interface: resumo compacto 5/20/60 min e tela técnica separada; abas Uso: Resumo / Aplicativos / Noite; atalhos em Sessões para Comparar e Relatórios em telas próprias; ajuda contextual.
-- O cálculo de corrente, o contador de carga, o histórico e as proteções contra lacunas permanecem os mesmos.
-- Room **v5** e backup **JSON v3** preservados, sem migração. Mesmas permissões, Secrets e assinatura.
+- Notificação compacta/expandida com corrente única no cabeçalho, origem explicitada em média alternativa e 0 mA ambíguo suprimido durante carga/descarga.
+- Estado de 100% não implica FULL; aviso de temperatura no limite configurado, atualização silenciosa, botões Abrir/Parar.
+- Não modificados cálculos da bateria, Room v5, backup JSON v3, identidade, permissões, banco ou Secrets.
 
-## Executado localmente
+## Verificações executadas
 
-- **12 testes SQLite aprovados**, inclusive migrações 1→5/4→5, integridade de chave estrangeira e retenção (`tools/test_storage_sql.py`).
-- **27 fontes Kotlin (core + app)** analisadas por parser PSI do compilador Kotlin: **0 erros de sintaxe**. Isso não é compilação Compose/Android nem verificação de tipos.
-- **11 verificações estáticas de navegação** passaram (`tools/test_navigation_contract.py`): rotas, atalhos, abas internas, botão de ajuda, nomes de carregador ocultos até expansão e avisos de dados parciais.
-- `tools/validate_source.py`: manifest, XML, pacote, versão, workflow, wrapper Gradle e schemas de migração, aprovado.
-- ZIP do código verificado por integridade CRC e conferência de conteúdos, sem chaves de assinatura.
+- **25/25 testes de notificação Kotlin/JVM aprovados** com compilação pelo `kotlinc` local 1.9 e executor de asserções compatível com JUnit. Incluem ETA, estados, zero, corrente contraditória, temperatura e deduplicação. Isso **não substitui** a compilação Gradle/Android.
+- **12 testes SQLite aprovados**, incluindo migrações, integridade referencial e retenção (`tools/test_storage_sql.py`). O teste existente produz avisos Python `ResourceWarning` de conexões temporárias, sem falha nas asserções.
+- `tools/validate_source.py` aprovado: versões, identidade, permissões, Wrapper oficial, manifesto e estrutura.
+- `tools/test_navigation_contract.py`: 11 verificações estáticas aprovadas; telas anteriores preservadas.
+- Revisão estática do `MonitorService`: limite de temperatura vem de `settings.hotBatteryAlert`; mesmo canal LOW/silencioso com `setOnlyAlertOnce`, ações Abrir/Parar; tratamento do serviço e START_STICKY preservados.
 
-## Bloqueios / pendências
+## Limitações e próximos testes
 
-- Gradle `./gradlew --offline :core:test :app:assembleDebug --no-daemon` não pôde iniciar as tarefas: `UnknownHostException: services.gradle.org` ao tentar obter `gradle-8.11.1-bin.zip`.
-- Tentativa de executar a suíte Kotlin/JVM completa com compilador local atingiu limite de execução. **Não** considerá-la aprovada; testes estáticos não substituem a suíte.
-- Testar compilação Kotlin/Compose/Android, KSP, navegação Voltar, abertura de ajuda, disposição em telas pequenas e acessibilidade no GitHub Actions e aparelho real. Não há APK validado no ambiente local.
+- A tentativa de compilar/rodar a **suíte Kotlin/JVM completa** ultrapassou o tempo disponível do compilador local; **não** foi aprovada ou contabilizada.
+- Sem distribuição Gradle disponível localmente, **Android/Compose e build completo ainda não validados**, inclusive comportamento OEM da notificação. Validar `:core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` no GitHub Actions.
+- Testar em aparelho real: notificação compacta/expandida em 97%, CHARGING 100%, FULL 100%, corrente zero com/sem média do contador, canal silenciado, aviso de temperatura e ação Parar sem reinício indesejado.
+- Verificar formatação e corte de títulos em diferentes versões MIUI/Android; o sistema operacional controla parte do layout.
+- ZIP: conferir CRC, nomes, versões e ausência de keystore/Secrets antes da entrega.

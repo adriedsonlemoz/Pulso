@@ -1,7 +1,7 @@
 # Versionamento
 
-Versão atual: **0.1.0-alpha.21**, **versionCode 21**.
-Próxima entrega: **0.1.0-alpha.22**, **versionCode 22**.
+Versão atual: **0.1.0-alpha.22**, **versionCode 22**.
+Próxima entrega: **0.1.0-alpha.23**, **versionCode 23**.
 
 Fonte Android: `app/build.gradle.kts`; a tela Sobre usa BuildConfig. Sincronizar README, CHANGELOG, RELEASE_NOTES, AGENTS, este documento, validação, workflow e ZIP. Preservar `applicationId = br.com.pulsobateria` e os Secrets/keystore existentes.
 
@@ -10,3 +10,5 @@ Alpha.19 usa **Room v5** (migração 4→5 adiciona campos opcionais de fonte e 
 Alpha.20 mantém **Room v5** e **backup JSON v3**; as preferências opcionais de alertas são locais, desativadas após restauração. Não há migração de banco nem novos Secrets.
 
 Alpha.21 reorganiza telas e textos; **nenhuma migração Room** (permanece v5), **backup JSON v3** e as mesmas quatro Secrets de assinatura.
+
+Alpha.22 altera apenas apresentação da notificação/ações do serviço, sem mudanças no banco Room v5, backup JSON v3 ou Secrets.

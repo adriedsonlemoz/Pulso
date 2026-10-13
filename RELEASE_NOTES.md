@@ -1,13 +1,14 @@
-# Pulso Bateria 0.1.0-alpha.21
+# Pulso Bateria 0.1.0-alpha.22
 
-**Foco: simplificar a interface sem perder funcionalidades.**
+**Foco: notificação compacta, legível e tecnicamente conservadora.**
 
-- **Início:** cartão compacto Consumo por período com 5/20/60 min, corrente, mAh e estado dos dados. Use **Ver análise completa** para gráficos e detalhes técnicos.
-- **Sessões:** compare recargas e consulte relatórios em páginas independentes pelos atalhos acima do histórico. Rótulos de carregador ficam atrás de **Identificar carregador**.
-- **Uso:** navegue por **Resumo / Aplicativos / Noite**. O resumo esclarece os totais acumulados; acima de 100% é possível quando há várias cargas e descargas.
-- **Ajuda contextual:** textos técnicos em botões ⓘ, sem esconder falta de dados e coberturas parciais. Mantido o uso de % e %/h.
-- **Sem alteração de banco:** Room v5, backup JSON v3, preferências, assinatura, Secrets e `br.com.pulsobateria` preservados.
+- Notificação compacta com nível, temperatura e corrente líquida útil, sem repetição no painel expandido.
+- Estado FULL é distinguido de CHARGING a 100%; ETA permanece aproximada e só aparece quando existe cálculo válido.
+- Zero de corrente/média não vira garantia de ausência de consumo; média válida pelo contador pode ser apresentada com identificação de origem.
+- Limiar de temperatura existente é usado para destaque passivo, sem som ou vibração no canal de monitoramento.
+- Ações Abrir e Parar, nesta ordem; nenhuma mudança nas permissões ou serviços.
+- Room v5, backup JSON v3, banco, identidade e Secrets preservados.
 
-**Validação pendente:** compilar Android/Compose, testar navegação e toque no aparelho; não foi gerado APK local.
+**Validação Android/Compose pendente:** gerar APK no GitHub Actions, revisar layout compacto/expandido na MIUI/HyperOS e comportamento de 0 mA perto de 100%.
 
-APK esperado: `Pulso-Bateria-v0.1.0-alpha.21-debug.apk`.
+APK esperado: `Pulso-Bateria-v0.1.0-alpha.22-debug.apk`.

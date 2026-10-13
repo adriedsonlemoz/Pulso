@@ -102,7 +102,8 @@ class MonitorService: Service() {
      ratePercentPerHour = reading.rate,
      nowEpochMillis = reading.updated.takeIf { it > 0 },
      androidAverageMa = reading.currentInfo.androidAverageMa,
-     directionWarning = reading.currentInfo.note.contains("Sinal em verificação")
+     directionWarning = reading.currentInfo.note.contains("Sinal em verificação"),
+     hotThresholdC = settings.hotBatteryAlert
     )
    }.collect { content ->
     try {
@@ -137,9 +138,12 @@ class MonitorService: Service() {
    .setStyle(NotificationCompat.BigTextStyle().bigText(content.expandedText))
    .setContentIntent(open)
    .setOnlyAlertOnce(true)
+   .setPriority(NotificationCompat.PRIORITY_LOW)
+   .setCategory(NotificationCompat.CATEGORY_SERVICE)
    .setSilent(true)
    .setOngoing(true)
    .setShowWhen(false)
+   .addAction(0, "Abrir", open)
    .addAction(0, "Parar", stop)
    .build()
  }

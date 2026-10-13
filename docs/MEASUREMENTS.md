@@ -108,3 +108,11 @@ O relatório de sete dias lê até 30 mil amostras técnicas Room da semana corr
 ## Apresentação dos dados na alpha.21
 
 As alterações de navegação não mudam sensores, sinais, cálculo da média em mA, mAh, ritmo em %/h ou janela noturna. O resumo de 5/20/60 min pode mostrar **Dados parciais** se a cobertura elétrica for inferior a 80%; isso não é um escore de precisão. O total acumulado de variações por múltiplas sessões pode superar 100%. Explicações técnicas ficam atrás do botão de ajuda; falta de amostras e cobertura parcial permanecem explícitas.
+
+## Notificação compacta e medição zero (alpha.22)
+
+O monitor em primeiro plano exibe nível e temperatura válidos, seguidos de uma **corrente aproveitável e não zero**. Zero lido durante carga/descarga continua disponível no diagnóstico, mas não afirma ausência de consumo. Se a leitura principal for zero/inexistente, uma média não zero e de direção compatível pelo contador pode aparecer no título, identificada no corpo como média. Esta escolha afeta apenas a apresentação, **não** recalcula corrente.
+
+Médias independentes só entram no corpo expandido quando a diferença relativa/absoluta é suficientemente grande (maior que 5% e 20 mA, segundo o limiar implementado). Não se apresenta média Android 0 mA como prova de corrente nula. Fonte instantânea e média não representam a mesma janela; as fontes brutas continuam consultáveis no aplicativo.
+
+A classificação de 100% depende do estado: CHARGING + 100% permanece "Carregando • 100%", FULL resulta em "Bateria cheia". Previsão de conclusão não aparece quando nível alcança 100%. A temperatura igual ou superior ao limite configurável exibe aviso passivo na notificação, independente do recurso opcional de alertas inteligentes. A notificação de monitoramento permanece silenciosa e não altera a taxa de leituras.

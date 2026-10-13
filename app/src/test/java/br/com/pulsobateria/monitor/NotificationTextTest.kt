@@ -10,135 +10,140 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 
 class NotificationTextTest {
- private val saoPaulo = ZoneId.of("America/Sao_Paulo")
- private val fixedNow = ZonedDateTime.of(2026, 10, 12, 14, 19, 0, 0, saoPaulo).toInstant().toEpochMilli()
- private fun format(mode: Mode = Mode.CHARGING, current: Double? = 1018.0,
-                    source: CurrentSource = CurrentSource.NOW, mean: Double? = null,
-                    rate: Double? = 25.4, percent: Int? = 86) =
-  BatteryNotificationFormatter.format(percent, 41.3, false, mode, 25*60_000L, current, source, mean, rate, fixedNow, saoPaulo)
+ private val zone = ZoneId.of("America/Sao_Paulo")
+ private val now = ZonedDateTime.of(2026,10,12,14,19,0,0,zone).toInstant().toEpochMilli()
+ private fun format(
+  mode: Mode = Mode.CHARGING, current: Double? = 1018.0,
+  source: CurrentSource = CurrentSource.NOW, counter: Double? = null,
+  android: Double? = null, rate: Double? = 25.4, percent: Int? = 86,
+  temp: Double? = 41.3, limit: Int = 43, remaining: Long? = 25 * 60_000L
+ ) = BatteryNotificationFormatter.format(percent,temp,false,mode,remaining,current,
+  source,counter,rate,now,zone,android,hotThresholdC=limit)
 
- @Test fun loadingLabelsAndMeanWhenMeasuredIndependently() {
-  val n = format(mean=945.0)
+ @Test fun compactTitleDoesNotRepeatCurrentInExpandedText() {
+  val n = format(counter=945.0)
   assertEquals("86% • 41,3 °C • +1.018 mA",n.title)
   assertEquals("100% previsto: ~14h45",n.summary)
-  assertEquals("100% previsto: ~14h45\nCarregando: +1.018 mA\nMédia contador: +945 mA\nRitmo: +25,4 %/h",n.expandedText)
+  assertEquals("100% previsto: ~14h45\nMédia pelo contador: +945 mA",n.expandedText)
+  assertFalse(n.expandedText.contains("+1.018 mA"))
  }
- @Test fun absentMeanDoesNotShowPlaceholder() {
-  val n = format()
-  assertFalse(n.expandedText.contains("Média"))
-  assertFalse(n.expandedText.contains("Indisponível"))
+ @Test fun similarMeanIsOmittedToAvoidVisualDuplication() {
+  val n = format(counter=1020.0)
+  assertFalse(n.expandedText.contains("1.020 mA"))
  }
- @Test fun similarMeanRetainsItsDistinctSource() {
-  val n = format(mean=1020.0)
-  assertTrue(n.expandedText.contains("Média contador: +1.020 mA"))
+ @Test fun independentAndroidMeanIsShownWhenMateriallyDifferent() {
+  val n = format(current=437.0,android=540.0,remaining=null)
+  assertTrue(n.title.endsWith("+437 mA"))
+  assertTrue(n.expandedText.contains("Média do Android: +540 mA"))
  }
- @Test fun dischargeUsesNegativeSpendingLabel() {
-  val n = format(mode=Mode.DISCHARGING, current=-450.0, rate=-10.0)
-  assertTrue(n.title.endsWith("−450 mA"))
-  assertTrue(n.expandedText.contains("Gastando: −450 mA"))
-  assertTrue(n.expandedText.contains("Ritmo: −10,0 %/h"))
+ @Test fun hardwareZeroMeanIsNotPresentedAsUsefulDuringCharge() {
+  val n = format(current=531.0, counter=423.0, android=0.0)
+  assertFalse(n.expandedText.contains("0 mA"))
+  assertTrue(n.expandedText.contains("Média pelo contador: +423 mA"))
  }
- @Test fun meanIsIdentifiedWithoutImplyingInstantaneousMeasurement() {
-  val n = format(current=945.0,source=CurrentSource.AVERAGE,mean=945.0)
-  assertTrue(n.expandedText.contains("Carregando (média): +945 mA"))
-  assertFalse(n.expandedText.contains("\nMédia:"))
+ @Test fun counterMeanReplacesUnconfirmedZeroButIsLabeledAsMean() {
+  val n = format(current=0.0,counter=423.0)
+  assertTrue(n.title.endsWith("+423 mA"))
+  assertTrue(n.expandedText.contains("Corrente: média pelo contador"))
+  assertFalse(n.expandedText.contains("0 mA"))
  }
- @Test fun estimatedCurrentIsMarkedAsEstimate() {
-  val n = format(current=1620.0,source=CurrentSource.CAPACITY)
-  assertTrue(n.expandedText.contains("Carregando (estimativa): +1.620 mA"))
- }
- @Test fun noCurrentHidesUnavailableLineButKeepsValidRate() {
-  val n = format(current=null,source=CurrentSource.NONE)
+ @Test fun zeroDuringChargingWithoutCounterIsHiddenNotClaimedAsNoConsumption() {
+  val n = format(current=0.0,counter=null,android=0.0)
   assertEquals("86% • 41,3 °C",n.title)
-  assertFalse(n.expandedText.contains("Corrente"))
-  assertFalse(n.expandedText.contains("Indisponível"))
-  assertTrue(n.expandedText.contains("Ritmo: +25,4 %/h"))
+  assertFalse(n.expandedText.contains("0 mA"))
  }
- @Test fun withoutEtaNoDuplicateChargingLabelInExpandedBody() {
-  val n = BatteryNotificationFormatter.format(55,38.0,false,Mode.CHARGING,null,1000.0,CurrentSource.NOW,null,null)
-  assertEquals("Carregando",n.summary)
-  assertEquals("Carregando: +1.000 mA",n.expandedText)
+ @Test fun zeroInFullStateIsLabeledAsReadingNotClaimedAsAbsentConsumption() {
+  val n = format(mode=Mode.FULL, current=0.0,percent=100)
+  assertEquals("Bateria cheia",n.summary)
+  assertEquals("100% • 41,3 °C",n.title)
+  assertTrue(n.expandedText.contains("Sensor informou 0 mA"))
  }
- @Test fun tinyCurrentRetainsUnitConversion() {
-  val n = format(current=0.4)
-  assertEquals("86% • 41,3 °C • +0,4 mA",n.title)
-  assertTrue(n.expandedText.contains("+0,4 mA"))
+ @Test fun hundredWhileStillChargingIsNotDeclaredFull() {
+  val n = format(percent=100,current=0.0)
+  assertEquals("Carregando • 100%",n.summary)
+  assertFalse(n.expandedText.contains("Bateria cheia"))
+  assertFalse(n.expandedText.contains("previsto"))
  }
- @Test fun emptyReadingsLeaveOnlyStatus() {
-  val n = format(current=null,source=CurrentSource.NONE,rate=null)
-  assertEquals("100% previsto: ~14h45",n.expandedText)
+ @Test fun idleReportsPausedState() {
+  val n = format(mode=Mode.IDLE,current=null,source=CurrentSource.NONE,remaining=null)
+  assertEquals("Carga pausada",n.summary)
  }
- @Test fun chargingAtHundredDoesNotPredictZeroMinutes() {
-  val n = format(percent=100)
-  assertEquals("Bateria em 100%",n.summary)
-  assertFalse(n.expandedText.contains("Até 100%"))
- }
- @Test fun netCurrentUsesItsOwnSign() {
+ @Test fun contradictoryPositiveCurrentDuringDischargeIsNotExposed() {
   val n = format(mode=Mode.DISCHARGING,current=400.0,rate=10.0)
-  // Um valor positivo não é invertido nem rotulado como consumo ao descarregar.
   assertFalse(n.title.contains("400 mA"))
   assertFalse(n.expandedText.contains("400 mA"))
-  assertFalse(n.expandedText.contains("Gastando:"))
-  assertFalse(n.expandedText.contains("Ritmo:"))
+  assertFalse(n.expandedText.contains("Ritmo"))
   assertEquals("Autonomia: 25 min",n.summary)
  }
- @Test fun idleCanStillHaveNetCurrent() {
-  val n = format(mode=Mode.IDLE)
-  assertTrue(n.title.contains("mA"))
-  assertTrue(n.expandedText.contains("Carga pausada"))
+ @Test fun dischargeKeepsNegativeCurrentAndEstimateOfRuntime() {
+  val n = format(mode=Mode.DISCHARGING,current=-450.0,rate=-10.0)
+  assertTrue(n.title.endsWith("−450 mA"))
+  assertEquals("Autonomia: 25 min",n.summary)
+  assertFalse(n.expandedText.contains("Ritmo:"))
  }
- @Test fun midnightChangeIsLabeledTomorrow() {
-  val late = ZonedDateTime.of(2026,10,12,23,50,0,0,saoPaulo).toInstant().toEpochMilli()
+ @Test fun estimatedCurrentHasClearSourceDescription() {
+  val n = format(current=1620.0,source=CurrentSource.CAPACITY)
+  assertTrue(n.expandedText.contains("Corrente: estimativa por capacidade"))
+ }
+ @Test fun averageCurrentHasClearSourceDescription() {
+  val n = format(current=945.0,source=CurrentSource.AVERAGE)
+  assertTrue(n.expandedText.contains("Corrente: média do Android"))
+ }
+ @Test fun noCurrentShowsStatusWithoutFictitiousReading() {
+  val n = format(current=null,source=CurrentSource.NONE,rate=null)
+  assertEquals("86% • 41,3 °C",n.title)
+  assertEquals("100% previsto: ~14h45",n.expandedText)
+ }
+ @Test fun unknownReadingsRemainUnavailable() {
+  val n = format(mode=Mode.UNKNOWN,current=null,source=CurrentSource.NONE,temp=null,remaining=null)
+  assertEquals("86% • — °C",n.title)
+  assertEquals("Aguardando leitura",n.summary)
+ }
+ @Test fun smallValidCurrentKeepsPrecision() {
+  val n = format(current=0.4)
+  assertTrue(n.title.endsWith("+0,4 mA"))
+ }
+ @Test fun temperatureWarningIsVisibleWithoutExpansion() {
+  val n = format(temp=43.0)
+  assertEquals("Temperatura elevada",n.summary)
+  assertTrue(n.expandedText.contains("acima do limite (43 °C)"))
+  assertTrue(n.expandedText.contains("100% previsto: ~14h45"))
+ }
+ @Test fun customTemperatureThresholdIsRespected() {
+  assertEquals("Temperatura elevada",format(temp=41.0,limit=40).summary)
+  assertEquals("100% previsto: ~14h45",format(temp=41.0,limit=43).summary)
+ }
+ @Test fun invalidTemperatureDoesNotTriggerWarning() {
+  assertEquals("100% previsto: ~14h45",format(temp=Double.NaN,limit=40).summary)
+  assertEquals("100% previsto: ~14h45",format(temp=41.0,limit=100).summary)
+ }
+ @Test fun midnightPredictionIsLabeledTomorrow() {
+  val late = ZonedDateTime.of(2026,10,12,23,50,0,0,zone).toInstant().toEpochMilli()
   val n = BatteryNotificationFormatter.format(92,35.0,false,Mode.CHARGING,25*60_000L,
-   800.0,CurrentSource.NOW,null,15.0,late,saoPaulo)
-  assertEquals("100% previsto: ~00h15 amanhã", n.summary)
+   800.0,CurrentSource.NOW,null,15.0,late,zone)
+  assertEquals("100% previsto: ~00h15 amanhã",n.summary)
  }
- @Test fun longPredictionLabelsDate() {
+ @Test fun twoDaysLaterPredictionShowsDate() {
   val eta = 2L * 24L * 60L * 60_000L
   val n = BatteryNotificationFormatter.format(40,35.0,false,Mode.CHARGING,eta,
-   100.0,CurrentSource.NOW,null,4.0,fixedNow,saoPaulo)
-  assertEquals("100% previsto: ~14h20 em 14/10", n.summary)
+   100.0,CurrentSource.NOW,null,4.0,now,zone)
+  assertEquals("100% previsto: ~14h20 em 14/10",n.summary)
  }
- @Test fun clockTimeNotDisplayedWithoutValidatedEta() {
-  val n = BatteryNotificationFormatter.format(55,35.0,false,Mode.CHARGING,null,
-   1000.0,CurrentSource.NOW,null,null,fixedNow,saoPaulo)
-  assertEquals("Carregando",n.summary)
+ @Test fun etaIsNotInventedWhenMissing() {
+  assertEquals("Carregando",format(remaining=null).summary)
  }
- @Test fun clockTimeNotDisplayedAtOneHundredPercent() {
-  val n = BatteryNotificationFormatter.format(100,35.0,false,Mode.CHARGING,0,
-   1000.0,CurrentSource.NOW,null,null,fixedNow,saoPaulo)
-  assertEquals("Bateria em 100%",n.summary)
- }
- @Test fun unavailableWallClockFallsBackToDurationWithoutInventingTime() {
+ @Test fun whenClockIsMissingOnlyDurationCanBeShown() {
   val n = BatteryNotificationFormatter.format(86,41.3,false,Mode.CHARGING,25*60_000L,
-   1000.0,CurrentSource.NOW,null,25.0,null,saoPaulo)
+   1000.0,CurrentSource.NOW,null,25.0,null,zone)
   assertEquals("Até 100%: 25 min",n.summary)
  }
- @Test fun dischargingRetainsDurationNotFullChargeClock() {
-  val n = format(mode=Mode.DISCHARGING,current=-450.0,rate=-10.0)
-  assertEquals("Autonomia: 25 min",n.summary)
+ @Test fun roundingNeverPredictsPastClockTime() {
+  val at=ZonedDateTime.of(2026,10,12,14,21,0,0,zone).toInstant().toEpochMilli()
+  assertEquals("100% previsto: ~14h25",BatteryNotificationFormatter.predictedChargeTime(30_000,at,zone))
  }
- @Test fun fiveMinuteRoundingIsApproximate() {
-  val n = BatteryNotificationFormatter.format(86,41.3,false,Mode.CHARGING,23*60_000L,
-   1000.0,CurrentSource.NOW,null,25.0,fixedNow,saoPaulo)
-  assertEquals("100% previsto: ~14h45",n.summary)
- }
- @Test fun unavailableTemperatureAndValueUseCompactPlaceholders() {
-  val n = BatteryNotificationFormatter.format(55,null,false,Mode.UNKNOWN,null,null,CurrentSource.NONE,null,null)
-  assertEquals("55% • — °C",n.title)
-  assertEquals("Aguardando leitura",n.expandedText)
- }
- @Test fun shortEtaNeverRoundsIntoThePast() {
-  val now=ZonedDateTime.of(2026,10,12,14,21,0,0,saoPaulo).toInstant().toEpochMilli()
-  assertEquals("100% previsto: ~14h25",BatteryNotificationFormatter.predictedChargeTime(30_000,now,saoPaulo))
- }
- @Test fun androidAverageIsShownSeparatelyWhenInstantaneousExists() {
-  val n=BatteryNotificationFormatter.format(79,38.9,false,Mode.CHARGING,null,437.0,CurrentSource.NOW,
-   null,null,androidAverageMa=540.0)
-  assertTrue(n.expandedText.contains("Carregando: +437 mA"))
-  assertTrue(n.expandedText.contains("Média Android: +540 mA"))
- }
- @Test fun zeroNetCurrentIsShown() {
-  assertTrue(format(current=0.0).expandedText.contains("Corrente líquida: 0 mA"))
+ @Test fun directionWarningKeepsDiagnosticAvailable() {
+  val n=BatteryNotificationFormatter.format(75,39.0,false,Mode.DISCHARGING,null,null,
+   CurrentSource.NONE,null,null,directionWarning=true)
+  assertTrue(n.expandedText.contains("Sinal da corrente em verificação"))
  }
 }
