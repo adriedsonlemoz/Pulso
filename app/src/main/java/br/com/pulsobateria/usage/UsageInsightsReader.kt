@@ -4,6 +4,7 @@ import android.app.AppOpsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
+import android.content.Intent
 import android.os.Process
 import br.com.pulsobateria.core.*
 import br.com.pulsobateria.data.SessionDao
@@ -55,13 +56,21 @@ class UsageInsightsReader(private val context: Context, private val dao: Session
   }
   val battery=UsageAnalysisMath.battery(points,events,start,until)
   val pm=context.packageManager
+  // Em Android 11+, a consulta limitada no Manifest permite resolver apps iniciáveis.
+  // Nunca recorrer a QUERY_ALL_PACKAGES ou a nomes inventados em um catálogo fixo.
+  @Suppress("DEPRECATION")
+  val launchers=pm.queryIntentActivities(
+   Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),0
+  ).associateBy { it.activityInfo.packageName }
   val apps=foreground.applications.map { stat ->
-   val name=try {
+   val direct=try {
     @Suppress("DEPRECATION")
     val info=pm.getApplicationInfo(stat.packageName,0)
-    pm.getApplicationLabel(info).toString()
-   } catch (_: Exception) { stat.packageName }
-   AppUsageEntry(stat.packageName,name,stat.durationMs)
+    pm.getApplicationLabel(info).toString().takeIf { it.isNotBlank() }
+   } catch (_: Exception) { null }
+   val launcherLabel=try { launchers[stat.packageName]?.loadLabel(pm)?.toString()?.takeIf { it.isNotBlank() } }
+    catch (_: Exception) { null }
+   AppUsageEntry(stat.packageName,direct ?: launcherLabel ?: stat.packageName,stat.durationMs)
   }
   UsageInsights(start,until,apps,foreground.hourlyForegroundMs,foreground.observedForegroundMs,battery,points.size,events.isNotEmpty())
  }

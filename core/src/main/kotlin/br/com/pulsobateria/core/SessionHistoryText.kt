@@ -3,7 +3,7 @@ package br.com.pulsobateria.core
 import java.util.Locale
 import kotlin.math.abs
 
-/** Formatos de apresentação. Pontos percentuais não equivalem a mAh. */
+/** UI: valores em % representam diferença de níveis na escala 0..100 (não mAh). */
 object SessionHistoryText {
  private val locale = Locale.forLanguageTag("pt-BR")
 
@@ -12,13 +12,10 @@ object SessionHistoryText {
   val delta = final - initial
   if (delta == 0) return "Sem variação"
   val amount = abs(delta)
-  val points = if (amount == 1) "ponto" else "pontos"
-  val consumed = if (amount == 1) "consumido" else "consumidos"
-  val added = if (amount == 1) "adicionado" else "adicionados"
   return when {
-   mode == Mode.DISCHARGING && delta < 0 -> "$amount $points $consumed"
-   mode == Mode.CHARGING && delta > 0 -> "$amount $points $added"
-   else -> "Variação: ${if(delta > 0) "+" else "−"}$amount $points"
+   mode == Mode.DISCHARGING && delta < 0 -> "Caiu $amount%"
+   mode == Mode.CHARGING && delta > 0 -> "Carregou +$amount%"
+   else -> "Variação: ${if(delta > 0) "+" else "−"}$amount%"
   }
  }
 
@@ -26,7 +23,7 @@ object SessionHistoryText {
   if (rate == null || !rate.isFinite()) return if(active) "Calculando…" else "Dados insuficientes"
   val sign = if (mode == Mode.DISCHARGING && rate < 0 || mode == Mode.CHARGING && rate > 0) ""
    else if(rate > 0) "+" else if(rate < 0) "−" else ""
-  return String.format(locale, "%s%.1f pontos/h", sign, abs(rate))
+  return String.format(locale, "%s%.1f%%/h", sign, abs(rate))
  }
 
  /** Indício visual somente: nunca mesclar registros nem contar o tempo sem monitoramento. */

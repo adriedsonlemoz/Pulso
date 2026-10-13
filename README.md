@@ -1,7 +1,15 @@
 # Pulso Bateria
 
-**0.1.0-alpha.16 • versionCode 16** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.17 • versionCode 17** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
+
+## Evolução alpha.17
+
+- A aba **Apps** passou a **Uso** (ícone de barras) e a tela recebeu o título **Uso de aplicativos**. Os cartões tentam mostrar o nome e o ícone reais via `PackageManager`; quando o Android restringe a identificação, exibem um símbolo neutro e um único identificador técnico. Sem cadastro manual de nomes nem Internet.
+- Visibilidade de pacotes restrita à consulta de aplicativos iniciáveis (`MAIN` + `LAUNCHER`) no `<queries>` do Manifest. **Não** utiliza `QUERY_ALL_PACKAGES`, nem exige nova permissão perigosa. Nomes e ícones de apps não iniciáveis/ocultos podem continuar indisponíveis.
+- Variação de bateria apresentada em `%` na interface: **Caiu 20%**, **Carregou +20%**, **Tela ligada: caiu 4%** e ritmo em `%/h`. É a diferença de leituras na escala 0–100%, e não perda percentual relativa, mAh ou consumo atribuível a um aplicativo.
+- O cartão da página inicial **Corrente da bateria** apresenta a média aproveitável, o período observado quando disponível e a origem da medição, deixando os valores das fontes separados em **Detalhes da medição**. Zero fornecido pelo Android durante carga/descarga não vira automaticamente uma média útil.
+- Alteração de interface/consulta de informações dos aplicativos. **Room v3, backup JSON v1, assinatura, coleta e cálculo das médias permanecem inalterados.**
 
 ## Funcionalidades
 
@@ -21,11 +29,11 @@ Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Aplicativos e limites (alpha.16)
 
-Na aba **Apps**, toque em **Abrir acesso ao uso** e autorize Pulso Bateria nas configurações especiais do Android. Volte ao app e use **Atualizar** se necessário. O acesso não é obrigatório para nenhuma medição de bateria. A API `UsageStatsManager` informa eventos de primeiro plano e mudanças de estado interativo da tela, mas não mede o consumo individual em mAh, nem possui eventos históricos ilimitados. Nome de aplicativo pode aparecer como pacote por limitações de visibilidade do Android. A análise combina eventos (últimas 24h) com amostras do Room já armazenadas, ignora pausas/lacunas superiores a 3 minutos, não conecta sessões distintas nem recupera intervalos sem observação. A classificação por tela pode ficar incompleta se os eventos não estiverem disponíveis. Os resultados são locais e não exigem Internet, root ou permissões privilegiadas.
+Na aba **Uso**, toque em **Abrir acesso ao uso** e autorize Pulso Bateria nas configurações especiais do Android. Volte ao app e use **Atualizar** se necessário. O acesso não é obrigatório para nenhuma medição de bateria. A API `UsageStatsManager` informa eventos de primeiro plano e mudanças de estado interativo da tela, mas não mede o consumo individual em mAh, nem possui eventos históricos ilimitados. Nomes e ícones de apps iniciáveis são consultados pelo sistema com visibilidade limitada; pacotes ocultos ou sem launcher podem permanecer sem nome disponível. A análise combina eventos (últimas 24h) com amostras do Room já armazenadas, ignora pausas/lacunas superiores a 3 minutos, não conecta sessões distintas nem recupera intervalos sem observação. A classificação por tela pode ficar incompleta se os eventos não estiverem disponíveis. Os resultados são locais e não exigem Internet, root ou permissões privilegiadas.
 
 ## Histórico mais legível na alpha.15
 
-Os cartões de sessões agora mostram `27 pontos consumidos`, `30 pontos adicionados` ou `Sem variação`, e apresentam duração e ritmo médio com rótulos completos. Em sessões vizinhas do mesmo modo e percentual de fronteira, com diferença temporal de até três minutos e sem mudança de estado conhecida, aparece **Possível retomada**. Trata-se de um **indício** calculado a partir dos resumos, não de um vínculo confirmado. Os registros e as curvas permanecem separados, pois reiniciar o serviço/processo ou perder leituras interrompe a observação real.
+Na alpha.17 os cartões mostram `Caiu 27%`, `Carregou +30%` ou `Sem variação`, e apresentam duração e ritmo médio em `%/h`. Os percentuais representam mudança de nível na escala da bateria, não mAh. Em sessões vizinhas do mesmo modo e percentual de fronteira, com diferença temporal de até três minutos e sem mudança de estado conhecida, aparece **Possível retomada**. Trata-se de um **indício** calculado a partir dos resumos, não de um vínculo confirmado. Os registros e as curvas permanecem separados, pois reiniciar o serviço/processo ou perder leituras interrompe a observação real.
 
 A alteração da alpha.15 foi de interface e classificação visual. A alpha.16 inclui consultas de leitura ao mesmo Room v3, sem alterar o schema, a estrutura de backup, a coleta periódica ou a retenção.
 

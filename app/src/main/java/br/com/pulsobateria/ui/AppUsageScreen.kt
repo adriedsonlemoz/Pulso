@@ -1,6 +1,9 @@
 package br.com.pulsobateria.ui
 
 import android.content.Intent
+import androidx.core.graphics.drawable.toBitmap
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -54,7 +57,7 @@ fun AppUsageScreen(modifier: Modifier = Modifier) {
  val extra=MaterialTheme.colorScheme.onSurfaceVariant
  LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
   item {
-   Text("Consumo e atividade",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold)
+   Text("Uso de aplicativos",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold)
    Text("Últimas 24 horas • dados locais",style=MaterialTheme.typography.bodySmall,color=extra)
   }
   if(!granted) {
@@ -84,8 +87,8 @@ fun AppUsageScreen(modifier: Modifier = Modifier) {
     item { ActivityHoursCard(summary) }
     item {
      Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
-      Text("Aplicativos em primeiro plano",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
-      Text("Tempo aproximado por eventos de uso, não corrente nem mAh por aplicativo.",style=MaterialTheme.typography.bodySmall,color=extra)
+      Text("Aplicativos mais usados",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+      Text("Barras proporcionais ao tempo em primeiro plano, não ao gasto de bateria de cada app.",style=MaterialTheme.typography.bodySmall,color=extra)
      }
     }
     if(summary.apps.isEmpty()) item {
@@ -108,19 +111,24 @@ private fun BatteryUsageCard(s: UsageInsights) {
  val c=MaterialTheme.colorScheme.onSurfaceVariant
  Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
   Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-   Text("Bateria observada",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
-   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
-    Column { Text("Queda registrada",style=MaterialTheme.typography.labelMedium,color=c)
-     Text("${s.battery.observedDrop} pontos",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold) }
-    Column { Text("Recarga registrada",style=MaterialTheme.typography.labelMedium,color=c)
-     Text("+${s.battery.observedGain} pontos",style=MaterialTheme.typography.titleLarge) }
+   Text("Variação da bateria",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+   if(s.battery.observedTimeMs==0L) {
+    Text("Sem leituras suficientes no período monitorado.",style=MaterialTheme.typography.bodyMedium)
+   } else {
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
+     Column { Text("Bateria caiu",style=MaterialTheme.typography.labelMedium,color=c)
+      Text("${s.battery.observedDrop}%",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold) }
+     Column { Text("Bateria carregou",style=MaterialTheme.typography.labelMedium,color=c)
+      Text("+${s.battery.observedGain}%",style=MaterialTheme.typography.titleLarge) }
+    }
    }
    HorizontalDivider()
-   Text("Tela ligada: ${s.battery.onDrop} pontos de queda • ${usageDuration(s.battery.onTimeMs)} observados",style=MaterialTheme.typography.bodyMedium)
-   Text("Tela desligada: ${s.battery.offDrop} pontos de queda • ${usageDuration(s.battery.offTimeMs)} observados",style=MaterialTheme.typography.bodyMedium)
+   Text("Tela ligada: caiu ${s.battery.onDrop}% • ${usageDuration(s.battery.onTimeMs)} observados",style=MaterialTheme.typography.bodyMedium)
+   Text("Tela desligada: caiu ${s.battery.offDrop}% • ${usageDuration(s.battery.offTimeMs)} observados",style=MaterialTheme.typography.bodyMedium)
    val unclassified=s.battery.unclassifiedDrop
-   if(unclassified>0) Text("Sem classificação de tela: $unclassified pontos",style=MaterialTheme.typography.bodySmall,color=c)
-   Text("Cobertura de intervalos válidos: ${usageDuration(s.battery.observedTimeMs)} • ${s.sampleCount} amostras salvas. Não extrapolamos períodos sem leitura ou acima de 3 min entre amostras.",style=MaterialTheme.typography.bodySmall,color=c)
+   if(unclassified>0) Text("Sem estado de tela conhecido: caiu $unclassified%",style=MaterialTheme.typography.bodySmall,color=c)
+   Text("Tempo monitorado: ${usageDuration(s.battery.observedTimeMs)} • ${s.sampleCount} leituras salvas.",style=MaterialTheme.typography.bodySmall,color=c)
+   Text("Os percentuais mostram a diferença na escala da bateria (ex.: 80% → 60% = caiu 20%). Períodos sem leituras não entram na conta.",style=MaterialTheme.typography.bodySmall,color=c)
   }
  }
 }
@@ -156,20 +164,37 @@ private fun ActivityHoursCard(s: UsageInsights) {
  }
 }
 
+/** Ícone e nome do pacote instalado; há um símbolo neutro quando o Android restringe acesso. */
 @Composable
 private fun AppTimeCard(app: AppUsageEntry, maxDuration: Long) {
  val color=MaterialTheme.colorScheme.primary
+ val context=LocalContext.current
+ val iconBitmap=remember(app.packageName) {
+  try { context.packageManager.getApplicationIcon(app.packageName).toBitmap(64,64).asImageBitmap() }
+  catch (_: Exception) { null }
+ }
+ val identified=app.displayName!=app.packageName
  Card(shape=RoundedCornerShape(15.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
-  Column(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=11.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-   Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-    Text(app.displayName,modifier=Modifier.weight(1f),fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis)
+  Column(Modifier.fillMaxWidth().padding(horizontal=14.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+   Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+    if(iconBitmap!=null) {
+     Image(bitmap=iconBitmap,contentDescription="Ícone de ${if(identified) app.displayName else "aplicativo"}",modifier=Modifier.size(40.dp))
+    } else {
+     Box(Modifier.size(40.dp).background(MaterialTheme.colorScheme.surfaceVariant,RoundedCornerShape(10.dp)),contentAlignment=Alignment.Center) {
+      // Ícone genérico, sem sugerir identidade não verificada.
+      Text("▦",style=MaterialTheme.typography.titleMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     }
+    }
+    Column(Modifier.weight(1f)) {
+     Text(if(identified) app.displayName else "Aplicativo sem nome disponível",fontWeight=FontWeight.Medium,maxLines=2,overflow=TextOverflow.Ellipsis)
+     if(!identified) Text(app.packageName,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1,overflow=TextOverflow.Ellipsis)
+    }
     Text(usageDuration(app.durationMs),style=MaterialTheme.typography.labelMedium)
    }
    Box(Modifier.fillMaxWidth().height(6.dp).background(MaterialTheme.colorScheme.surfaceVariant,RoundedCornerShape(50))) {
     Box(Modifier.fillMaxWidth((app.durationMs.toFloat()/max(1L,maxDuration)).coerceIn(0f,1f)).fillMaxHeight()
      .background(color,RoundedCornerShape(50)))
    }
-   if(app.displayName==app.packageName) Text(app.packageName,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=1)
   }
  }
 }

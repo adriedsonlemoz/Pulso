@@ -1,10 +1,11 @@
-# Pulso Bateria 0.1.0-alpha.16 • versionCode 16
+# Pulso Bateria 0.1.0-alpha.17
 
-- Nova aba **Apps** com tempo de utilização em primeiro plano, ranking e gráfico horário, usando o acesso especial opcional autorizado pelo usuário no Android.
-- Comparação com a queda de bateria realmente observada pelo Pulso, separando trechos classificados como tela ligada, desligada e sem classificação. Nenhum consumo em mAh é atribuído diretamente a outros aplicativos.
-- Histórico, banco Room 3, backup, configuração e assinatura estável das versões anteriores preservados.
-- Permissão de Acesso a uso é opcional, sem coleta externa nem tráfego de rede; a aba apresenta explicações e pode ser atualizada manualmente.
+- Nova apresentação **Uso de aplicativos**, com aba **Uso** e ícone de gráfico.
+- Nome e ícone real de aplicativos visíveis no sistema, com indicação neutra quando a identificação for restrita pelo Android.
+- Quedas e recargas exibidas em `%` (por exemplo, **Caiu 20%**), ritmo em `%/h`. Os percentuais indicam diferenças na escala da bateria; não estimam mAh individuais.
+- **Corrente da bateria** apresenta média e origem em linguagem clara, com detalhes expansíveis das fontes.
+- Sem alteração de Room v3, backup, assinatura, coleta ou cálculos.
 
-**Atenção:** Acesso a uso é uma autorização especial concedida em Configurações do Android. O sistema pode não disponibilizar eventos anteriores ou após bloqueio/reinício. Os testes Android e a aparência real em aparelho continuam pendentes até validação no GitHub Actions.
+**Validação Android e compatibilidade visual ainda pendentes**, inclusive resolução de nomes/ícones no aparelho. Gerar pelo workflow para confirmar compilação.
 
-APK esperado no workflow: `Pulso-Bateria-v0.1.0-alpha.16-debug.apk`.
+APK: `Pulso-Bateria-v0.1.0-alpha.17-debug.apk`. Preserve os mesmos Secrets de assinatura das versões anteriores ao atualizar.

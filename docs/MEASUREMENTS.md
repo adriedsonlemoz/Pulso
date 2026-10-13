@@ -1,13 +1,19 @@
-# Medições e decisões técnicas — alpha.16
+# Medições e decisões técnicas — alpha.17
 
 A alpha.13 usa um **filtro de apresentação** sobre as fontes de corrente: quando o estado é carregando, corrente negativa não é considerada confiável; quando descarregando, corrente positiva também não. As leituras originais continuam disponíveis para diagnóstico. Um zero isolado não é preferido a outra fonte compatível não nula; se coexistir com uma leitura contraditória, não é apresentado como confirmação de corrente zero. Não se altera o sinal sem corroboração; um estado transitório pode tornar o valor temporariamente indisponível. A preferência Iniciar com o sistema é opcional; tentativas de serviço após boot/atualização podem ser bloqueadas pelo Android, e lacunas não são preenchidas.
 
 
-## Novo módulo Apps (alpha.16)
+## Novo módulo Uso (alpha.16/17)
 
 `PACKAGE_USAGE_STATS` precisa ser autorizado manualmente em Acesso ao uso. O app consulta eventos de foreground/background e de tela interativa/não interativa por `UsageStatsManager.queryEvents` apenas quando a aba é aberta ou atualizada, sem capturar conteúdo dos aplicativos. O Android pode restringir o histórico de eventos, e uma permissão concedida não garante dados completos.
 
+A alpha.17 acrescenta nomes/ícones reais com consulta limitada de apps iniciáveis no Manifest. Quedas e recargas recebem o sufixo `%` na UI, significando diferença entre percentuais inicial e final (por exemplo, 80% → 60%: "Caiu 20%"). Isso é uma **convenção de apresentação**, não alteração do cálculo; a distinção matemática permanece documentada.
+
 Tempo por aplicativo vem de trechos identificados por eventos de primeiro plano; isso **não** representa corrente, watts nem mAh individual. Gráfico de uso agrega o tempo em blocos de duas horas. A correlação de bateria usa amostras `session_samples`, somente pares consecutivos da **mesma sessão**, no período consultado, com intervalo `1..180 s` e níveis válidos. Assim evitamos interpolar lacunas. Para classificar queda com tela ligada/desligada, o estado do sistema precisa ser conhecido no início e não pode mudar no meio do intervalo; caso contrário, o trecho fica como não classificado. Não é possível atribuir queda de bateria ao aplicativo em primeiro plano como causalidade, nem estimar valores individuais sem modelo adicional validado.
+
+## Cartão de corrente média
+
+A interface **Corrente da bateria** prioriza a média derivada do contador, quando compatível com o estado, e recorre à média do Android apenas quando aquela falta. Valor zero do hardware não é tratado como média útil durante carga/descarga sem outro contexto; continua no diagnóstico. As fontes e suas incertezas podem ser consultadas em **Detalhes da medição**. Nenhum algoritmo elétrico foi alterado.
 
 ## Contratos e fontes
 

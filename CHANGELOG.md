@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.17 (17) — 2026-10-13
+
+- Aba **Apps** renomeada para **Uso** com ícone de gráfico de barras; cabeçalho **Uso de aplicativos**.
+- Mostra nome e ícone nativos de cada aplicativo quando acessíveis via PackageManager e `<queries>` restrito a `MAIN/LAUNCHER` (sem `QUERY_ALL_PACKAGES`). Fallback neutro para pacotes ocultos; sem duplicar package name nos cartões.
+- Diferença de bateria exibida em `%`: `Caiu 20%`, `Carregou +20%`, comparação tela ligada/desligada e ritmo `%/h`, com esclarecimento de que se trata da variação entre percentuais da bateria.
+- Cartão **Corrente da bateria** destaca a média observada útil e sua origem, com detalhes das duas fontes sob expansão; zero reportado durante carga/descarga não é apresentado como média confirmada.
+- Preservados Room 3, backup JSON v1, assinatura/Secrets, monitoramento e cálculo das medições.
+
+
 ## 0.1.0-alpha.16 (16) — 2026-10-13
 
 - Nova aba **Apps**: ranking por tempo em primeiro plano, gráfico de atividade em blocos de duas horas e análise da última janela de 24h, a partir de `UsageStatsManager.queryEvents` com autorização especial opcional `PACKAGE_USAGE_STATS`.

@@ -1,20 +1,25 @@
-# Validação — Pulso Bateria 0.1.0-alpha.16 (16)
+# Validação — Pulso Bateria 0.1.0-alpha.17 (17)
 
 ## Escopo
 
-Nova aba Apps com acesso especial opcional às estatísticas de utilização, gráfico de atividade 24h e comparação conservadora entre queda de bateria e tela ligada/desligada. Adicionada somente uma consulta read-only à `SessionDao`; banco Room v3, migrações, backup e assinatura não foram alterados.
+- Nome/ícone de aplicativos via PackageManager com `<queries>` limitado a `MAIN/LAUNCHER`; fallback para pacotes invisíveis.
+- Aba **Uso** com ícone próprio, títulos mais legíveis.
+- Variação da bateria apresentada em `%`, mantendo diferença de níveis 0–100; testes `SessionHistoryTextTest` atualizados.
+- Cartão **Corrente da bateria** com média útil, origem e detalhes expansíveis.
+- Room v3, backup JSON v1, assinatura, receitas do GitHub Actions e cálculos de corrente não modificados.
 
-## Validação local executada
+## Testes e limitações
 
-- `python3 tools/validate_source.py`: **PASS**, 14 arquivos obrigatórios, 7 XMLs, permissões, referências de versão e integridade SHA-256/CRC do Gradle Wrapper.
-- `python3 tools/test_storage_sql.py`: **8 testes aprovados** (incluindo migração Room 1→3/2→3, FK, retenção e rollback); verifica SQL diretamente, não runtime do Room no Android.
-- Os testes Kotlin em `core/src/test/.../UsageAnalysisMathTest.kt` foram **adicionados, mas ainda não executados**: cenários de contexto inicial, tela ligada/desligada, faixas horárias, ausência de eventos, lacunas, mudanças de sessão e recarga.
-- O Gradle e o compilador Kotlin local não concluíram a inicialização neste ambiente. Logo, **não foi possível compilar Kotlin/Compose/Room ou validar o APK aqui**. O CI com Android SDK precisa executar `:core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug`. Não considerar a versão aprovada em dispositivo até esses resultados.
+- `python3 tools/validate_source.py`: **PASS**, 14 arquivos obrigatórios, 7 XMLs, versão, permissões e integridade do Wrapper.
+- `python3 tools/test_storage_sql.py`: **8 testes SQLite aprovados**, não executam Room em Android.
+- Kotlin/JVM compilado usando `kotlinc` 1.9.0 local, com um executor de asserções compatível com JUnit 4 (não Gradle/JUnit oficial): **148 testes aprovados, 0 falhas**, inclusive novos resultados em `%` de `SessionHistoryTextTest`. O teste primeiro falhou por esperar um espaço antes de `%/h`; a expectativa foi corrigida e a suíte reexecutada.
+- `./gradlew :core:test :app:assembleDebug --no-daemon`: **não concluiu**, o Gradle Wrapper falhou no download da distribuição por ausência de acesso de rede. Não foi possível compilar Compose/Android, nem executar lint ou validar APK.
+- O manifesto inclui `<queries>` restrito a `MAIN/LAUNCHER` e não inclui `QUERY_ALL_PACKAGES`.
 
 
-## Pendências em hardware real
+## Pendências em aparelho
 
-- Permissão Acesso a uso, controle de ativação/revogação e labels de aplicativos sob as regras de visibilidade de pacote.
-- Conferir eventos de foreground/background e screen interactive/noninteractive em cada versão Android; eventos históricos podem ser incompletos.
-- Validar renderização dos gráficos e proporção das barras com fonte ampliada.
-- Verificar assinatura estável durante a atualização, preservação do histórico e backup de segurança antes de trocar o APK.
+1. Build completo `:core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` no GitHub Actions.
+2. Conferir nomes e ícones de jogos e apps conhecidos em Android 11+ com permissão de uso, incluindo pacotes ocultos ou apps sem launcher.
+3. Visualizar a nova aba e o gráfico de barras em tela pequena/fonte grande; conferir layout dos cards de média e a expansão técnica.
+4. Atualização assinada com os mesmos quatro Secrets; verificar persistência do histórico, permissões e backup.

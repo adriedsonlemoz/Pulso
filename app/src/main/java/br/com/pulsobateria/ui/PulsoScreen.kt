@@ -83,15 +83,15 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
  MaterialTheme(colorScheme=colors) {
   Scaffold(containerColor=colors.background, topBar={
    TopAppBar(title={ Column {
-    Text(when(tab) { 0 -> "Pulso Bateria"; 1 -> "Suas sessões"; 2 -> "Aplicativos"; else -> "Configurações" },fontWeight=FontWeight.Bold)
+    Text(when(tab) { 0 -> "Pulso Bateria"; 1 -> "Suas sessões"; 2 -> "Uso de aplicativos"; else -> "Configurações" },fontWeight=FontWeight.Bold)
     Text(if(tab==0) "ENERGIA EM TEMPO REAL" else "PULSO • ALPHA",style=MaterialTheme.typography.labelSmall,color=colors.primary,letterSpacing=2.sp)
    } }, actions={ if(tab!=3) IconButton(onClick={tab=3}) { Icon(Icons.Default.Settings,"Configurações") } },
     colors=TopAppBarDefaults.topAppBarColors(containerColor=colors.background))
   },bottomBar={
    NavigationBar(containerColor=colors.surface) {
-    listOf("Início","Sessões","Apps","Config.").forEachIndexed { index,label ->
+    listOf("Início","Sessões","Uso","Config.").forEachIndexed { index,label ->
      NavigationBarItem(selected=tab==index,onClick={tab=index},icon={
-      Icon(when(index){0->Icons.Default.Home;1->Icons.Default.DateRange;2->Icons.Default.Info;else->Icons.Default.Settings},label)
+      if(index==2) UsageTabIcon() else Icon(when(index){0->Icons.Default.Home;1->Icons.Default.DateRange;else->Icons.Default.Settings},label)
      },label={Text(label)})
     }
    }
@@ -111,8 +111,21 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
    }
   }
   if(limitations) AlertDialog(onDismissRequest={limitations=false},confirmButton={TextButton(onClick={limitations=false}){Text("Entendi")}},title={Text("Sobre as medições")},text={
-   Text("Os dados vêm do Android e dependem do sensor e do fabricante. Corrente positiva indica entrada líquida na bateria; negativa indica saída. O app usa µA e sinal Android. Ajustes da corrente instantânea exigem três janelas estáveis comparadas ao contador; isso não substitui calibração com instrumento. A média Android usa a janela desconhecida do hardware. Estar conectado não garante carga.\n\nTaxa e autonomia exigem pelo menos 5 minutos e 2 pontos percentuais de variação consistente. São estimativas, não garantias. A previsão do sistema só é aceita durante a carga quando compatível com a tendência medida.\n\nSem monitoramento contínuo, só registramos com o app visível. Pausas de até 90 segundos podem retomar a mesma sessão se estado e porcentagem permanecerem iguais; o tempo parado não entra na duração. Lacunas de coleta acima de 3 minutos criam outra sessão. O Android pode suspender o serviço. Não há coleta durante desligamento nem recuperação de intervalos perdidos. Temperatura é da bateria, não da CPU. Corrente não é potência nem capacidade em mAh.")
+   Text("Os dados vêm do Android e dependem do sensor e do fabricante. Corrente positiva indica entrada líquida na bateria; negativa indica saída. O app usa µA e sinal Android. Ajustes da corrente instantânea exigem três janelas estáveis comparadas ao contador; isso não substitui calibração com instrumento. A média Android usa a janela desconhecida do hardware. Estar conectado não garante carga.\n\nTaxa e autonomia exigem pelo menos 5 minutos e 2% de variação na escala da bateria. São estimativas, não garantias. A previsão do sistema só é aceita durante a carga quando compatível com a tendência medida.\n\nSem monitoramento contínuo, só registramos com o app visível. Pausas de até 90 segundos podem retomar a mesma sessão se estado e porcentagem permanecerem iguais; o tempo parado não entra na duração. Lacunas de coleta acima de 3 minutos criam outra sessão. O Android pode suspender o serviço. Não há coleta durante desligamento nem recuperação de intervalos perdidos. Temperatura é da bateria, não da CPU. Corrente não é potência nem capacidade em mAh.")
   })
+ }
+}
+
+/** Gráfico de barras na navegação, sem depender do pacote de ícones estendidos. */
+@Composable
+private fun UsageTabIcon() {
+ val tint=androidx.compose.material3.LocalContentColor.current
+ Canvas(Modifier.size(24.dp)) {
+  val w=size.width
+  val h=size.height
+  drawRoundRect(tint,topLeft=Offset(w*.13f,h*.55f),size=Size(w*.18f,h*.34f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(w*.035f))
+  drawRoundRect(tint,topLeft=Offset(w*.41f,h*.26f),size=Size(w*.18f,h*.63f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(w*.035f))
+  drawRoundRect(tint,topLeft=Offset(w*.69f,h*.41f),size=Size(w*.18f,h*.48f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(w*.035f))
  }
 }
 
@@ -159,8 +172,8 @@ private fun MonitorScreen(r: Reading, s: Settings, modifier: Modifier, pageTitle
  } ?: "—" else "—"
  val rateDetails = when {
   !measuring -> "Não há uma taxa de carga ou descarga para este estado da bateria."
-  r.rate == null -> "Calculando: são necessários pelo menos 5 minutos, 3 amostras e variação de 2 pontos percentuais, sem lacunas ou direção contraditória."
-  else -> "${rateText(r.rate)}. Variação observada em pontos percentuais por hora, não consumo em mA ou capacidade da bateria."
+  r.rate == null -> "Calculando: são necessários pelo menos 5 minutos, 3 leituras e variação de 2% na escala da bateria, sem lacunas ou direção contraditória."
+  else -> "${rateText(r.rate)}. Variação na escala de 0 a 100% da bateria por hora. Não é corrente em mA."
  }
  LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
   item {
@@ -196,7 +209,7 @@ private fun MonitorScreen(r: Reading, s: Settings, modifier: Modifier, pageTitle
      Text(if(measuring) durationText(r.remaining) else "Indisponível",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
      Text(when {
       !measuring -> "Sem previsão para este estado da bateria"
-      r.remaining == null -> "Aguardando 5 min e variação de 2 pontos percentuais"
+      r.remaining == null -> "Aguardando 5 min e variação de 2%"
       r.systemEstimate -> "Aproximação do Android compatível com a tendência • pode mudar"
       else -> "Extrapolação do percentual • não modela temperatura nem redução de carga"
      },style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
@@ -217,17 +230,37 @@ private fun MonitorScreen(r: Reading, s: Settings, modifier: Modifier, pageTitle
      Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
       MetricTile(currentLabel,if(r.current==null) "—" else currentText(r.current),r.currentInfo.source.label,Modifier.fillMaxWidth()) { metricDetails=currentLabel to currentDetails }
       MetricTile(temperatureLabel,temperatureText(r.temperature,s.fahrenheit),"Sensor da bateria",Modifier.fillMaxWidth()) { metricDetails=temperatureLabel to temperatureDetails }
-      MetricTile(rateLabel,if(measuring) rateText(r.rate) else "Indisponível","Pontos percentuais por hora",Modifier.fillMaxWidth()) { metricDetails=rateLabel to rateDetails }
+      MetricTile(rateLabel,if(measuring) rateText(r.rate) else "Indisponível","Variação da bateria por hora",Modifier.fillMaxWidth()) { metricDetails=rateLabel to rateDetails }
      }
     }
    }
   }
-  item { SettingsCard("Médias de corrente") {
-   SessionDetailRow("Média Android",if(r.currentInfo.androidAverageMa==null) "Indisponível" else if(matchesModeDirection(r.mode,r.currentInfo.androidAverageMa)) currentText(r.currentInfo.androidAverageMa) else "Sinal em verificação")
-   Text("Janela definida pelo hardware, não informada pelo Android.",style=MaterialTheme.typography.bodySmall)
-   SessionDetailRow("Média pelo contador",if(r.currentInfo.counterMeanMa==null) "Indisponível" else if(matchesModeDirection(r.mode,r.currentInfo.counterMeanMa)) currentText(r.currentInfo.counterMeanMa) else "Sinal em verificação")
-   r.currentInfo.counterWindowMs?.let { Text("Intervalo observado: ${it/1000} s. Calculada por variação de µAh.",style=MaterialTheme.typography.bodySmall) }
-  } }
+  item {
+   val counter=r.currentInfo.counterMeanMa?.takeIf { matchesModeDirection(r.mode,it) }
+   // Zero durante carga ou descarga não é, por si só, uma média útil.
+   val androidAverage=r.currentInfo.androidAverageMa?.takeIf {
+    matchesModeDirection(r.mode,it) && (it != 0.0 || !measuring)
+   }
+   val mean=counter ?: androidAverage
+   val fromCounter=counter!=null
+   var showDetails by remember { mutableStateOf(false) }
+   SettingsCard("Corrente da bateria") {
+    Text(if(charging) "Carga média observada" else if(r.mode==Mode.DISCHARGING) "Consumo médio observado" else "Corrente média observada",
+     style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(mean?.let(::currentText) ?: "Aguardando média confiável",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold)
+    Text(when {
+     fromCounter -> "Calculada pela mudança da carga armazenada${r.currentInfo.counterWindowMs?.let { " em ${durationText(it)}" } ?: ""}."
+     androidAverage!=null -> "Média fornecida pelo Android; intervalo não informado pelo fabricante."
+     else -> "O sensor ainda não forneceu dados suficientes para uma média."
+    },style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    TextButton(onClick={showDetails=!showDetails}) { Text(if(showDetails) "Ocultar detalhes da medição" else "Detalhes da medição") }
+    if(showDetails) {
+     SessionDetailRow("Média do contador",counter?.let(::currentText) ?: "Sem leitura válida")
+     SessionDetailRow("Média informada pelo Android",androidAverage?.let(::currentText) ?: "Sem leitura válida")
+     Text("A corrente média representa o que entra ou sai da bateria, não o consumo de cada aplicativo. As duas fontes podem usar intervalos diferentes.",style=MaterialTheme.typography.bodySmall)
+    }
+   }
+  }
   item { Chart(r.points,accent) }
   if(r.error!=null) item { Text(r.error,color=MaterialTheme.colorScheme.error) }
   item { TextButton(onClick=onLimitations) { Icon(Icons.Default.Info,null); Spacer(Modifier.width(8.dp)); Text("Entenda as medições") } }
