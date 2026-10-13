@@ -1,8 +1,10 @@
-# Pulso Bateria 0.1.0-alpha.14 • versionCode 14
+# Pulso Bateria 0.1.0-alpha.16 • versionCode 16
 
-- Corrigidos dois testes antigos: `netDischargeIsNotFlippedByChargingStatusAlone` (falha observada em `:core:test` no workflow 13) e `netCurrentUsesItsOwnSign` (incompatibilidade identificada ao executar os testes locais do app).
-- O teste agora distingue o sinal real recebido (`rawNow`/`nowMa`) do filtro de apresentação (`ma`/`source`): a leitura negativa durante status de carga não é invertida, mas permanece só no diagnóstico até haver confirmação compatível.
-- Algoritmos de corrente, banco Room v3, backup JSON v1, tela, inicialização, assinatura e Secrets permanecem idênticos à alpha.13.
-- Testes locais: 138 Kotlin/JVM aprovados em executor compatível com JUnit 4; 8 testes SQLite aprovados. O APK Debug e a execução Gradle/JUnit real permanecem pendentes no GitHub Actions.
+- Nova aba **Apps** com tempo de utilização em primeiro plano, ranking e gráfico horário, usando o acesso especial opcional autorizado pelo usuário no Android.
+- Comparação com a queda de bateria realmente observada pelo Pulso, separando trechos classificados como tela ligada, desligada e sem classificação. Nenhum consumo em mAh é atribuído diretamente a outros aplicativos.
+- Histórico, banco Room 3, backup, configuração e assinatura estável das versões anteriores preservados.
+- Permissão de Acesso a uso é opcional, sem coleta externa nem tráfego de rede; a aba apresenta explicações e pode ser atualizada manualmente.
 
-APK esperado no workflow: `Pulso-Bateria-v0.1.0-alpha.14-debug.apk`.
+**Atenção:** Acesso a uso é uma autorização especial concedida em Configurações do Android. O sistema pode não disponibilizar eventos anteriores ou após bloqueio/reinício. Os testes Android e a aparência real em aparelho continuam pendentes até validação no GitHub Actions.
+
+APK esperado no workflow: `Pulso-Bateria-v0.1.0-alpha.16-debug.apk`.

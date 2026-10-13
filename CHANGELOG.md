@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.0-alpha.16 (16) — 2026-10-13
+
+- Nova aba **Apps**: ranking por tempo em primeiro plano, gráfico de atividade em blocos de duas horas e análise da última janela de 24h, a partir de `UsageStatsManager.queryEvents` com autorização especial opcional `PACKAGE_USAGE_STATS`.
+- Relação com dados reais do Pulso: queda/recarga observadas no histórico Room e classificação conservadora entre tela interativa/não interativa por eventos Android. Intervalos de amostragem superiores a 3 minutos, mudanças de sessão e eventos de tela ambíguos não são atribuídos a períodos fictícios.
+- Coleta sob demanda ao abrir/atualizar a aba, sem permissão de Internet, acessibilidade, root, `QUERY_ALL_PACKAGES` ou serviço adicional em segundo plano.
+- Informações de aplicativos são **tempo de uso**, não mA/mAh por pacote. Sem estimativa individual sem evidência; períodos sem dados e limitações de eventos são explicitados.
+- Mantidos Room v3, backup JSON v1, histórico antigo, assinatura via Secrets, demais telas e comportamento de monitoramento. Testes puros adicionados para eventos, faixas horárias, transições de tela e lacunas.
+
+## 0.1.0-alpha.15 (15) — 2026-10-12
+
+- Tela Sessões: substituídos valores como `−27 p.p.` por `27 pontos consumidos`, `+30 p.p.` por `30 pontos adicionados` e `0 p.p.` por `Sem variação`. Singular, estados divergentes e amostras insuficientes têm textos específicos.
+- Cartões reorganizados para mostrar percentuais inicial/final, duração, variação e ritmo médio por hora em pontos percentuais de forma legível; detalhes técnicos continuam expansíveis, com duração observada explícita.
+- Indicação **Possível retomada** quando sessões adjacentes no histórico completo (antes de filtros) têm mesmo estado, percentual de fronteira e lacuna de até três minutos. Não inventa leituras, não soma tempos não observados e não combina registros de Room; exclui motivos incompatíveis como mudança de estado/restauração.
+- Criado `SessionHistoryText.kt` com testes Kotlin para pluralização, taxa, lacunas, filtragem conceitual por vizinhança e sinais divergentes. Room v3, backup JSON v1, monitoramento e assinatura preservados.
+
+
 ## 0.1.0-alpha.14 (14) — 2026-10-12
 
 - Corrigido o teste de regressão `netDischargeIsNotFlippedByChargingStatusAlone`, único teste que falhou entre 114 no workflow 13, e antecipada a correção do teste de notificação `netCurrentUsesItsOwnSign`, também baseado no comportamento anterior à alpha.13. A expectativa antiga de exibir corrente negativa durante status `CHARGING` conflita com o filtro de apresentação introduzido na alpha.13.

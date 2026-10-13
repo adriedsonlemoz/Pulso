@@ -1,0 +1,6 @@
+Pulso Bateria 0.1.0-alpha.15 / versionCode 15
+Teste local: Kotlin 1.9.0 + executor compatível com JUnit4: 141 executados, 0 falhas.
+Teste SQLite: 8 executados, 0 falhas.
+PSI Kotlin: app/src/main/java e core/src verificados sem erro sintático.
+Esta verificação não representa build Android ou execução de testes instrumentados.
+Validação estrutural: PASS. Tentativa Gradle: bloqueada por UnknownHostException services.gradle.org.

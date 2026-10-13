@@ -1,7 +1,13 @@
-# Medições e decisões técnicas — alpha.14
+# Medições e decisões técnicas — alpha.16
 
 A alpha.13 usa um **filtro de apresentação** sobre as fontes de corrente: quando o estado é carregando, corrente negativa não é considerada confiável; quando descarregando, corrente positiva também não. As leituras originais continuam disponíveis para diagnóstico. Um zero isolado não é preferido a outra fonte compatível não nula; se coexistir com uma leitura contraditória, não é apresentado como confirmação de corrente zero. Não se altera o sinal sem corroboração; um estado transitório pode tornar o valor temporariamente indisponível. A preferência Iniciar com o sistema é opcional; tentativas de serviço após boot/atualização podem ser bloqueadas pelo Android, e lacunas não são preenchidas.
 
+
+## Novo módulo Apps (alpha.16)
+
+`PACKAGE_USAGE_STATS` precisa ser autorizado manualmente em Acesso ao uso. O app consulta eventos de foreground/background e de tela interativa/não interativa por `UsageStatsManager.queryEvents` apenas quando a aba é aberta ou atualizada, sem capturar conteúdo dos aplicativos. O Android pode restringir o histórico de eventos, e uma permissão concedida não garante dados completos.
+
+Tempo por aplicativo vem de trechos identificados por eventos de primeiro plano; isso **não** representa corrente, watts nem mAh individual. Gráfico de uso agrega o tempo em blocos de duas horas. A correlação de bateria usa amostras `session_samples`, somente pares consecutivos da **mesma sessão**, no período consultado, com intervalo `1..180 s` e níveis válidos. Assim evitamos interpolar lacunas. Para classificar queda com tela ligada/desligada, o estado do sistema precisa ser conhecido no início e não pode mudar no meio do intervalo; caso contrário, o trecho fica como não classificado. Não é possível atribuir queda de bateria ao aplicativo em primeiro plano como causalidade, nem estimar valores individuais sem modelo adicional validado.
 
 ## Contratos e fontes
 
@@ -43,6 +49,12 @@ computeChargeTimeRemaining retorna aproximação em ms. Somente é aceita durant
 Não há modelo para aquecimento, controle de carga, fase final, envelhecimento ou mudanças de uso. Uma janela longa pode atrasar a percepção da redução de velocidade. Perto de 100%, extrapolação linear é especialmente limitada; “Calculando” deve permanecer sem dados suficientes. A interface explicita a aproximação.
 
 Notificação: instante civil da leitura + ETA; arredondamento **para cima** ao próximo múltiplo de cinco minutos, evitando horários passados. Fuso local, amanhã/data preservados. Em 100%, informa bateria em 100%. Arredondar apresentação não melhora o estimador.
+
+## Linguagem do histórico e continuidade (alpha.15)
+
+Os resumos Room existentes informam percentuais de início/fim, tempo observado e estado. A tela apresenta delta como **pontos adicionados/consumidos** (não mAh) e taxa média como **pontos/h**, calculada da variação líquida pelo tempo efetivamente observado. `p.p.` deixou de aparecer solto no cartão. Se a direção contradiz o estado, apresenta apenas uma variação neutra, sem chamá-la de consumo/carga.
+
+A UI pode exibir **Possível retomada** para duas sessões imediatamente consecutivas no histórico completo, com mesmo modo e mesmo percentual na fronteira, sessão anterior encerrada por motivo compatível e `0..180 s` entre o fim da anterior e o início da seguinte. Isso é um indício heurístico, não prova de continuidade; não une Room, não atribui amostras inexistentes, não calcula uma média combinada e não supõe que o Android trabalhou sem interrupções. A verificação usa a lista completa, anterior à filtragem visual. A fragmentação observada após morte de processo/serviço pode ser legítima: não há informação suficiente para reunificá-la sem riscos.
 
 ## Sessões e integridade
 

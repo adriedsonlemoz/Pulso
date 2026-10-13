@@ -83,15 +83,15 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
  MaterialTheme(colorScheme=colors) {
   Scaffold(containerColor=colors.background, topBar={
    TopAppBar(title={ Column {
-    Text(if(tab==0) "Pulso Bateria" else if(tab==1) "Suas sessões" else "Configurações",fontWeight=FontWeight.Bold)
+    Text(when(tab) { 0 -> "Pulso Bateria"; 1 -> "Suas sessões"; 2 -> "Aplicativos"; else -> "Configurações" },fontWeight=FontWeight.Bold)
     Text(if(tab==0) "ENERGIA EM TEMPO REAL" else "PULSO • ALPHA",style=MaterialTheme.typography.labelSmall,color=colors.primary,letterSpacing=2.sp)
-   } }, actions={ if(tab!=2) IconButton(onClick={tab=2}) { Icon(Icons.Default.Settings,"Configurações") } },
+   } }, actions={ if(tab!=3) IconButton(onClick={tab=3}) { Icon(Icons.Default.Settings,"Configurações") } },
     colors=TopAppBarDefaults.topAppBarColors(containerColor=colors.background))
   },bottomBar={
    NavigationBar(containerColor=colors.surface) {
-    listOf("Início","Sessões","Configurações").forEachIndexed { index,label ->
+    listOf("Início","Sessões","Apps","Config.").forEachIndexed { index,label ->
      NavigationBarItem(selected=tab==index,onClick={tab=index},icon={
-      Icon(when(index){0->Icons.Default.Home;1->Icons.Default.DateRange;else->Icons.Default.Settings},label)
+      Icon(when(index){0->Icons.Default.Home;1->Icons.Default.DateRange;2->Icons.Default.Info;else->Icons.Default.Settings},label)
      },label={Text(label)})
     }
    }
@@ -103,6 +103,7 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
      else -> MonitorScreen(reading,settings,Modifier.padding(padding),"Visão da bateria",onLimitations={limitations=true})
     }
     1 -> History(sessions,settings,vm,Modifier.padding(padding))
+    2 -> AppUsageScreen(Modifier.padding(padding))
     else -> SettingsPage(settings,reading,active,error,vm,onMonitor,{limitations=true},
      onExport={exportLauncher.launch("Pulso-Bateria-backup-${System.currentTimeMillis()}.json")},
      onImport={importLauncher.launch(arrayOf("application/json","application/octet-stream","*/*"))},
@@ -310,6 +311,14 @@ private fun History(sessions: List<Session>, settings: Settings, vm: PulsoViewMo
   sessions.filter { filter==0 || it.mode==(if(filter==1) Mode.CHARGING.name else Mode.DISCHARGING.name) }
  }
  val locale = remember { Locale.forLanguageTag("pt-BR") }
+ // Toda a lista, ANTES dos filtros, impede associar duas descargas separadas por carga.
+ // A indicação é apenas uma hipótese, não faz junção física ou alteração no banco.
+ val possibleResumptions = remember(sessions) {
+  sessions.sortedWith(compareBy<Session> { it.started }.thenBy { it.id })
+   .zipWithNext().filter { (before, after) ->
+    SessionHistoryText.possibleContinuation(before.toBoundary(), after.toBoundary())
+   }.associate { (before, after) -> after.id to (after.started-before.ended) }
+ }
  // O DAO já retorna as sessões mais recentes primeiro. Nenhuma data é inventada.
  val groups = remember(filtered) {
   val day = SimpleDateFormat("yyyy-MM-dd",locale)
@@ -344,19 +353,26 @@ private fun History(sessions: List<Session>, settings: Settings, vm: PulsoViewMo
     val dayTitle = remember(dayKey) { SimpleDateFormat("dd 'de' MMMM 'de' yyyy",locale).format(Date(dailySessions.first().started)) }
     Text(dayTitle,style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.SemiBold,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(top=8.dp,bottom=2.dp))
    }
-   items(dailySessions,key={ "session-${it.id}" }) { session -> SessionHistoryCard(session,settings,vm) }
+   items(dailySessions,key={ "session-${it.id}" }) { session ->
+    SessionHistoryCard(session,settings,vm,possibleResumptions[session.id])
+   }
   }
  }
  if(showInfo) AlertDialog(onDismissRequest={showInfo=false},title={Text("Sobre as sessões")},text={
-  Text("As sessões guardam leituras reais e são separadas por estado da bateria. Pausas curtas podem manter um registro, sem contar o tempo não observado. Guardamos os 500 resumos mais recentes.\n\nA partir desta versão, também salvamos pontos para gráficos individuais, até 480 por sessão. Sessões antigas preservam seus resumos, mas não têm gráficos retroativos. Valores médios só aparecem quando os dados são suficientes.")
+  Text("As sessões guardam leituras reais e são separadas por estado da bateria. Pausas curtas podem manter um registro, sem contar o tempo não observado. Após reinício do processo, encerramento do serviço ou lacuna prolongada, um novo registro é iniciado para não inventar medições. Quando duas sessões próximas têm mesmo estado e porcentagem na fronteira, mostramos uma possível retomada, mas preservamos os dois registros separados. Guardamos os 500 resumos mais recentes.\n\nA partir desta versão, também salvamos pontos para gráficos individuais, até 480 por sessão. Sessões antigas preservam seus resumos, mas não têm gráficos retroativos. Valores médios só aparecem quando os dados são suficientes.")
  },confirmButton={TextButton(onClick={showInfo=false}){Text("Entendi")}})
 }
 
+private fun Session.toBoundary(): SessionBoundary = SessionBoundary(
+ mode=runCatching { Mode.valueOf(mode) }.getOrDefault(Mode.UNKNOWN),
+ started=started,ended=ended,initial=initial,final=final,closed=closed,reason=reason
+)
+
 @Composable
-private fun SessionHistoryCard(session: Session,settings: Settings,vm: PulsoViewModel) {
+private fun SessionHistoryCard(session: Session,settings: Settings,vm: PulsoViewModel,possibleGapMs: Long?) {
  var expanded by rememberSaveable(session.id) { mutableStateOf(false) }
  val mode = remember(session.mode) { runCatching { Mode.valueOf(session.mode) }.getOrDefault(Mode.UNKNOWN) }
- val delta = session.final-session.initial
+ val change = SessionHistoryText.variation(session.initial,session.final,mode)
  val active = !session.closed
  val paused = active && session.reason.startsWith("Pausada")
  val stateText = when { paused -> "Pausada"; active -> "Em andamento"; else -> "Finalizada" }
@@ -364,7 +380,7 @@ private fun SessionHistoryCard(session: Session,settings: Settings,vm: PulsoView
  val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy 'às' HH:mm",Locale.forLanguageTag("pt-BR")) }
  val timeFormat = remember { SimpleDateFormat("HH:mm",Locale.forLanguageTag("pt-BR")) }
  val average = BatteryMath.sessionRate(session.initial,session.final,session.durationMs,session.samples)
- val rateLabel = when { average!=null -> rateText(average); active && (mode==Mode.CHARGING || mode==Mode.DISCHARGING) -> "Calculando…"; else -> "Indisponível" }
+ val rateLabel = SessionHistoryText.pace(average,mode,active)
  Card(onClick={expanded=!expanded},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
   Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=14.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
@@ -376,33 +392,41 @@ private fun SessionHistoryCard(session: Session,settings: Settings,vm: PulsoView
    BoxWithConstraints(Modifier.fillMaxWidth()) {
     val narrow = maxWidth < 288.dp || LocalDensity.current.fontScale > 1.2f
     if(narrow) {
-     Column(verticalArrangement=Arrangement.spacedBy(3.dp)) {
+     Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
       Text("${session.initial}% → ${session.final}%",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold)
-      Text("${if(delta>0) "+" else ""}$delta p.p. • ${durationText(session.durationMs)}",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-      Text("${timeFormat.format(Date(session.started))} → ${timeFormat.format(Date(session.ended))}",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+      Text(change,style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.Medium)
+      Text("${durationText(session.durationMs)} • ${timeFormat.format(Date(session.started))} → ${timeFormat.format(Date(session.ended))}",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
      }
     } else {
-     Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
+     Column(verticalArrangement=Arrangement.spacedBy(5.dp)) {
       Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
        Text("${session.initial}% → ${session.final}%",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold)
-       Text("${if(delta>0) "+" else ""}$delta p.p.",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
-      }
-      Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
        Text(durationText(session.durationMs),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+      }
+      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
+       Text(change,style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.Medium,modifier=Modifier.weight(1f))
+       Spacer(Modifier.width(8.dp))
        Text("${timeFormat.format(Date(session.started))} → ${timeFormat.format(Date(session.ended))}",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
       }
      }
     }
    }
+   if(possibleGapMs != null) {
+    Text("Possível retomada • ${durationText(possibleGapMs)} sem observar",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+   }
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
-    Text("Média: $rateLabel",style=MaterialTheme.typography.labelMedium,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
+    Text("Ritmo médio: $rateLabel",style=MaterialTheme.typography.labelMedium,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
+    Spacer(Modifier.width(8.dp))
     Text(if(expanded) "Ocultar detalhes  ▲" else "Ver detalhes  ▼",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.primary,maxLines=1)
    }
    if(expanded) {
     HorizontalDivider(color=MaterialTheme.colorScheme.surfaceVariant)
     SessionDetailRow("Início",dateFormat.format(Date(session.started)))
     SessionDetailRow(if(session.closed) "Fim" else "Última leitura",dateFormat.format(Date(session.ended)))
+    SessionDetailRow("Variação",change)
+    SessionDetailRow("Duração observada",durationText(session.durationMs))
     SessionDetailRow("Ritmo médio",rateLabel)
+    if(possibleGapMs != null) SessionDetailRow("Continuidade", "Possível retomada após ${durationText(possibleGapMs)} sem observação; registros separados")
     SessionDetailRow("Temperatura média (amostras)",temperatureText(BatteryMath.averageTemperature(session.temperatureSum,session.temperatureCount),settings.fahrenheit))
     SessionDetailRow("Amostras coletadas",session.samples.toString())
     SessionDetailRow("Motivo",session.reason)

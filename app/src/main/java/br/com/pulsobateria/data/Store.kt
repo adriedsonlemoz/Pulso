@@ -90,6 +90,9 @@ interface SessionDao {
  @Query("UPDATE sessions SET closed = 1, reason = 'Observação interrompida' WHERE closed = 0") suspend fun closeInterrupted()
  @Query("SELECT * FROM session_samples WHERE sessionId = :sessionId ORDER BY timestamp ASC, id ASC")
  fun observeSamples(sessionId: Long): Flow<List<SessionSample>>
+ /** Consulta limitada para a análise local de até 24h, sem alterar schema nem retenção. */
+ @Query("SELECT * FROM session_samples WHERE timestamp >= :start AND timestamp < :end ORDER BY timestamp ASC, id ASC LIMIT 8000")
+ suspend fun batterySamplesWindow(start: Long, end: Long): List<SessionSample>
  /** Resumo, amostra e retenção são confirmados juntos, ou revertidos juntos. */
  @Transaction
  suspend fun saveObservation(session: Session, sample: SessionSample?): Session {

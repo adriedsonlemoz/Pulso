@@ -1,0 +1,8 @@
+Pulso Bateria alpha.16 — validação local — 2026-10-13
+PASS: tools/validate_source.py (14 arquivos, 7 XML, permissões, versão, SHA256/CRC do wrapper)
+PASS: tools/test_storage_sql.py (8 testes SQLite)
+ADICIONADOS MAS NÃO EXECUTADOS: 7 casos JUnit UsageAnalysisMathTest (dependem de compiler/JUnit Kotlin funcional)
+PENDENTE: Gradle/Android/Compose/KSP, instrumentados e teste em aparelho. Kotlin CLI/Gradle não inicializaram dentro do tempo disponível.
+ROOM: v3 inalterado; nova consulta somente leitura, sem migração.
+BACKUP: formato JSON v1 inalterado.
+ASSINATURA: secrets existentes, nenhum segredo no código/ZIP.

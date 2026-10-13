@@ -1,22 +1,33 @@
 # Pulso Bateria
 
-**0.1.0-alpha.14 • versionCode 14** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.16 • versionCode 16** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Funcionalidades
 
+- **Nova aba Apps (alpha.16):** acesso especial opcional às estatísticas de uso do Android (`PACKAGE_USAGE_STATS`, habilitado manualmente), ranking por tempo aproximado em primeiro plano e gráfico de atividade por blocos de duas horas nas últimas 24 h. Sem estimar mAh individuais de aplicativos: a queda total da bateria é correlacionada apenas a intervalos com amostras Room preservadas e classificação de tela do sistema. A UI explicita cobertura parcial, ausência de eventos e incertezas. A consulta ocorre apenas quando a aba é aberta ou atualizada, sem monitoramento adicional nem dados enviados pela rede.
 - Porcentagem, estado, temperatura, fonte externa e corrente líquida da bateria.
 - CURRENT_NOW e CURRENT_AVERAGE em µA, convertidos em mA. Zero e pequenas correntes não são automaticamente descartados. Uma fonte cujo sinal contradiz carga/descarga é preservada no diagnóstico, mas não apresentada como consumo/carga confiável; outras fontes compatíveis podem fornecer fallback.
 - Hipóteses de correção OEM da instantânea exigem três blocos estáveis com integral temporal comparada ao contador. Não se calibra a média do hardware usando uma janela desconhecida.
 - Média Android e média calculada do CHARGE_COUNTER exibidas separadamente. Não são médias próprias de 5 ou 20 minutos.
 - Capacidade útil opcional (500–30.000 mAh), com 10 opções de 2.500 a 7.000 mAh, além de campo livre formatado com milhar (ex.: 5.000). Estimativas por %/h são identificadas, sem capacidade inventada.
 - Taxa em pontos percentuais por hora e estimativas aproximadas após pelo menos cinco minutos e dois pontos percentuais. Não há modelo térmico nem previsão garantida da fase final de carga.
-- Sessões Room: até 500 resumos, filtros, agrupamento por data, cartões expansíveis e gráfico individual. Até 480 pontos por sessão (primeiro e 479 mais recentes). Pontos são reduzidos: não servem para reconstituir a integral completa da corrente.
+- Sessões Room: até 500 resumos, filtros, agrupamento por data, cartões expansíveis e gráfico individual. A alpha.15 substitui `p.p.` por descrições claras de pontos adicionados/consumidos, destaca duração observada e ritmo médio em pontos/h e indica **possível retomada** de sessões adjacentes (mesmo estado/nível, intervalo de até 3 min). Não une os registros nem atribui consumo a lacunas. Até 480 pontos por sessão (primeiro e 479 mais recentes). Pontos são reduzidos: não servem para reconstituir a integral completa da corrente.
 - Gráfico ao vivo de até 30 minutos. Pausas curtas podem retomar sessões; tempo sem observação é excluído da duração. O gráfico persistido não possui marcador de pausa curta: veja limitações no relatório.
 - Temas Sistema/AMOLED/Claro; °C/°F; intervalos 15/30/60 s, padrão 30. Eventos do Android podem antecipar leituras; suspensão pode atrasá-las.
 - Notificação opcional e serviço specialUse iniciado pelo usuário; ao ativar monitoramento contínuo, pode continuar após fechar a interface. O sistema pode recriar o serviço via START_STICKY. Com opção separada "Iniciar com o sistema", tenta retomar após reiniciar o aparelho; tenta também após atualização. Essas tentativas dependem das permissões e restrições do Android/fabricante, sem garantia de serviço ininterrupto.
 - Backup manual JSON v1, checksum SHA-256, seletor de arquivos, restauração confirmada pelo usuário. O arquivo não é criptografado. Calibração e ativação automática de serviço não são importadas.
 - Sem INTERNET, anúncios, analytics, conta, root ou wake locks. A alpha.13 adiciona somente a permissão normal RECEIVE_BOOT_COMPLETED para a retomada opcional após reiniciar.
+
+## Aplicativos e limites (alpha.16)
+
+Na aba **Apps**, toque em **Abrir acesso ao uso** e autorize Pulso Bateria nas configurações especiais do Android. Volte ao app e use **Atualizar** se necessário. O acesso não é obrigatório para nenhuma medição de bateria. A API `UsageStatsManager` informa eventos de primeiro plano e mudanças de estado interativo da tela, mas não mede o consumo individual em mAh, nem possui eventos históricos ilimitados. Nome de aplicativo pode aparecer como pacote por limitações de visibilidade do Android. A análise combina eventos (últimas 24h) com amostras do Room já armazenadas, ignora pausas/lacunas superiores a 3 minutos, não conecta sessões distintas nem recupera intervalos sem observação. A classificação por tela pode ficar incompleta se os eventos não estiverem disponíveis. Os resultados são locais e não exigem Internet, root ou permissões privilegiadas.
+
+## Histórico mais legível na alpha.15
+
+Os cartões de sessões agora mostram `27 pontos consumidos`, `30 pontos adicionados` ou `Sem variação`, e apresentam duração e ritmo médio com rótulos completos. Em sessões vizinhas do mesmo modo e percentual de fronteira, com diferença temporal de até três minutos e sem mudança de estado conhecida, aparece **Possível retomada**. Trata-se de um **indício** calculado a partir dos resumos, não de um vínculo confirmado. Os registros e as curvas permanecem separados, pois reiniciar o serviço/processo ou perder leituras interrompe a observação real.
+
+A alteração da alpha.15 foi de interface e classificação visual. A alpha.16 inclui consultas de leitura ao mesmo Room v3, sem alterar o schema, a estrutura de backup, a coleta periódica ou a retenção.
 
 ## Correção do workflow da alpha.13
 
@@ -32,7 +43,7 @@ que ainda esperava exibir +400 mA durante uma descarga. Não muda a lógica de s
 
 Leia `docs/AUDIT-alpha.11-to-alpha.12.md`: diagnóstico com evidências da alpha.11, causas possíveis das diferenças com AccuBattery, correções, propostas de médias temporais/mAh e protocolo de teste no aparelho.
 
-Na alpha.12 foram executados 132 testes Kotlin/JUnit e 8 testes SQLite. No workflow 13, 113/114 testes do core passaram e um teste legado de expectativa ficou desatualizado. A alpha.14 corrige esse teste. Foram aprovados 138 testes Kotlin/JVM no executor local compatível com JUnit e oito testes SQLite. Consulte `docs/VALIDATION.md` para limites dessa verificação. A compilação Android/Compose, lint e testes instrumentados ainda exigem verificação pelo GitHub Actions.
+A alpha.15 teve 141 testes Kotlin/JVM e 8 testes SQLite aprovados localmente. A alpha.16 acrescenta testes para agregação de eventos, intervalos de duas horas, transições entre tela ligada/desligada e proteção contra lacunas de amostragem. Consulte `docs/VALIDATION.md` para os resultados efetivamente executados e pendências Android/Compose.
 
 ## Gerar APK pelo GitHub Manager
 
