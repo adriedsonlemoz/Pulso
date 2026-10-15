@@ -44,7 +44,7 @@ class StorageSQLTest(unittest.TestCase):
   with sqlite3.connect(':memory:') as db:
    schema(db,3)
    self.assertEqual(437.0,db.execute('SELECT currentMa FROM session_samples').fetchone()[0])
-   self.assertIn('version = 5',STORE)
+   self.assertIn('version = 6',STORE)
  def test_foreign_key_cascades(self):
   with sqlite3.connect(':memory:') as db:
    schema(db,3); db.execute('DELETE FROM sessions WHERE id=1')
@@ -99,6 +99,15 @@ class StorageSQLTest(unittest.TestCase):
    self.assertEqual((41,None,None),db.execute('SELECT final,chargeSource,chargerLabel FROM sessions').fetchone())
    self.assertEqual([],db.execute('SELECT * FROM session_samples').fetchall())
 
+ def test_v5_to_v6_labs_preserve_previous_history(self):
+  with sqlite3.connect(':memory:') as db:
+   schema(db,3); migration(db,3); migration(db,4)
+   sessions=db.execute('SELECT * FROM sessions').fetchall()
+   migration(db,5)
+   self.assertEqual(sessions,db.execute('SELECT * FROM sessions').fetchall())
+   db.execute("INSERT INTO lab_tests(sky,skyChanges,panelWatts,targetMs,startedAt,deadlineAt,status,chargingMs,notChargingMs,weightedMaMs,validCurrentMs) VALUES('nublado','1:nublado',8,7200000,1,7200001,'RUNNING',0,0,0,0)")
+   self.assertEqual(1,db.execute('SELECT COUNT(*) FROM lab_tests').fetchone()[0])
+   self.assertEqual([],db.execute('PRAGMA foreign_key_check').fetchall())
  def test_telemetry_retention_and_cascade(self):
   with sqlite3.connect(':memory:') as db:
    schema(db,3); migration(db,3)

@@ -2,7 +2,7 @@
 
 - Android Kotlin/Compose, offline, sem anúncios/rastreamento/INTERNET. Não inventar medições ou capacidades do aparelho.
 - Antes de editar, ler README, docs/MEASUREMENTS.md e docs/VERSIONING.md.
-- Versão atual 0.1.0-alpha.22 / versionCode 22. Próxima 0.1.0-alpha.23 / 23. Incrementar sequencialmente cada entrega e sincronizar todos os documentos, Gradle, workflow e nome do ZIP.
+- Versão atual 0.1.0-alpha.23 / versionCode 23. Próxima 0.1.0-alpha.24 / 24. Incrementar sequencialmente cada entrega e sincronizar todos os documentos, Gradle, workflow e nome do ZIP.
 - Preservar applicationId. Keystore privada e Secrets nunca entram no ZIP de código ou repositório. Para Debug atualizável, requer Secrets estáveis; sem Secrets a chave temporária deve receber aviso.
 - Manter cálculos no módulo core, testáveis sem Android; validar nulos, sentinelas, sinal, relógio e lacunas.
 - Não iniciar foreground service fora de ação permitida; manter tipo specialUse e sua justificativa, sem simular dataSync/health. Não adicionar wake locks, permissões privilegiadas ou mecanismos de evasão.
@@ -14,3 +14,5 @@
 - Na alpha.21, páginas internas compactam explicações, mas avisos de dados insuficientes/parciais continuam visíveis. Não modificar cálculos/Room/backup sem necessidade.
 
 - Alpha.22: notificação compacta/expandida sem duplicar corrente, média zero ambígua oculta em carga/descarga, estado FULL dependente do Android e aviso térmico passivo. Testar 100% e fontes alternativas.
+
+- Alpha.23: Labs com Room v6, backup JSON v4, prazos e lacunas observacionais. Finalização automática pode atrasar sob restrições do Android; testar em aparelho real e não alegar precisão de timer/wake lock inexistente.

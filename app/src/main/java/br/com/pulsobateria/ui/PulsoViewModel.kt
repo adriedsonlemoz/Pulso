@@ -13,10 +13,36 @@ import br.com.pulsobateria.data.TelemetrySample
 import br.com.pulsobateria.data.SessionSample
 import br.com.pulsobateria.data.Settings
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.withTimeoutOrNull
+import br.com.pulsobateria.data.LabTest
 import kotlinx.coroutines.launch
 
 class PulsoViewModel(application: Application): AndroidViewModel(application) {
  private val app = application as PulsoApp
+ val labCurrent = app.labs.current
+ val labHistory = app.labs.history.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000), emptyList<LabTest>())
+ var labError by mutableStateOf<String?>(null)
+  private set
+ fun startLab(sky: String, watts: Int?, minutes: Int?, ensureMonitor: () -> Unit) {
+  labError = null
+  app.repository.serviceError.value = null
+  ensureMonitor()
+  viewModelScope.launch {
+   try {
+    val result = withTimeoutOrNull(120_000L) {
+     combine(app.repository.serviceActive, app.repository.serviceError) { active, error -> active to error }
+      .first { (active, error) -> active || error != null }
+    }
+    if (result?.first != true) {
+     labError = result?.second ?: "Monitoramento não iniciado; verifique a permissão de notificações."
+     return@launch
+    }
+    app.labs.start(sky,watts,minutes)
+   } catch(e: Exception) { labError=e.message ?: "Não foi possível iniciar o teste." }
+  }
+ }
+ fun stopLab() { viewModelScope.launch { runCatching { app.labs.stop() }.onFailure { labError=it.message } } }
+ fun changeLabSky(sky: String) { viewModelScope.launch { runCatching { app.labs.changeSky(sky) }.onFailure { labError=it.message } } }
  val reading = app.repository.reading
  fun sessionSamples(sessionId: Long): Flow<List<SessionSample>> = app.repository.sessionSamples(sessionId)
  fun sessionTelemetry(sessionId: Long): Flow<List<TelemetrySample>> = app.repository.sessionTelemetry(sessionId)

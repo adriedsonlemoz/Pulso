@@ -116,6 +116,33 @@ data class TelemetrySample(
  val currentSource: String?, val temperatureC: Double?, val counterUah: Int?
 )
 
+/** Teste solar independente das sessões comuns. Tempos apenas de intervalos observados. */
+@Entity(tableName="lab_tests")
+data class LabTest(
+ @PrimaryKey(autoGenerate=true) val id: Long = 0,
+ val sky: String, val skyChanges: String, val panelWatts: Int?,
+ val targetMs: Long?, val startedAt: Long, val deadlineAt: Long?,
+ val endedAt: Long? = null, val status: String = "RUNNING",
+ val initialPercent: Int? = null, val finalPercent: Int? = null,
+ val chargingMs: Long = 0, val notChargingMs: Long = 0,
+ val weightedMaMs: Double = 0.0, val validCurrentMs: Long = 0,
+ val lastReadingAt: Long? = null, val lastElapsedMs: Long? = null,
+ val lastMode: String? = null, val lastCurrentMa: Double? = null,
+ val lastCurrentSource: String? = null
+)
+
+@Dao
+interface LabDao {
+ @Query("SELECT * FROM lab_tests ORDER BY id DESC LIMIT 100") fun observe(): Flow<List<LabTest>>
+ @Query("SELECT * FROM lab_tests WHERE status='RUNNING' ORDER BY id DESC LIMIT 1") suspend fun active(): LabTest?
+ @Insert suspend fun insert(test: LabTest): Long
+ @Update suspend fun update(test: LabTest)
+ @Query("DELETE FROM lab_tests WHERE id NOT IN (SELECT id FROM lab_tests ORDER BY id DESC LIMIT 100)") suspend fun trim()
+ @Query("SELECT * FROM lab_tests ORDER BY id ASC") suspend fun exportAll(): List<LabTest>
+ @Insert suspend fun insertAll(items: List<LabTest>)
+ @Query("DELETE FROM lab_tests") suspend fun clear()
+}
+
 @Dao
 interface SessionDao {
  @Query("SELECT * FROM sessions ORDER BY id DESC LIMIT 500") fun observe(): Flow<List<Session>>
@@ -170,10 +197,25 @@ interface SessionDao {
  @Update suspend fun update(session: Session)
  @Query("DELETE FROM sessions WHERE id NOT IN (SELECT id FROM sessions ORDER BY id DESC LIMIT 500)") suspend fun trim()
 }
-@Database(entities = [Session::class, SessionSample::class, TelemetrySample::class], version = 5, exportSchema = true)
+@Database(entities = [Session::class, SessionSample::class, TelemetrySample::class, LabTest::class], version = 6, exportSchema = true)
 abstract class BatteryDatabase: RoomDatabase() {
  abstract fun sessions(): SessionDao
+ abstract fun labs(): LabDao
  companion object {
+  val MIGRATION_5_6 = object : Migration(5, 6) {
+   override fun migrate(db: SupportSQLiteDatabase) {
+    db.execSQL("""CREATE TABLE IF NOT EXISTS `lab_tests` (
+     `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+     `sky` TEXT NOT NULL, `skyChanges` TEXT NOT NULL, `panelWatts` INTEGER,
+     `targetMs` INTEGER, `startedAt` INTEGER NOT NULL, `deadlineAt` INTEGER,
+     `endedAt` INTEGER, `status` TEXT NOT NULL, `initialPercent` INTEGER,
+     `finalPercent` INTEGER, `chargingMs` INTEGER NOT NULL, `notChargingMs` INTEGER NOT NULL,
+     `weightedMaMs` REAL NOT NULL, `validCurrentMs` INTEGER NOT NULL,
+     `lastReadingAt` INTEGER, `lastElapsedMs` INTEGER, `lastMode` TEXT,
+     `lastCurrentMa` REAL, `lastCurrentSource` TEXT
+    )""")
+   }
+  }
   // Acrescenta apenas a tabela nova. Os resumos da v1 permanecem intocados.
   val MIGRATION_1_2 = object : Migration(1, 2) {
    override fun migrate(db: SupportSQLiteDatabase) {

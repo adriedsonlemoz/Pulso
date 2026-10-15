@@ -16,3 +16,5 @@ Banco permanece v3: nenhuma mudança de entidades ou nova migração. Foram adic
 - **Room v4:** migração `MIGRATION_3_4` em Store.kt e SQL de referência `room-migration-3-4.sql`. O JSON oficial gerado pelo KSP para v4 ainda deve ser capturado e versionado após um build Android bem-sucedido.
 
 - **Room v5:** migração `MIGRATION_4_5`, adicionando `chargeSource` e `chargerLabel` anuláveis à tabela `sessions`; SQL de referência em `room-migration-4-5.sql`. JSON oficial v5 deve ser obtido do KSP após build Android, nunca escrito manualmente.
+
+- **Room v6 (alpha.23):** tabela independente `lab_tests`, migração explícita 5→6 em `room-migration-5-6.sql`. Capturar o JSON oficial KSP 6.json após compilar Android em CI; nunca fabricar schema JSON.

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.23 (23) — 2026-10-15
+
+### Labs: testes solares programados
+- Nova aba Labs nativa Compose, clima escolhido manualmente, painel e duração (30, 60, 120, 240 min, manual ou personalizada).
+- Autoencerramento, notificação e relatório persistido com tempos observados carregando/sem carregar, lacunas e corrente média válida (não a saída do painel).
+- Room v6, migração 5→6, tabela lab_tests isolada; backup JSON v4 inclui Labs finalizados e mantém importação v1/v2/v3.
+- Sem novos serviços em primeiro plano, wake locks ou permissão de internet. Encerramento pode atrasar sob restrições do Android; lacunas não são fabricadas.
+
+
 ## 0.1.0-alpha.22 (22) — 2026-10-13
 
 ### Notificação mais enxuta e estados claros

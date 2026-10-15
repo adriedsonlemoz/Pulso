@@ -58,7 +58,7 @@ import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) {
+fun PulsoScreen(onMonitor: (Boolean) -> Unit, openLabs: Boolean = false, vm: PulsoViewModel = viewModel()) {
  val settings by vm.settings.collectAsStateWithLifecycle()
  val reading by vm.reading.collectAsStateWithLifecycle()
  val sessions by vm.sessions.collectAsStateWithLifecycle()
@@ -80,7 +80,8 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
   surface=Color(0xFF101419),surfaceVariant=Color(0xFF17212B),onSurface=Color(0xFFF2F6FC),onBackground=Color.White)
  else lightColorScheme(primary=Color(0xFF0061A7),secondary=Color(0xFF006C59),background=Color(0xFFF3F7FC),
   surface=Color.White,surfaceVariant=Color(0xFFE6EEF7),onSurface=Color(0xFF101C2A),onBackground=Color(0xFF101C2A))
- var tab by rememberSaveable { mutableIntStateOf(0) }
+ var tab by rememberSaveable { mutableIntStateOf(if(openLabs) 3 else 0) }
+ LaunchedEffect(openLabs) { if(openLabs) tab=3 }
  var detailPage by rememberSaveable { mutableStateOf("") }
  var limitations by rememberSaveable { mutableStateOf(false) }
  val exportLauncher=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -95,15 +96,15 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
  MaterialTheme(colorScheme=colors) {
   Scaffold(containerColor=colors.background, topBar={
    TopAppBar(navigationIcon={ if(detailPage.isNotEmpty()) IconButton(onClick={detailPage=""}) { Icon(Icons.Default.ArrowBack,"Voltar") } },title={ Column {
-    Text(when(detailPage) { "analysis" -> "Análise de medições"; "compare" -> "Comparar recargas"; "reports" -> "Relatórios"; else -> when(tab) { 0 -> "Pulso Bateria"; 1 -> "Suas sessões"; 2 -> "Uso da bateria"; else -> "Configurações" } },fontWeight=FontWeight.Bold)
+    Text(when(detailPage) { "analysis" -> "Análise de medições"; "compare" -> "Comparar recargas"; "reports" -> "Relatórios"; else -> when(tab) { 0 -> "Pulso Bateria"; 1 -> "Suas sessões"; 2 -> "Uso da bateria"; 3 -> "Labs"; else -> "Configurações" } },fontWeight=FontWeight.Bold)
     Text(if(tab==0) "ENERGIA EM TEMPO REAL" else "PULSO • ALPHA",style=MaterialTheme.typography.labelSmall,color=colors.primary,letterSpacing=2.sp)
-   } }, actions={ if(tab!=3 && detailPage.isEmpty()) IconButton(onClick={tab=3;detailPage=""}) { Icon(Icons.Default.Settings,"Configurações") } },
+   } }, actions={ if(tab!=4 && detailPage.isEmpty()) IconButton(onClick={tab=4;detailPage=""}) { Icon(Icons.Default.Settings,"Configurações") } },
     colors=TopAppBarDefaults.topAppBarColors(containerColor=colors.background))
   },bottomBar={
    NavigationBar(containerColor=colors.surface) {
-    listOf("Início","Sessões","Uso","Config.").forEachIndexed { index,label ->
+    listOf("Início","Sessões","Uso","Labs","Config.").forEachIndexed { index,label ->
      NavigationBarItem(selected=tab==index,onClick={tab=index;detailPage=""},icon={
-      if(index==2) UsageTabIcon() else Icon(when(index){0->Icons.Default.Home;1->Icons.Default.DateRange;else->Icons.Default.Settings},label)
+      when(index) { 2 -> UsageTabIcon(); 3 -> LabsTabIcon(); else -> Icon(when(index){0->Icons.Default.Home;1->Icons.Default.DateRange;else->Icons.Default.Settings},label) }
      },label={Text(label)})
     }
    }
@@ -129,6 +130,7 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
     }
     1 -> History(sessions,settings,vm,Modifier.padding(padding),onCompare={detailPage="compare"},onReports={detailPage="reports"})
     2 -> AppUsageScreen(Modifier.padding(padding))
+    3 -> LabsScreen(vm,Modifier.padding(padding),onMonitor)
     else -> SettingsPage(settings,reading,active,error,vm,onMonitor,{limitations=true},
      onExport={exportLauncher.launch("Pulso-Bateria-backup-${System.currentTimeMillis()}.json")},
      onImport={importLauncher.launch(arrayOf("application/json","application/octet-stream","*/*"))},
@@ -138,6 +140,23 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, vm: PulsoViewModel = viewModel()) 
   if(limitations) AlertDialog(onDismissRequest={limitations=false},confirmButton={TextButton(onClick={limitations=false}){Text("Entendi")}},title={Text("Sobre as medições")},text={
    Text("Os dados vêm do Android e dependem do sensor e do fabricante. Corrente positiva indica entrada líquida na bateria; negativa indica saída. O app usa µA e sinal Android. Ajustes da corrente instantânea exigem três janelas estáveis comparadas ao contador; isso não substitui calibração com instrumento. A média Android usa a janela desconhecida do hardware. Estar conectado não garante carga.\n\nTaxa e autonomia exigem pelo menos 5 minutos e 2% de variação na escala da bateria. São estimativas, não garantias. A previsão do sistema só é aceita durante a carga quando compatível com a tendência medida.\n\nSem monitoramento contínuo, só registramos com o app visível. Pausas de até 90 segundos podem retomar a mesma sessão se estado e porcentagem permanecerem iguais; o tempo parado não entra na duração. Lacunas de coleta acima de 3 minutos criam outra sessão. O Android pode suspender o serviço. Não há coleta durante desligamento nem recuperação de intervalos perdidos. Temperatura é da bateria, não da CPU. Corrente não é potência nem capacidade em mAh.")
   })
+ }
+}
+
+/** Ícone simples de frasco para Labs, sem a dependência material-icons-extended. */
+@Composable
+private fun LabsTabIcon() {
+ val tint=androidx.compose.material3.LocalContentColor.current
+ Canvas(Modifier.size(24.dp)) {
+  val w=size.width; val h=size.height
+  val path=Path().apply {
+   moveTo(w*.40f,h*.12f); lineTo(w*.60f,h*.12f)
+   moveTo(w*.45f,h*.12f); lineTo(w*.45f,h*.47f)
+   lineTo(w*.19f,h*.83f); quadraticTo(w*.16f,h*.92f,w*.30f,h*.92f)
+   lineTo(w*.70f,h*.92f); quadraticTo(w*.84f,h*.92f,w*.81f,h*.83f)
+   lineTo(w*.55f,h*.47f); lineTo(w*.55f,h*.12f)
+  }
+  drawPath(path,tint,style=Stroke(width=w*.075f,cap=StrokeCap.Round))
  }
 }
 

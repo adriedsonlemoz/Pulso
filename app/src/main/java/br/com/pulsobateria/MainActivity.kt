@@ -5,6 +5,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -19,6 +22,7 @@ import kotlinx.coroutines.flow.first
 
 class MainActivity: ComponentActivity() {
  private val app get() = application as PulsoApp
+ private var openLabs by mutableStateOf(false)
  private val permission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
   if (granted) startMonitor() else app.repository.serviceError.value = "Permissão negada. O monitoramento funciona enquanto o app estiver aberto."
  }
@@ -26,7 +30,13 @@ class MainActivity: ComponentActivity() {
   installSplashScreen()
   super.onCreate(savedInstanceState)
   enableEdgeToEdge()
-  setContent { PulsoScreen(onMonitor = ::setMonitoring) }
+  openLabs=intent?.getBooleanExtra("open_labs",false)==true
+  setContent { PulsoScreen(onMonitor = ::setMonitoring, openLabs=openLabs) }
+ }
+ override fun onNewIntent(intent: Intent) {
+  super.onNewIntent(intent)
+  setIntent(intent)
+  openLabs=intent.getBooleanExtra("open_labs",false)
  }
  override fun onStart() {
   super.onStart()

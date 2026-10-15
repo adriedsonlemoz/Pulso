@@ -17,6 +17,7 @@ class RoomMigrationTest {
  @Test fun migracaoDaVersao2PreservaResumoEGrafico() = checkMigration(2)
  @Test fun migracaoDaVersao3PreservaMedicoes() = checkMigration(3)
  @Test fun migracaoDaVersao4PreservaTelemetria() = checkMigration(4)
+ @Test fun migracaoDaVersao5PreservaFonte() = checkMigration(5)
 
  private fun checkMigration(from: Int) = runBlocking {
   val context=InstrumentationRegistry.getInstrumentation().targetContext
@@ -60,12 +61,17 @@ class RoomMigrationTest {
     legacy.execSQL("CREATE INDEX `index_telemetry_samples_sessionId` ON `telemetry_samples` (`sessionId`)")
     legacy.execSQL("CREATE INDEX `index_telemetry_samples_timestamp` ON `telemetry_samples` (`timestamp`)")
    }
+   if(from>=5) {
+    legacy.execSQL("ALTER TABLE sessions ADD COLUMN chargeSource TEXT")
+    legacy.execSQL("ALTER TABLE sessions ADD COLUMN chargerLabel TEXT")
+   }
    legacy.version=from
   } finally { legacy.close() }
   val db=Room.databaseBuilder(context,BatteryDatabase::class.java,name)
-   .addMigrations(BatteryDatabase.MIGRATION_1_2,BatteryDatabase.MIGRATION_2_3,BatteryDatabase.MIGRATION_3_4,BatteryDatabase.MIGRATION_4_5).build()
+   .addMigrations(BatteryDatabase.MIGRATION_1_2,BatteryDatabase.MIGRATION_2_3,BatteryDatabase.MIGRATION_3_4,BatteryDatabase.MIGRATION_4_5,BatteryDatabase.MIGRATION_5_6).build()
   try {
    assertTrue(db.sessions().exportTelemetry().isEmpty())
+   assertTrue(db.labs().exportAll().isEmpty())
    val restored=db.sessions().exportSessions()
    assertEquals(1,restored.size)
    assertEquals(41,restored.single().final)

@@ -57,3 +57,7 @@ Os alertas inteligentes são opções locais desligadas por padrão. Por seguran
 ## Alpha.21
 
 Somente interface: Room v5 e backup JSON v3 sem mudanças. Os quatro Secrets de assinatura existentes permanecem os mesmos. Antes de atualizar, faça backup e valide o APK no GitHub Actions.
+
+## Alpha.23: backup Labs
+
+Backup JSON v4 inclui registros Labs finalizados (até 100), preservando os anteriores e a validação SHA-256. Backups v1/v2/v3 continuam legíveis; esses arquivos antigos não contêm dados de Labs, portanto a importação não elimina os testes Labs locais se o arquivo não trouxer a seção Labs. Teste em andamento bloqueia exportação/restauração; finalize-o antes. A gravação do backup não exporta Secrets nem dados de hardware não disponíveis. Banco Room v6 por migração 5→6; não alterar chave de assinatura.
