@@ -29,7 +29,7 @@ class BackupManager(
 ) {
  companion object {
   const val FORMAT = "br.com.pulsobateria.backup"
-  const val VERSION = 5
+  const val VERSION = 6
   const val MAX_BYTES = 64 * 1024 * 1024
   private fun digest(value: ByteArray): String = MessageDigest.getInstance("SHA-256")
    .digest(value).joinToString("") { "%02x".format(it) }
@@ -80,6 +80,12 @@ class BackupManager(
     put("notChargingMs",t.notChargingMs); put("weightedMaMs",t.weightedMaMs)
     put("validCurrentMs",t.validCurrentMs)
     put("kind",t.kind); put("externalSeen",t.externalSeen)
+    put("initialTemperatureC",t.initialTemperatureC ?: JSONObject.NULL)
+    put("finalTemperatureC",t.finalTemperatureC ?: JSONObject.NULL)
+    put("maxTemperatureC",t.maxTemperatureC ?: JSONObject.NULL)
+    put("screenCondition",t.screenCondition); put("cameraReported",t.cameraReported)
+    put("wifiReported",t.wifiReported); put("recordingReported",t.recordingReported)
+    put("notes",t.notes)
    }) } })
    put("points",JSONArray().apply { samples.forEach { p -> put(JSONObject().apply {
     put("id",p.id); put("sessionId",p.sessionId); put("timestamp",p.timestamp)
@@ -203,7 +209,15 @@ class BackupManager(
     chargingMs=t.getLong("chargingMs"), notChargingMs=t.getLong("notChargingMs"),
     weightedMaMs=t.getDouble("weightedMaMs"),validCurrentMs=t.getLong("validCurrentMs"),
     kind=if(backupVersion>=5) t.getString("kind") else "SOLAR",
-    externalSeen=if(backupVersion>=5) t.getBoolean("externalSeen") else false)
+    externalSeen=if(backupVersion>=5) t.getBoolean("externalSeen") else false,
+    initialTemperatureC=if(backupVersion>=6 && !t.isNull("initialTemperatureC")) t.getDouble("initialTemperatureC") else null,
+    finalTemperatureC=if(backupVersion>=6 && !t.isNull("finalTemperatureC")) t.getDouble("finalTemperatureC") else null,
+    maxTemperatureC=if(backupVersion>=6 && !t.isNull("maxTemperatureC")) t.getDouble("maxTemperatureC") else null,
+    screenCondition=if(backupVersion>=6) t.getString("screenCondition") else "NAO_INFORMADA",
+    cameraReported=backupVersion>=6 && t.getBoolean("cameraReported"),
+    wifiReported=backupVersion>=6 && t.getBoolean("wifiReported"),
+    recordingReported=backupVersion>=6 && t.getBoolean("recordingReported"),
+    notes=if(backupVersion>=6) t.getString("notes") else "")
   }
   require(labs.map { it.id }.toSet().size==labs.size && labs.all { t ->
    t.id>0 && t.kind in setOf("SOLAR","DISCHARGE") &&
@@ -218,7 +232,11 @@ class BackupManager(
    t.chargingMs in 0..(t.endedAt-t.startedAt) &&
    t.notChargingMs in 0..(t.endedAt-t.startedAt-t.chargingMs) &&
    t.validCurrentMs in 0..t.chargingMs && t.weightedMaMs.isFinite() && t.weightedMaMs>=0 &&
-   (t.deadlineAt==null || t.deadlineAt>=t.startedAt)
+   (t.deadlineAt==null || t.deadlineAt>=t.startedAt) &&
+   listOfNotNull(t.initialTemperatureC,t.finalTemperatureC,t.maxTemperatureC).all { it.isFinite() && it in -40.0..100.0 } &&
+   (t.maxTemperatureC==null || listOfNotNull(t.initialTemperatureC,t.finalTemperatureC).all { it<=t.maxTemperatureC }) &&
+   t.screenCondition in setOf("NAO_INFORMADA","ACESA","APAGADA") &&
+   t.notes.length<=160 && t.notes.none { Character.isISOControl(it) }
   }) { "Dados Labs inválidos." }
   BackupData(settings,sessions,points,exportedAt,telemetry,labs,backupVersion>=4)
  }

@@ -19,6 +19,7 @@ class RoomMigrationTest {
  @Test fun migracaoDaVersao4PreservaTelemetria() = checkMigration(4)
  @Test fun migracaoDaVersao5PreservaFonte() = checkMigration(5)
  @Test fun migracaoDaVersao6PreservaTesteSolar() = checkMigration(6)
+ @Test fun migracaoDaVersao7PreservaTesteDeConsumo() = checkMigration(7)
 
  private fun checkMigration(from: Int) = runBlocking {
   val context=InstrumentationRegistry.getInstrumentation().targetContext
@@ -79,13 +80,30 @@ class RoomMigrationTest {
     )""")
     legacy.execSQL("INSERT INTO lab_tests (id,sky,skyChanges,panelWatts,startedAt,status,chargingMs,notChargingMs,weightedMaMs,validCurrentMs) VALUES (3,'nublado','1000:nublado',8,1000,'STOPPED',0,0,0,0)")
    }
+   if(from>=7) {
+    legacy.execSQL("ALTER TABLE `lab_tests` ADD COLUMN `kind` TEXT NOT NULL DEFAULT 'SOLAR'")
+    legacy.execSQL("ALTER TABLE `lab_tests` ADD COLUMN `externalSeen` INTEGER NOT NULL DEFAULT 0")
+    legacy.execSQL("ALTER TABLE `lab_tests` ADD COLUMN `lastPlugged` INTEGER")
+    legacy.execSQL("UPDATE lab_tests SET kind='DISCHARGE',sky='',skyChanges='',panelWatts=NULL")
+   }
    legacy.version=from
   } finally { legacy.close() }
   val db=Room.databaseBuilder(context,BatteryDatabase::class.java,name)
-   .addMigrations(BatteryDatabase.MIGRATION_1_2,BatteryDatabase.MIGRATION_2_3,BatteryDatabase.MIGRATION_3_4,BatteryDatabase.MIGRATION_4_5,BatteryDatabase.MIGRATION_5_6,BatteryDatabase.MIGRATION_6_7).build()
+   .addMigrations(BatteryDatabase.MIGRATION_1_2,BatteryDatabase.MIGRATION_2_3,BatteryDatabase.MIGRATION_3_4,BatteryDatabase.MIGRATION_4_5,BatteryDatabase.MIGRATION_5_6,BatteryDatabase.MIGRATION_6_7,BatteryDatabase.MIGRATION_7_8).build()
   try {
    assertTrue(db.sessions().exportTelemetry().isEmpty())
-   if(from==6) {
+   if(from==7) {
+    val old=db.labs().exportAll().single()
+    assertEquals("DISCHARGE",old.kind)
+    assertNull(old.initialTemperatureC)
+    assertNull(old.finalTemperatureC)
+    assertNull(old.maxTemperatureC)
+    assertEquals("NAO_INFORMADA",old.screenCondition)
+    assertFalse(old.cameraReported)
+    assertFalse(old.wifiReported)
+    assertFalse(old.recordingReported)
+    assertEquals("",old.notes)
+   } else if(from==6) {
     val old=db.labs().exportAll().single()
     assertEquals(3L,old.id)
     assertEquals("SOLAR",old.kind)

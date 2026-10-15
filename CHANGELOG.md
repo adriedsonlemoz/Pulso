@@ -1,12 +1,13 @@
 # Changelog
 
-## 0.1.0-alpha.26 (26) — 2026-10-15
+## 0.1.0-alpha.27 (27) — 2026-10-15
 
-### Histórico de experimentos: cartões compactos e exclusão individual
-- Horário de início e término juntos em linha dupla compacta no painel expandido, sem alterar datas salvas.
-- Ações **Recolher** e **Excluir** lado a lado; remoção por ID somente de resultados concluídos, protegida por diálogo de confirmação, atualizando lista/backup a partir do Room.
-- Prévia solar recolhida mostra bateria inicial/final. Testes sem tempo de medição confirmado ganham aviso explícito de dados incompletos.
-- Room v7 / JSON v5 mantidos, sem mudança de permissões, corrente ou medição. Build Android pendente.
+- Redesigned Labs report: reference-based enlarged 2×2 metrics, duration chip, observed coverage bar, battery temperatures, and side-by-side start/end.
+- Copy plain-text full report to Android clipboard; preserve explicit confirmation before deleting an individual finished lab test.
+- Optional manual use context (screen, camera/video, Wi-Fi transmission, recording, notes) recorded separately from measured telemetries.
+- Store real battery temperatures (start/last/maximum), nullable and guarded against invalid readings.
+- Room 7→8 additive migration, backup v6 with backwards import through v1, preservation of historical lab tests.
+- Gradle Android build not confirmed locally; see validation.
 
 ## 0.1.0-alpha.25 (25) — 2026-10-15
 

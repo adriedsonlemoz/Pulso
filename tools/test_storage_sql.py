@@ -44,7 +44,7 @@ class StorageSQLTest(unittest.TestCase):
   with sqlite3.connect(':memory:') as db:
    schema(db,3)
    self.assertEqual(437.0,db.execute('SELECT currentMa FROM session_samples').fetchone()[0])
-   self.assertIn('version = 7',STORE)
+   self.assertIn('version = 8',STORE)
  def test_foreign_key_cascades(self):
   with sqlite3.connect(':memory:') as db:
    schema(db,3); db.execute('DELETE FROM sessions WHERE id=1')
@@ -118,6 +118,16 @@ class StorageSQLTest(unittest.TestCase):
    self.assertEqual(('SOLAR',0,None),db.execute('SELECT kind,externalSeen,lastPlugged FROM lab_tests').fetchone())
    db.execute("INSERT INTO lab_tests(kind,sky,skyChanges,panelWatts,startedAt,status,chargingMs,notChargingMs,weightedMaMs,validCurrentMs,externalSeen) VALUES('DISCHARGE','','',NULL,1000,'STOPPED',0,120000,0,0,1)")
    self.assertEqual(1,db.execute("SELECT externalSeen FROM lab_tests WHERE kind='DISCHARGE'").fetchone()[0])
+
+ def test_v7_to_v8_labs_metadata_defaults_and_preservation(self):
+  with sqlite3.connect(':memory:') as db:
+   schema(db,3); migration(db,3); migration(db,4); migration(db,5); migration(db,6)
+   db.execute("INSERT INTO lab_tests(id,kind,sky,skyChanges,startedAt,status,chargingMs,notChargingMs,weightedMaMs,validCurrentMs) VALUES(9,'DISCHARGE','','',1000,'STOPPED',0,1500,0,0)")
+   migration(db,7)
+   old=db.execute('SELECT id,kind,notChargingMs,initialTemperatureC,finalTemperatureC,maxTemperatureC,screenCondition,cameraReported,wifiReported,recordingReported,notes FROM lab_tests').fetchone()
+   self.assertEqual((9,'DISCHARGE',1500,None,None,None,'NAO_INFORMADA',0,0,0,''),old)
+   db.execute("UPDATE lab_tests SET initialTemperatureC=31.2, finalTemperatureC=33.0, maxTemperatureC=34.0,screenCondition='ACESA',cameraReported=1,wifiReported=1,notes='Minha Câmera' WHERE id=9")
+   self.assertEqual((31.2,33.0,34.0,'ACESA',1,1,'Minha Câmera'),db.execute('SELECT initialTemperatureC,finalTemperatureC,maxTemperatureC,screenCondition,cameraReported,wifiReported,notes FROM lab_tests').fetchone())
 
  def test_telemetry_retention_and_cascade(self):
   with sqlite3.connect(':memory:') as db:

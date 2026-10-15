@@ -1,13 +1,9 @@
-# Pulso Bateria 0.1.0-alpha.26
+# Pulso Bateria 0.1.0-alpha.27
 
-**Histórico do Labs compacto, com exclusão individual segura.**
+Nova apresentação dos relatórios Labs inspirada na captura fornecida: cabeçalho com duração, quatro métricas em destaque, barra de cobertura, bateria e temperatura inicial/última/máxima. Ações Recolher, Copiar relatório e Excluir teste com confirmação.
 
-- Início e fim de cada experimento na mesma linha, com data/hora abreviadas, nos detalhes do cartão.
-- **Recolher** e **Excluir** juntos no rodapé, com confirmação antes de remover permanentemente apenas o resultado selecionado.
-- Experimentos sem medições confirmadas exibem aviso de resultado incompleto, evitando interpretar lacunas como tempo de carga ou ausência de carga.
-- Resumo solar recolhido mostra também porcentagem inicial e final.
-- Room v7, backup JSON v5, cálculos, serviços, permissões e assinatura sem mudanças.
+Condições do experimento opcionais e *informadas pelo usuário*: tela acesa/apagada, câmera/vídeo ativo, transmissão via Wi-Fi, gravação e observação de até 160 caracteres. As temperaturas são leituras reais disponíveis no Android; dados históricos anteriores continuam nulos/indisponíveis, sem valores inventados.
 
-**Código-fonte:** versão 26. **APK:** requer compilação e testes em aparelho.
+Compatibilidade de dados: Room v8 com migração 7→8 sem perder registros; backup JSON v6 com leitura das versões anteriores. APIs de sensores, permissões e monitoramento não foram ampliadas.
 
-APK esperado: `Pulso-Bateria-v0.1.0-alpha.26-debug.apk`.
+APK esperado: `Pulso-Bateria-v0.1.0-alpha.27-debug.apk` após build Android no GitHub Actions. Código-fonte ZIP não é APK validado.

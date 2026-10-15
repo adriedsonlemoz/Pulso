@@ -13,17 +13,19 @@ vm = (root/'app/src/main/java/br/com/pulsobateria/ui/PulsoViewModel.kt').read_te
 
 checks = {
  "Date fields share one row": 'LabDateCell("Início"' in screen and 'LabDateCell("Fim"' in screen and 'Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp))' in screen,
- "Actions paired in footer": 'Text(if(expanded) "Recolher ↑" else "Ver detalhes ↓")' in screen and 'if(expanded) TextButton(onClick={confirmDelete=true}' in screen,
+ "Actions paired in footer": all(fragment in screen for fragment in ('Text("Recolher ↑")','Text("Copiar")','Text("Excluir")','onClick={confirmDelete=true}')),
  "Deletion requires confirmation": 'if(confirmDelete) AlertDialog(' in screen and 'onDelete(test.id)' in screen,
  "No delete on running card": 'onDelete' not in screen.split('private fun RunningLabCard(',1)[1].split('private fun LabResult(',1)[0],
  "Both recent and full history support deletion": screen.count('LabResult(test,onDelete=vm::deleteLab)')==2,
- "Missing observation warning": 'if(missing>=total && total>0L)' in screen,
- "Solar preview includes battery": 'if(!expanded) Text("Bateria:' in screen,
+ "Missing observation warning": 'intervalos sem leitura não foram classificados' in screen and 'LabCoverage(total,confirmed)' in screen,
+ "Solar preview includes battery": 'Text("Bateria: ${percentText(test.initialPercent)}' in screen,
  "SQL row-level non-running guard": 'DELETE FROM lab_tests WHERE id = :id AND status != \'RUNNING\'' in store,
  "Controller waits for initialization": 'suspend fun deleteFinished(id: Long): Boolean' in ctrl and 'ready.await()' in ctrl.split('suspend fun deleteFinished',1)[1].split('suspend fun stop',1)[0],
  "Controller checks active record": 'if(mutable.value?.id == id) return@withLock false' in ctrl,
  "UI invokes ViewModel": 'fun deleteLab(id: Long)' in vm and 'app.labs.deleteFinished(id)' in vm,
- "Room schema unchanged": '@Database(entities = [Session::class, SessionSample::class, TelemetrySample::class, LabTest::class], version = 7' in store,
+ "Copy exports the measured fields": 'reportText(test)' in screen and 'setPrimaryClip' in screen,
+ "Thermal summary uses real values": all(x in screen for x in ('temperatureText(test.initialTemperatureC)','temperatureText(test.finalTemperatureC)','temperatureText(test.maxTemperatureC)')),
+ "Room schema migration 7→8": '@Database(entities = [Session::class, SessionSample::class, TelemetrySample::class, LabTest::class], version = 8' in store,
 }
 for title, ok in checks.items():
  print(('OK' if ok else 'FAIL')+' — '+title)

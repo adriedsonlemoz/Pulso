@@ -23,10 +23,12 @@ class PulsoViewModel(application: Application): AndroidViewModel(application) {
  val labHistory = app.labs.history.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000), emptyList<LabTest>())
  var labError by mutableStateOf<String?>(null)
   private set
- fun startLab(sky: String, watts: Int?, minutes: Int?, ensureMonitor: () -> Unit) =
-  startLabInternal(ensureMonitor) { app.labs.start(sky,watts,minutes) }
- fun startDischargeLab(minutes: Int?, ensureMonitor: () -> Unit) =
-  startLabInternal(ensureMonitor) { app.labs.startDischarge(minutes) }
+ fun startLab(sky: String, watts: Int?, minutes: Int?, screen: String,
+  camera: Boolean, wifi: Boolean, recording: Boolean, notes: String, ensureMonitor: () -> Unit) =
+  startLabInternal(ensureMonitor) { app.labs.start(sky,watts,minutes,screen,camera,wifi,recording,notes) }
+ fun startDischargeLab(minutes: Int?, screen: String, camera: Boolean, wifi: Boolean,
+  recording: Boolean, notes: String, ensureMonitor: () -> Unit) =
+  startLabInternal(ensureMonitor) { app.labs.startDischarge(minutes,screen,camera,wifi,recording,notes) }
  private fun startLabInternal(ensureMonitor: () -> Unit, start: suspend () -> Unit) {
   labError = null
   app.repository.serviceError.value = null

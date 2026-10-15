@@ -131,7 +131,16 @@ data class LabTest(
  val lastCurrentSource: String? = null,
  @ColumnInfo(defaultValue = "'SOLAR'") val kind: String = "SOLAR",
  @ColumnInfo(defaultValue = "0") val externalSeen: Boolean = false,
- val lastPlugged: Boolean? = null
+ val lastPlugged: Boolean? = null,
+ // Temperaturas reais reportadas pelo Android; nullable em aparelhos sem sensor.
+ val initialTemperatureC: Double? = null, val finalTemperatureC: Double? = null,
+ val maxTemperatureC: Double? = null,
+ // Condições informadas manualmente, nunca inferidas do uso de outros apps.
+ @ColumnInfo(defaultValue = "'NAO_INFORMADA'") val screenCondition: String = "NAO_INFORMADA",
+ @ColumnInfo(defaultValue = "0") val cameraReported: Boolean = false,
+ @ColumnInfo(defaultValue = "0") val wifiReported: Boolean = false,
+ @ColumnInfo(defaultValue = "0") val recordingReported: Boolean = false,
+ @ColumnInfo(defaultValue = "''") val notes: String = ""
 )
 
 @Dao
@@ -201,11 +210,23 @@ interface SessionDao {
  @Update suspend fun update(session: Session)
  @Query("DELETE FROM sessions WHERE id NOT IN (SELECT id FROM sessions ORDER BY id DESC LIMIT 500)") suspend fun trim()
 }
-@Database(entities = [Session::class, SessionSample::class, TelemetrySample::class, LabTest::class], version = 7, exportSchema = true)
+@Database(entities = [Session::class, SessionSample::class, TelemetrySample::class, LabTest::class], version = 8, exportSchema = true)
 abstract class BatteryDatabase: RoomDatabase() {
  abstract fun sessions(): SessionDao
  abstract fun labs(): LabDao
  companion object {
+  val MIGRATION_7_8 = object : Migration(7, 8) {
+   override fun migrate(db: SupportSQLiteDatabase) {
+    db.execSQL("ALTER TABLE `lab_tests` ADD COLUMN `initialTemperatureC` REAL")
+    db.execSQL("ALTER TABLE `lab_tests` ADD COLUMN `finalTemperatureC` REAL")
+    db.execSQL("ALTER TABLE `lab_tests` ADD COLUMN `maxTemperatureC` REAL")
+    db.execSQL("ALTER TABLE `lab_tests` ADD COLUMN `screenCondition` TEXT NOT NULL DEFAULT 'NAO_INFORMADA'")
+    db.execSQL("ALTER TABLE `lab_tests` ADD COLUMN `cameraReported` INTEGER NOT NULL DEFAULT 0")
+    db.execSQL("ALTER TABLE `lab_tests` ADD COLUMN `wifiReported` INTEGER NOT NULL DEFAULT 0")
+    db.execSQL("ALTER TABLE `lab_tests` ADD COLUMN `recordingReported` INTEGER NOT NULL DEFAULT 0")
+    db.execSQL("ALTER TABLE `lab_tests` ADD COLUMN `notes` TEXT NOT NULL DEFAULT ''")
+   }
+  }
   // Mantém todos os testes solares anteriores; as novas colunas têm defaults legados.
   val MIGRATION_6_7 = object : Migration(6, 7) {
    override fun migrate(db: SupportSQLiteDatabase) {
