@@ -29,7 +29,7 @@ class BackupManager(
 ) {
  companion object {
   const val FORMAT = "br.com.pulsobateria.backup"
-  const val VERSION = 4
+  const val VERSION = 5
   const val MAX_BYTES = 64 * 1024 * 1024
   private fun digest(value: ByteArray): String = MessageDigest.getInstance("SHA-256")
    .digest(value).joinToString("") { "%02x".format(it) }
@@ -79,6 +79,7 @@ class BackupManager(
     put("finalPercent",t.finalPercent ?: JSONObject.NULL); put("chargingMs",t.chargingMs)
     put("notChargingMs",t.notChargingMs); put("weightedMaMs",t.weightedMaMs)
     put("validCurrentMs",t.validCurrentMs)
+    put("kind",t.kind); put("externalSeen",t.externalSeen)
    }) } })
    put("points",JSONArray().apply { samples.forEach { p -> put(JSONObject().apply {
     put("id",p.id); put("sessionId",p.sessionId); put("timestamp",p.timestamp)
@@ -200,11 +201,16 @@ class BackupManager(
     initialPercent=if(t.isNull("initialPercent")) null else t.getInt("initialPercent"),
     finalPercent=if(t.isNull("finalPercent")) null else t.getInt("finalPercent"),
     chargingMs=t.getLong("chargingMs"), notChargingMs=t.getLong("notChargingMs"),
-    weightedMaMs=t.getDouble("weightedMaMs"),validCurrentMs=t.getLong("validCurrentMs"))
+    weightedMaMs=t.getDouble("weightedMaMs"),validCurrentMs=t.getLong("validCurrentMs"),
+    kind=if(backupVersion>=5) t.getString("kind") else "SOLAR",
+    externalSeen=if(backupVersion>=5) t.getBoolean("externalSeen") else false)
   }
   require(labs.map { it.id }.toSet().size==labs.size && labs.all { t ->
-   t.id>0 && t.sky in setOf("forte","parcial","nublado","chuva") &&
-   t.skyChanges.length in 1..3000 && t.panelWatts?.let { it in 1..200 } != false &&
+   t.id>0 && t.kind in setOf("SOLAR","DISCHARGE") &&
+   (if(t.kind=="SOLAR") t.sky in setOf("forte","parcial","nublado","chuva") &&
+    t.skyChanges.length in 1..3000 && t.panelWatts?.let { it in 1..200 } != false
+    else t.sky.isEmpty() && t.skyChanges.isEmpty() && t.panelWatts==null &&
+     t.chargingMs==0L && t.validCurrentMs==0L && t.weightedMaMs==0.0) &&
    t.targetMs?.let { it in 60_000L..86_400_000L } != false &&
    t.startedAt>0 && t.endedAt!=null && t.endedAt>=t.startedAt &&
    t.status in setOf("STOPPED","COMPLETED") &&

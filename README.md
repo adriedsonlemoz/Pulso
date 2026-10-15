@@ -1,7 +1,15 @@
 # Pulso Bateria
 
-**0.1.0-alpha.23 • versionCode 23** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.24 • versionCode 24** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
+
+## Novidades da alpha.24 — Labs com dois experimentos
+
+- **Menu Labs:** cartões Teste Solar e Teste de Consumo, últimos cinco experimentos e página Ver todos.
+- **Teste de Consumo:** exige desconectar fontes de alimentação; mede queda de pontos percentuais da bateria por duração selecionada (120 min por padrão) e salva automaticamente quando o prazo termina.
+- **Interferência:** se o Android detectar fonte externa durante o experimento de descarga, o relatório avisa que o resultado não é um consumo puro. Lacunas e leitura final antiga ficam explícitas.
+- **Teste Solar preservado:** condições do céu, média de carga e relatórios permanecem disponíveis.
+- **Compatibilidade:** Room v7 com migração 6→7 e backup JSON v5 (importa v1 a v4). Sem serviços/permissões extras.
 
 ## Novidades da alpha.22 — notificação de monitoramento
 

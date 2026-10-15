@@ -44,7 +44,7 @@ class StorageSQLTest(unittest.TestCase):
   with sqlite3.connect(':memory:') as db:
    schema(db,3)
    self.assertEqual(437.0,db.execute('SELECT currentMa FROM session_samples').fetchone()[0])
-   self.assertIn('version = 6',STORE)
+   self.assertIn('version = 7',STORE)
  def test_foreign_key_cascades(self):
   with sqlite3.connect(':memory:') as db:
    schema(db,3); db.execute('DELETE FROM sessions WHERE id=1')
@@ -108,6 +108,17 @@ class StorageSQLTest(unittest.TestCase):
    db.execute("INSERT INTO lab_tests(sky,skyChanges,panelWatts,targetMs,startedAt,deadlineAt,status,chargingMs,notChargingMs,weightedMaMs,validCurrentMs) VALUES('nublado','1:nublado',8,7200000,1,7200001,'RUNNING',0,0,0,0)")
    self.assertEqual(1,db.execute('SELECT COUNT(*) FROM lab_tests').fetchone()[0])
    self.assertEqual([],db.execute('PRAGMA foreign_key_check').fetchall())
+ def test_v6_to_v7_preserves_solar_and_default_kind(self):
+  with sqlite3.connect(':memory:') as db:
+   schema(db,3); migration(db,3); migration(db,4); migration(db,5)
+   db.execute("INSERT INTO lab_tests(sky,skyChanges,panelWatts,targetMs,startedAt,deadlineAt,status,chargingMs,notChargingMs,weightedMaMs,validCurrentMs) VALUES('nublado','1000:nublado',8,7200000,1000,7201000,'STOPPED',0,0,0,0)")
+   before=db.execute('SELECT id,sky,panelWatts,status FROM lab_tests').fetchall()
+   migration(db,6)
+   self.assertEqual(before,db.execute('SELECT id,sky,panelWatts,status FROM lab_tests').fetchall())
+   self.assertEqual(('SOLAR',0,None),db.execute('SELECT kind,externalSeen,lastPlugged FROM lab_tests').fetchone())
+   db.execute("INSERT INTO lab_tests(kind,sky,skyChanges,panelWatts,startedAt,status,chargingMs,notChargingMs,weightedMaMs,validCurrentMs,externalSeen) VALUES('DISCHARGE','','',NULL,1000,'STOPPED',0,120000,0,0,1)")
+   self.assertEqual(1,db.execute("SELECT externalSeen FROM lab_tests WHERE kind='DISCHARGE'").fetchone()[0])
+
  def test_telemetry_retention_and_cascade(self):
   with sqlite3.connect(':memory:') as db:
    schema(db,3); migration(db,3)

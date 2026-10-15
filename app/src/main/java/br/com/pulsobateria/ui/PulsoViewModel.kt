@@ -23,7 +23,11 @@ class PulsoViewModel(application: Application): AndroidViewModel(application) {
  val labHistory = app.labs.history.stateIn(viewModelScope,SharingStarted.WhileSubscribed(5000), emptyList<LabTest>())
  var labError by mutableStateOf<String?>(null)
   private set
- fun startLab(sky: String, watts: Int?, minutes: Int?, ensureMonitor: () -> Unit) {
+ fun startLab(sky: String, watts: Int?, minutes: Int?, ensureMonitor: () -> Unit) =
+  startLabInternal(ensureMonitor) { app.labs.start(sky,watts,minutes) }
+ fun startDischargeLab(minutes: Int?, ensureMonitor: () -> Unit) =
+  startLabInternal(ensureMonitor) { app.labs.startDischarge(minutes) }
+ private fun startLabInternal(ensureMonitor: () -> Unit, start: suspend () -> Unit) {
   labError = null
   app.repository.serviceError.value = null
   ensureMonitor()
@@ -37,7 +41,7 @@ class PulsoViewModel(application: Application): AndroidViewModel(application) {
      labError = result?.second ?: "Monitoramento não iniciado; verifique a permissão de notificações."
      return@launch
     }
-    app.labs.start(sky,watts,minutes)
+    start()
    } catch(e: Exception) { labError=e.message ?: "Não foi possível iniciar o teste." }
   }
  }

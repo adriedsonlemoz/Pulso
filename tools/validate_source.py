@@ -26,8 +26,10 @@ assert (root/'app/src/main/java/br/com/pulsobateria/usage/UsageInsightsReader.kt
 
 gradle=(root/'app/build.gradle.kts').read_text()
 version=re.search(r'versionName = "([^"]+)"',gradle).group(1)
-assert version == '0.1.0-alpha.23'
-assert re.search(r'versionCode = 23\b',gradle)
+assert version == '0.1.0-alpha.24'
+assert re.search(r'versionCode = 24\b',gradle)
+assert 'versionCode 24' in (root/'README.md').read_text()
+assert 'tag="apk-alpha.24-' in (root/'.github/workflows/android.yml').read_text()
 for file in ['README.md','CHANGELOG.md','RELEASE_NOTES.md','docs/VERSIONING.md','.github/workflows/android.yml']:
  assert version in (root/file).read_text(), f'Version mismatch: {file}'
 jar=root/'gradle/wrapper/gradle-wrapper.jar'
@@ -37,8 +39,8 @@ with zipfile.ZipFile(jar) as archive:
  assert 'org/gradle/wrapper/GradleWrapperMain.class' in archive.namelist()
 assert 'distributionSha256Sum=f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6' in (root/'gradle/wrapper/gradle-wrapper.properties').read_text()
 store=(root/'app/src/main/java/br/com/pulsobateria/data/Store.kt').read_text()
-assert 'version = 6' in store and 'MIGRATION_1_2' in store and 'MIGRATION_2_3' in store and 'MIGRATION_3_4' in store and 'MIGRATION_4_5' in store and 'MIGRATION_5_6' in store
-assert '.addMigrations(BatteryDatabase.MIGRATION_1_2, BatteryDatabase.MIGRATION_2_3, BatteryDatabase.MIGRATION_3_4, BatteryDatabase.MIGRATION_4_5, BatteryDatabase.MIGRATION_5_6)' in (root/'app/src/main/java/br/com/pulsobateria/PulsoApp.kt').read_text()
+assert 'version = 7' in store and 'MIGRATION_1_2' in store and 'MIGRATION_2_3' in store and 'MIGRATION_3_4' in store and 'MIGRATION_4_5' in store and 'MIGRATION_5_6' in store and 'MIGRATION_6_7' in store
+assert '.addMigrations(BatteryDatabase.MIGRATION_1_2, BatteryDatabase.MIGRATION_2_3, BatteryDatabase.MIGRATION_3_4, BatteryDatabase.MIGRATION_4_5, BatteryDatabase.MIGRATION_5_6, BatteryDatabase.MIGRATION_6_7)' in (root/'app/src/main/java/br/com/pulsobateria/PulsoApp.kt').read_text()
 workflow=(root/'.github/workflows/android.yml').read_text()
 assert f'Pulso-Bateria-v{version}-debug.apk' in workflow
 assert 'actions/upload-artifact@v4' in workflow and 'KEYSTORE_BASE64' in workflow
@@ -47,6 +49,7 @@ assert (root/'app/schemas/room-migration-2-3.sql').exists()
 assert (root/'app/schemas/room-migration-3-4.sql').exists()
 assert (root/'app/schemas/room-migration-4-5.sql').exists()
 assert (root/'app/schemas/room-migration-5-6.sql').exists()
+assert (root/'app/schemas/room-migration-6-7.sql').exists()
 assert (root/'app/src/main/java/br/com/pulsobateria/ui/LabsScreen.kt').exists()
 assert (root/'app/src/main/java/br/com/pulsobateria/ui/TelemetryPanel.kt').is_file()
 assert (root/'app/src/main/java/br/com/pulsobateria/ui/SectionHelp.kt').is_file()
@@ -58,6 +61,6 @@ assert 'ChargeCompareCard(sessions,vm)' in ui and 'BatteryReportsCard(weeklyTele
 assert 'listOf("Resumo","Aplicativos","Noite")' in usage
 assert 'SectionHelpButton(' in usage and 'SectionHelpButton(' in (root/'app/src/main/java/br/com/pulsobateria/ui/TelemetryPanel.kt').read_text()
 assert (root/'core/src/main/kotlin/br/com/pulsobateria/core/TelemetryAnalysis.kt').is_file()
-assert 'const val VERSION = 4' in (root/'app/src/main/java/br/com/pulsobateria/data/BackupManager.kt').read_text()
+assert 'const val VERSION = 5' in (root/'app/src/main/java/br/com/pulsobateria/data/BackupManager.kt').read_text()
 assert all(not list(root.rglob(ext)) for ext in ('*.p12','*.jks','*.keystore'))
 print(f'PASS: {len(required)} required files, {len(xmls)} XMLs, permissions, version references and official Wrapper SHA-256/CRC.')

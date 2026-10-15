@@ -1,30 +1,29 @@
-# Validação — Pulso Bateria 0.1.0-alpha.23 / versionCode 23
+# Validação — Pulso Bateria 0.1.0-alpha.24 / versionCode 24
 
 ## Implementação
 
-- Nova aba Labs Kotlin/Compose Material 3, céu escolhido manualmente, potência do painel e cronômetro (padrão 120 min, alternativas e modo manual).
-- Acumulação de períodos entre pares de leituras reais estáveis; status alterado, leitura ausente, intervalo >90 s, inconsistência dos relógios e reinicialização não geram tempo fictício.
-- Corrente média em mA ponderada pelo tempo usa somente valores positivos válidos NOW/AVERAGE/COUNTER, não CAPACITY.
-- Persistência dos testes em Room v6, migração explícita 5→6, resumo e histórico. Backup JSON v4 incorpora Labs finalizados e aceita v1/v2/v3.
-- Reutiliza o monitoramento FGS specialUse existente, sem segundo serviço, permissões novas, wakelocks, rede ou sensores extras. Conclusão notifica o usuário quando o processo está em condições de executar.
+- A aba Labs abre em menu: Teste Solar / Teste de Consumo, últimos cinco experimentos e acesso ao histórico completo. Os controles de clima ficam somente na página Solar.
+- Teste de Consumo exige leitura recente de bateria desconectada, mede queda em pontos percentuais (não mAh), permite duração programada com padrão de 120 min e finaliza automaticamente ao prazo quando o Android executa o processo.
+- Leitura de `EXTRA_PLUGGED` permite sinalizar interferência por fonte externa observada, inclusive nos estados de carga completa/ocioso. Pares com mudanças, lacunas ou relógios incoerentes não viram tempo medido. Conexões entre amostras podem escapar da detecção.
+- Teste Solar, relatório e notificações preservados. Room v7 com migração 6→7 e valores padrão para testes legados; backup JSON v5 com importação v1–v4.
+- Reutiliza FGS especial existente, sem nova permissão/serviço, wakelock, internet, câmera ou sensor externo.
 
-## Verificações efetivamente executadas no ambiente
+## Verificações executadas neste ambiente
 
-- `python tools/validate_source.py`: **APROVADO** (versão, Manifest, Wrapper oficial SHA-256, identidade, scripts e recursos).
-- `python tools/test_navigation_contract.py`: **11/11 APROVADOS** (contratos estáticos das telas anteriores).
-- `python tools/test_storage_sql.py`: **13/13 APROVADOS**, incluindo migração SQLite 5→6 e preservação do histórico anterior. O script pré-existente emite ResourceWarning por conexões SQLite em parte dos testes.
-- Compilação e execução de um teste Kotlin/JVM real de `LabMath.kt` com `kotlinc`: **7/7 asserções APROVADAS**, incluindo média, lacunas, mudança de estado, estimativa excluída e classificação.
-- Revisão sintática com PSI Kotlin do compilador local: **31 fontes Kotlin, zero erros de sintaxe** (não executa resolução de dependências Android).
-- `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon`: **NÃO EXECUTOU O BUILD**; o Gradle Wrapper tentou obter `gradle-8.11.1-bin.zip` de services.gradle.org, mas o ambiente retornou `UnknownHostException` (sem dependências em cache).
-- Não houve compilação efetiva Android/Compose/Room KSP, Android Lint nem testes instrumentados no aparelho. A validação SQLite não substitui as migrações instrumentadas.
+- `python tools/validate_source.py`: **APROVADO** (arquivos, versão, Manifest, SHA-256 e CRC do Gradle Wrapper).
+- `python tools/test_navigation_contract.py`: **11/11 APROVADOS** (contratos anteriores das telas).
+- `python tools/test_storage_sql.py`: **14/14 APROVADOS**, incluindo migração 6→7, default SOLAR e persistência de testes DISCHARGE. São verificações SQLite locais, não migrações Android instrumentadas. Script legado pode produzir `ResourceWarning` de SQLite.
+- `kotlinc` + execução Java de LabMath real: **13/13 verificações APROVADAS**, incluindo tempos desconectados, fonte externa, lacunas e queda em pontos percentuais.
+- Parser PSI do compilador Kotlin: **44 arquivos Kotlin do projeto, zero erros de sintaxe**, sem resolver dependências Compose/Room.
+- `./gradlew :core:test :app:assembleDebug --offline --no-daemon`: **NÃO EXECUTOU BUILD**: o wrapper tentou baixar gradle-8.11.1 e falhou com `UnknownHostException` em services.gradle.org. Não houve compilação Android, lint, APK nem testes instrumentados.
 
-## Testes pendentes no GitHub Actions/aparelho
+## Pendências em CI/aparelho
 
-1. Executar `:core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` e `:app:connectedDebugAndroidTest` em emulador/dispositivo; gerar e versionar somente schema Room 6.json real do KSP.
-2. Atualizar uma instalação com banco Room v5 e verificar que histórico, telemetria, preferências e assinatura permanecem íntegros.
-3. Testar 120 min com tela apagada, serviço autorizado, notificações permitidas, modo economizador Android e encerramento após prazo.
-4. Simular interrupções de tela/processo/serviço, desconexão USB, alternância de céu e fonte de corrente OEM contraditória; lacunas devem permanecer não observadas, e notificação pode chegar com atraso.
-5. Testar exportação/restauração de backup JSON v4 e importação de v1/v2/v3, incluindo bloqueio durante um teste ativo.
-6. Revisar composição Material 3 em telas pequenas e funcionamento da notificação para abrir diretamente Labs.
+1. Rodar `:core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` e `:app:connectedDebugAndroidTest` com Android SDK e rede.
+2. Obter e versionar somente `7.json` gerado pelo compilador KSP real; não escrever JSON fictício.
+3. Instalar sobre a versão alpha.23 com banco Room v6; verificar migração e retenção do teste Solar anterior.
+4. Testar duas horas com tela apagada, serviço autorizado, notificação permitida, Android restringindo background, processo interrompido e relógio ajustado.
+5. Testar fonte externa presente antes do início (bloqueio), conectada durante o teste (aviso), conectada entre leituras (limitação) e porcentagem final defasada (aviso).
+6. Verificar backup v5 exportado/restaurado, importação v1–v4 e compatibilidade dos relatórios existentes.
 
-**Limitação operacional:** o Android pode adiar a execução do timer mesmo com foreground service; esta versão não promete disparo exato ao segundo. Se o processo for encerrado, o prazo será reconciliado na próxima execução sem inventar leituras. O monitoramento contínuo fica habilitado até o usuário desligá-lo nas Configurações, mesmo depois da conclusão de Labs.
+**Limitação:** prazo de finalização pode ser observado tardiamente pelo Android, e a notificação pode atrasar. Tempo sem dados permanece desconhecido. O monitoramento contínuo continua ativo até o usuário desligá-lo nas Configurações.

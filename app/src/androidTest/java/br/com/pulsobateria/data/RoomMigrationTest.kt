@@ -18,6 +18,7 @@ class RoomMigrationTest {
  @Test fun migracaoDaVersao3PreservaMedicoes() = checkMigration(3)
  @Test fun migracaoDaVersao4PreservaTelemetria() = checkMigration(4)
  @Test fun migracaoDaVersao5PreservaFonte() = checkMigration(5)
+ @Test fun migracaoDaVersao6PreservaTesteSolar() = checkMigration(6)
 
  private fun checkMigration(from: Int) = runBlocking {
   val context=InstrumentationRegistry.getInstrumentation().targetContext
@@ -65,13 +66,32 @@ class RoomMigrationTest {
     legacy.execSQL("ALTER TABLE sessions ADD COLUMN chargeSource TEXT")
     legacy.execSQL("ALTER TABLE sessions ADD COLUMN chargerLabel TEXT")
    }
+   if(from>=6) {
+    legacy.execSQL("""CREATE TABLE IF NOT EXISTS `lab_tests` (
+     `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+     `sky` TEXT NOT NULL, `skyChanges` TEXT NOT NULL, `panelWatts` INTEGER,
+     `targetMs` INTEGER, `startedAt` INTEGER NOT NULL, `deadlineAt` INTEGER,
+     `endedAt` INTEGER, `status` TEXT NOT NULL, `initialPercent` INTEGER,
+     `finalPercent` INTEGER, `chargingMs` INTEGER NOT NULL, `notChargingMs` INTEGER NOT NULL,
+     `weightedMaMs` REAL NOT NULL, `validCurrentMs` INTEGER NOT NULL,
+     `lastReadingAt` INTEGER, `lastElapsedMs` INTEGER, `lastMode` TEXT,
+     `lastCurrentMa` REAL, `lastCurrentSource` TEXT
+    )""")
+    legacy.execSQL("INSERT INTO lab_tests (id,sky,skyChanges,panelWatts,startedAt,status,chargingMs,notChargingMs,weightedMaMs,validCurrentMs) VALUES (3,'nublado','1000:nublado',8,1000,'STOPPED',0,0,0,0)")
+   }
    legacy.version=from
   } finally { legacy.close() }
   val db=Room.databaseBuilder(context,BatteryDatabase::class.java,name)
-   .addMigrations(BatteryDatabase.MIGRATION_1_2,BatteryDatabase.MIGRATION_2_3,BatteryDatabase.MIGRATION_3_4,BatteryDatabase.MIGRATION_4_5,BatteryDatabase.MIGRATION_5_6).build()
+   .addMigrations(BatteryDatabase.MIGRATION_1_2,BatteryDatabase.MIGRATION_2_3,BatteryDatabase.MIGRATION_3_4,BatteryDatabase.MIGRATION_4_5,BatteryDatabase.MIGRATION_5_6,BatteryDatabase.MIGRATION_6_7).build()
   try {
    assertTrue(db.sessions().exportTelemetry().isEmpty())
-   assertTrue(db.labs().exportAll().isEmpty())
+   if(from==6) {
+    val old=db.labs().exportAll().single()
+    assertEquals(3L,old.id)
+    assertEquals("SOLAR",old.kind)
+    assertFalse(old.externalSeen)
+    assertNull(old.lastPlugged)
+   } else assertTrue(db.labs().exportAll().isEmpty())
    val restored=db.sessions().exportSessions()
    assertEquals(1,restored.size)
    assertEquals(41,restored.single().final)

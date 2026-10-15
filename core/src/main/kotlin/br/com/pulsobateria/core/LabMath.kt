@@ -25,6 +25,24 @@ object LabMath {
   if (previousMode in listOf("DISCHARGING", "IDLE", "FULL")) return Interval(notChargingMs=elapsedDeltaMs)
   return Interval()
  }
+ /** Descarga apenas com duas leituras consecutivas comprovadamente desconectadas. */
+ fun classifyUnplugged(previousMode: String, nextMode: String,
+                      previousPlugged: Boolean?, nextPlugged: Boolean?,
+                      elapsedDeltaMs: Long, wallDeltaMs: Long): Interval {
+  if (previousPlugged != false || nextPlugged != false ||
+      previousMode != nextMode || previousMode !in setOf("DISCHARGING", "FULL") ||
+      elapsedDeltaMs !in 1..MAX_INTERVAL_MS || wallDeltaMs <= 0 ||
+      abs(wallDeltaMs-elapsedDeltaMs) > 10_000L) return Interval()
+  return Interval(notChargingMs=elapsedDeltaMs)
+ }
+
+ /** P.p. de queda, não mAh. Testes com fonte externa não são chamados de consumo puro. */
+ fun dischargePoints(initial: Int?, final: Int?, externalSeen: Boolean): Int? {
+  if (externalSeen || initial == null || final == null || initial !in 0..100 || final !in 0..100)
+   return null
+  return (initial-final).takeIf { it>=0 }
+ }
+
  fun meanMa(weightedMaMs: Double, validCurrentMs: Long): Double? =
   if (validCurrentMs > 0 && weightedMaMs.isFinite() && weightedMaMs > 0)
    (weightedMaMs/validCurrentMs).takeIf { it in 0.0..30_000.0 } else null

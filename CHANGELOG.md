@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-alpha.24 (24) — 2026-10-15
+
+### Labs: menu de experimentos e teste de consumo
+- A aba Labs abre com menu Teste Solar / Teste de Consumo, prévia dos últimos cinco testes e botão Ver todos para histórico completo.
+- Teste de Consumo exige bateria sem fonte conectada para iniciar; acompanha perda de pontos percentuais em 30/60/120/240 min, tempo personalizado ou manual. No prazo, salva relatório e notifica (quando o Android permite).
+- Conexão externa observada no teste é registrada como interferência e não gera número enganoso de consumo puro. Lacunas permanecem desconhecidas e leituras finais desatualizadas recebem aviso.
+- Teste Solar e leituras anteriores preservados. Room v7, migração 6→7 com tipo do experimento e marcador de fonte externa; backup JSON v5 compatível com v1–v4.
+- Sem permissão nova, segundo serviço, gravação, GPS ou internet. Revisar build Android e temporização em dispositivo real.
+
 ## 0.1.0-alpha.23 (23) — 2026-10-15
 
 ### Labs: testes solares programados

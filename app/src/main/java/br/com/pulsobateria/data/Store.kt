@@ -128,7 +128,10 @@ data class LabTest(
  val weightedMaMs: Double = 0.0, val validCurrentMs: Long = 0,
  val lastReadingAt: Long? = null, val lastElapsedMs: Long? = null,
  val lastMode: String? = null, val lastCurrentMa: Double? = null,
- val lastCurrentSource: String? = null
+ val lastCurrentSource: String? = null,
+ @ColumnInfo(defaultValue = "'SOLAR'") val kind: String = "SOLAR",
+ @ColumnInfo(defaultValue = "0") val externalSeen: Boolean = false,
+ val lastPlugged: Boolean? = null
 )
 
 @Dao
@@ -197,11 +200,19 @@ interface SessionDao {
  @Update suspend fun update(session: Session)
  @Query("DELETE FROM sessions WHERE id NOT IN (SELECT id FROM sessions ORDER BY id DESC LIMIT 500)") suspend fun trim()
 }
-@Database(entities = [Session::class, SessionSample::class, TelemetrySample::class, LabTest::class], version = 6, exportSchema = true)
+@Database(entities = [Session::class, SessionSample::class, TelemetrySample::class, LabTest::class], version = 7, exportSchema = true)
 abstract class BatteryDatabase: RoomDatabase() {
  abstract fun sessions(): SessionDao
  abstract fun labs(): LabDao
  companion object {
+  // Mantém todos os testes solares anteriores; as novas colunas têm defaults legados.
+  val MIGRATION_6_7 = object : Migration(6, 7) {
+   override fun migrate(db: SupportSQLiteDatabase) {
+    db.execSQL("ALTER TABLE `lab_tests` ADD COLUMN `kind` TEXT NOT NULL DEFAULT 'SOLAR'")
+    db.execSQL("ALTER TABLE `lab_tests` ADD COLUMN `externalSeen` INTEGER NOT NULL DEFAULT 0")
+    db.execSQL("ALTER TABLE `lab_tests` ADD COLUMN `lastPlugged` INTEGER")
+   }
+  }
   val MIGRATION_5_6 = object : Migration(5, 6) {
    override fun migrate(db: SupportSQLiteDatabase) {
     db.execSQL("""CREATE TABLE IF NOT EXISTS `lab_tests` (

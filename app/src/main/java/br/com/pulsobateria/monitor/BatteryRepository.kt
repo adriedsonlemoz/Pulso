@@ -9,7 +9,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 
  data class Reading(
- val percent: Int? = null, val mode: Mode = Mode.UNKNOWN, val source: String = "Aguardando Android",
+ val percent: Int? = null, val mode: Mode = Mode.UNKNOWN, val plugged: Boolean? = null, val source: String = "Aguardando Android",
  val temperature: Double? = null, val current: Double? = null, val currentInfo: CurrentResult = CurrentResult(),
  val rate: Double? = null, val remaining: Long? = null, val systemEstimate: Boolean = false,
  val duration: Long = 0, val points: List<Point> = emptyList(), val updated: Long = 0,
@@ -218,7 +218,7 @@ class BatteryRepository(
   // valor positivo, porém absurdo (ex.: 58% -> 100% em dois minutos).
   // Sem histórico local confiável, a previsão permanece em "Calculando".
   val systemRemaining = BatteryMath.validatedSystemChargeTimeMs(level,rawSystemRemaining,rate)
-  mutable.value = Reading(percent=level, mode=mode, source=when {
+  mutable.value = Reading(percent=level, mode=mode, plugged=plugged != 0, source=when {
    plugged and BatteryManager.BATTERY_PLUGGED_AC != 0 -> "Tomada"
    plugged and BatteryManager.BATTERY_PLUGGED_USB != 0 -> "USB"
    plugged and BatteryManager.BATTERY_PLUGGED_WIRELESS != 0 -> "Sem fio"

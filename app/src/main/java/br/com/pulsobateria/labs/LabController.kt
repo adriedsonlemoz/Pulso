@@ -67,6 +67,14 @@ class LabController(
  suspend fun start(sky: String, panelWatts: Int?, minutes: Int?) {
   require(sky in listOf("forte", "parcial", "nublado", "chuva"))
   require(panelWatts == null || panelWatts in 1..200)
+  startInternal("SOLAR", sky, panelWatts, minutes)
+ }
+
+ /** Teste de descarga: sem fonte de energia externa no início. */
+ suspend fun startDischarge(minutes: Int?) = startInternal("DISCHARGE", "", null, minutes)
+
+ private suspend fun startInternal(kind: String, sky: String, panelWatts: Int?, minutes: Int?) {
+  require(kind in setOf("SOLAR", "DISCHARGE"))
   require(minutes == null || minutes in 1..1440)
   ready.await()
   mutex.withLock {
@@ -74,12 +82,18 @@ class LabController(
    check(repository.serviceActive.value) { "Ative o monitoramento em primeiro plano para testar com a tela apagada." }
    val now = System.currentTimeMillis()
    val reading = repository.reading.value.takeIf { it.updated in (now-90_000L)..now }
+   if (kind == "DISCHARGE") {
+    check(reading?.plugged == false && reading?.percent != null &&
+     reading?.mode?.name in setOf("DISCHARGING", "FULL")) {
+     "Desconecte o painel, carregador ou power bank e aguarde uma leitura recente da bateria."
+    }
+   }
    val targetMs = minutes?.toLong()?.times(60_000L)
-   val test = LabTest(sky=sky,skyChanges="$now:$sky",panelWatts=panelWatts,
-    targetMs=targetMs,startedAt=now,deadlineAt=targetMs?.let { now+it },
+   val test = LabTest(kind=kind, sky=sky,skyChanges=if(kind=="SOLAR") "$now:$sky" else "",
+    panelWatts=panelWatts,targetMs=targetMs,startedAt=now,deadlineAt=targetMs?.let { now+it },
     initialPercent=reading?.percent, finalPercent=reading?.percent,
-    lastReadingAt=null, lastElapsedMs=null,
-    lastMode=null, lastCurrentMa=null, lastCurrentSource=null)
+    lastReadingAt=null,lastElapsedMs=null,lastMode=null,lastCurrentMa=null,
+    lastCurrentSource=null,externalSeen=false,lastPlugged=null)
    val id = withContext(Dispatchers.IO) { dao.insert(test).also { dao.trim() } }
    mutable.value = test.copy(id=id)
   }
@@ -90,6 +104,7 @@ class LabController(
   ready.await()
   mutex.withLock {
    val test = mutable.value ?: return@withLock
+   if (test.kind != "SOLAR") return@withLock
    if (test.sky == sky) return@withLock
    val now = System.currentTimeMillis()
    val updated = test.copy(sky=sky,skyChanges=(test.skyChanges+";$now:$sky").takeLast(3000))
@@ -102,7 +117,9 @@ class LabController(
   ready.await()
   mutex.withLock {
    val test = mutable.value ?: return@withLock
-   finishLocked(test, System.currentTimeMillis(), "STOPPED")
+   val now=System.currentTimeMillis()
+   val due=test.deadlineAt?.let { now>=it }==true
+   finishLocked(test,if(due) test.deadlineAt!! else now,if(due) "COMPLETED" else "STOPPED")
   }
  }
 
@@ -126,10 +143,12 @@ class LabController(
    val elapsed = SystemClock.elapsedRealtime()
    val oldWall = test.lastReadingAt
    val oldElapsed = test.lastElapsedMs
-   val interval = if(oldWall != null && oldElapsed != null && test.lastMode != null)
-    LabMath.classify(test.lastMode!!,reading.mode.name,test.lastCurrentMa,reading.current,
+   val interval = if(oldWall != null && oldElapsed != null && test.lastMode != null) {
+    if(test.kind=="DISCHARGE") LabMath.classifyUnplugged(test.lastMode!!, reading.mode.name,
+     test.lastPlugged, reading.plugged, elapsed-oldElapsed,reading.updated-oldWall)
+    else LabMath.classify(test.lastMode!!,reading.mode.name,test.lastCurrentMa,reading.current,
      test.lastCurrentSource,reading.currentInfo.source.name, elapsed-oldElapsed,reading.updated-oldWall)
-    else LabMath.Interval()
+   } else LabMath.Interval()
    test = test.copy(
     initialPercent=test.initialPercent ?: reading.percent,
     finalPercent=reading.percent ?: test.finalPercent,
@@ -139,7 +158,9 @@ class LabController(
     validCurrentMs=test.validCurrentMs+interval.validCurrentMs,
     lastReadingAt=reading.updated, lastElapsedMs=elapsed,
     lastMode=reading.mode.name,lastCurrentMa=reading.current,
-    lastCurrentSource=reading.currentInfo.source.name)
+    lastCurrentSource=reading.currentInfo.source.name,
+    lastPlugged=reading.plugged,
+    externalSeen=test.externalSeen || (test.kind=="DISCHARGE" && reading.plugged==true))
    withContext(Dispatchers.IO) { dao.update(test) }
    mutable.value=test
   }
@@ -151,7 +172,9 @@ class LabController(
   val recent = repository.reading.value.takeIf { it.updated in test.startedAt..end &&
    it.updated >= (test.lastReadingAt ?: 0L) && it.updated >= end-90_000L }
   val saved = test.copy(endedAt=end,status=status,
-   finalPercent=recent?.percent ?: test.finalPercent)
+   finalPercent=recent?.percent ?: test.finalPercent,
+   lastReadingAt=recent?.updated ?: test.lastReadingAt,
+   externalSeen=test.externalSeen || (test.kind=="DISCHARGE" && recent?.plugged==true))
   withContext(Dispatchers.IO) { dao.update(saved) }
   mutable.value=null
   if (status=="COMPLETED") notifyFinished(saved)
@@ -167,9 +190,17 @@ class LabController(
   },PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   val total=(test.endedAt ?: test.startedAt)-test.startedAt
   val unknown=LabMath.unknownMs(total,test.chargingMs,test.notChargingMs)
-  val content="Carga: ${test.chargingMs/60_000} min • Sem carga: ${test.notChargingMs/60_000} min • Sem leitura: ${unknown/60_000} min"
+  val content=if(test.kind=="DISCHARGE") {
+   val drop=LabMath.dischargePoints(test.initialPercent,test.finalPercent,test.externalSeen)
+   when {
+    test.externalSeen -> "Fonte externa detectada; consulte o relatório (teste interferido)."
+    drop!=null -> "Queda observada: $drop pontos percentuais • Sem leitura: ${unknown/60_000} min"
+    else -> "Descarga não conclusiva; consulte o relatório."
+   }
+  } else "Carga: ${test.chargingMs/60_000} min • Sem carga: ${test.notChargingMs/60_000} min • Sem leitura: ${unknown/60_000} min"
+  val title=if(test.kind=="DISCHARGE") "Labs: teste de consumo concluído" else "Labs: teste solar concluído"
   manager.notify(20_000+(test.id%10_000).toInt(),NotificationCompat.Builder(context,"labs")
-   .setSmallIcon(R.drawable.ic_notification).setContentTitle("Labs: teste solar concluído")
+   .setSmallIcon(R.drawable.ic_notification).setContentTitle(title)
    .setContentText(content).setStyle(NotificationCompat.BigTextStyle().bigText(content))
    .setContentIntent(open).setAutoCancel(true).setPriority(NotificationCompat.PRIORITY_DEFAULT).build())
  }

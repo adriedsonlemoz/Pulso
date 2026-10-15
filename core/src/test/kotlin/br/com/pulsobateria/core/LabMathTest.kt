@@ -30,6 +30,18 @@ class LabMathTest {
   assertEquals(0,r.validCurrentMs)
   assertNull(LabMath.meanMa(r.weightedMaMs,r.validCurrentMs))
  }
+ @Test fun descargaSoContaIntervalosSemFonteExterna() {
+  assertEquals(60_000,LabMath.classifyUnplugged("DISCHARGING","DISCHARGING",false,false,60_000,60_000).notChargingMs)
+  assertEquals(LabMath.Interval(),LabMath.classifyUnplugged("DISCHARGING","DISCHARGING",false,true,60_000,60_000))
+  assertEquals(LabMath.Interval(),LabMath.classifyUnplugged("DISCHARGING","DISCHARGING",null,false,60_000,60_000))
+  assertEquals(LabMath.Interval(),LabMath.classifyUnplugged("DISCHARGING","DISCHARGING",false,false,180_000,180_000))
+ }
+ @Test fun quedaEmPontosPercentuaisRejeitaFonteOuAumento() {
+  assertEquals(6,LabMath.dischargePoints(80,74,false))
+  assertNull(LabMath.dischargePoints(80,74,true))
+  assertNull(LabMath.dischargePoints(74,80,false))
+  assertNull(LabMath.dischargePoints(null,74,false))
+ }
  @Test fun sinalContraditorioNaoEntraNaMedia() {
   val r=LabMath.classify("CHARGING","CHARGING",-100.0,300.0,"NOW","NOW",60_000,60_000)
   assertEquals(60_000,r.chargingMs)
