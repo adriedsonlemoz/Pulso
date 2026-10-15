@@ -1,7 +1,7 @@
 # Versionamento
 
-Versão atual: **0.1.0-alpha.24**, **versionCode 24**.
-Próxima entrega: **0.1.0-alpha.25**, **versionCode 25**.
+Versão atual: **0.1.0-alpha.25**, **versionCode 25**.
+Próxima entrega: **0.1.0-alpha.26**, **versionCode 26**.
 
 Fonte Android: `app/build.gradle.kts`; a tela Sobre usa BuildConfig. Sincronizar README, CHANGELOG, RELEASE_NOTES, AGENTS, este documento, validação, workflow e ZIP. Preservar `applicationId = br.com.pulsobateria` e os Secrets/keystore existentes.
 
@@ -16,3 +16,5 @@ Alpha.22 altera apenas apresentação da notificação/ações do serviço, sem 
 Alpha.23 usa **Room v6**, migração não destrutiva 5→6 com `lab_tests`, isolada das sessões; **backup JSON v4** adiciona Labs concluídos e continua aceitando v1/v2/v3. O service specialUse e as quatro Secrets existentes são mantidos. Não criar schemas KSP manualmente.
 
 Alpha.24 usa **Room v7**, migração não destrutiva 6→7 que acrescenta tipo e indicador de fonte externa a `lab_tests`, com defaults que preservam os testes solares antigos. **Backup JSON v5** inclui o novo experimento e importa v1 a v4. Keystore e Secrets inalterados; 7.json só pode ser gerado pelo KSP, não manualmente.
+
+Alpha.25 reorganiza apenas as Configurações e as cores do Material 3; permanece **Room v7** e **backup JSON v5**. Nenhuma migração, serviço ou permissão nova.

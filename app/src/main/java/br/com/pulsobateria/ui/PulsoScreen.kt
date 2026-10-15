@@ -33,21 +33,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.LocalView
 import android.app.Activity
-import android.Manifest
-import android.os.Build
-import android.content.pm.PackageManager
-import android.content.Context
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
-import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import br.com.pulsobateria.BuildConfig
 import br.com.pulsobateria.core.*
 import br.com.pulsobateria.data.*
 import br.com.pulsobateria.monitor.Reading
@@ -76,10 +66,20 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, openLabs: Boolean = false, vm: Pul
    }
   }
  }
- val colors = if (dark) darkColorScheme(primary=Color(0xFF59B5FF),secondary=Color(0xFF38E8C4),background=Color.Black,
-  surface=Color(0xFF101419),surfaceVariant=Color(0xFF17212B),onSurface=Color(0xFFF2F6FC),onBackground=Color.White)
- else lightColorScheme(primary=Color(0xFF0061A7),secondary=Color(0xFF006C59),background=Color(0xFFF3F7FC),
-  surface=Color.White,surfaceVariant=Color(0xFFE6EEF7),onSurface=Color(0xFF101C2A),onBackground=Color(0xFF101C2A))
+ val colors = if(dark) darkColorScheme(
+  primary=Color(0xFF59B5FF),onPrimary=Color(0xFF002A44),
+  primaryContainer=Color(0xFF163C57),onPrimaryContainer=Color(0xFFDDEFFF),
+  secondary=Color(0xFF38E8C4),secondaryContainer=Color(0xFF124B43),onSecondaryContainer=Color(0xFFC7FFF0),
+  background=Color.Black,surface=Color(0xFF101419),surfaceVariant=Color(0xFF17212B),
+  onSurface=Color(0xFFF2F6FC),onSurfaceVariant=Color(0xFFB5C5D3),onBackground=Color.White,
+  outlineVariant=Color(0xFF394957))
+ else lightColorScheme(
+  primary=Color(0xFF0061A7),onPrimary=Color.White,
+  primaryContainer=Color(0xFFD9EDFC),onPrimaryContainer=Color(0xFF0E3F60),
+  secondary=Color(0xFF006C59),secondaryContainer=Color(0xFFD3F4E9),onSecondaryContainer=Color(0xFF12483D),
+  background=Color(0xFFF3F7FC),surface=Color.White,surfaceVariant=Color(0xFFE6EEF7),
+  onSurface=Color(0xFF101C2A),onSurfaceVariant=Color(0xFF526375),onBackground=Color(0xFF101C2A),
+  outlineVariant=Color(0xFFD6E1EB))
  var tab by rememberSaveable { mutableIntStateOf(if(openLabs) 3 else 0) }
  LaunchedEffect(openLabs) { if(openLabs) tab=3 }
  var detailPage by rememberSaveable { mutableStateOf("") }
@@ -583,215 +583,12 @@ private fun SessionHistoryChart(samples: List<SessionSample>,accent: Color) {
  }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SettingsPage(s: Settings,r: Reading,active: Boolean,error: String?,vm: PulsoViewModel,
- onMonitor: (Boolean)->Unit,onLimitations: ()->Unit,onExport: ()->Unit,onImport: ()->Unit,modifier: Modifier) {
- LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-  item { SettingsCard("Aparência") {
-   val themes=listOf("system" to "Sistema","dark" to "AMOLED","light" to "Claro")
-   SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-    themes.forEachIndexed { index,theme ->
-     SegmentedButton(selected=s.theme==theme.first,onClick={vm.theme(theme.first)},shape=SegmentedButtonDefaults.itemShape(index,themes.size),label={
-      Text(theme.second,maxLines=1,overflow=TextOverflow.Ellipsis,style=MaterialTheme.typography.labelMedium)
-     })
-    }
-   }
-  } }
-  item { SettingsCard("Monitoramento contínuo") {
-   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-    Text(if(active) "Notificação ativa" else if(s.continuous) "Monitoramento solicitado" else "Notificação desativada",Modifier.weight(1f))
-    Switch(checked=s.continuous || active,onCheckedChange=onMonitor)
-   }
-   Text("Mantém as leituras e sessões com o app em segundo plano. Pode ser interrompido pelo Android. Sem bloqueio de suspensão da tela.",style=MaterialTheme.typography.bodySmall)
-   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-    Text("Iniciar com o sistema",Modifier.weight(1f))
-    Switch(checked=s.startOnBoot,onCheckedChange=vm::startOnBoot)
-   }
-   Text("Tenta retomar após reiniciar o celular, quando o monitoramento contínuo estiver habilitado e o Android permitir. Também tenta retomar após atualização.",style=MaterialTheme.typography.bodySmall)
-   if(s.continuous && !active) {
-    Text("Serviço interrompido ou aguardando Android. O monitoramento será tentado ao abrir o app.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.primary)
-    TextButton(onClick={onMonitor(true)}) { Text("Tentar agora") }
-   }
-   if(error!=null) Text(error,color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall)
-  } }
-  item { SettingsCard("Leituras e unidades") {
-   BoxWithConstraints(Modifier.fillMaxWidth()) {
-    val sideBySide=maxWidth>=280.dp && LocalDensity.current.fontScale<=1.2f
-    if(sideBySide) {
-     Row(horizontalArrangement=Arrangement.spacedBy(12.dp),modifier=Modifier.fillMaxWidth()) {
-      Column(Modifier.weight(1f)) { IntervalPicker(s.interval,vm) }
-      Column(Modifier.weight(1f)) { TemperaturePicker(s.fahrenheit,vm) }
-     }
-    } else {
-     Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
-      IntervalPicker(s.interval,vm)
-      TemperaturePicker(s.fahrenheit,vm)
-     }
-    }
-   }
-   Text("30 s é o padrão. Eventos podem antecipar a leitura; o Android pode adiar atualizações durante a suspensão.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-  } }
-  item { SettingsCard("Alertas inteligentes") {
-   val context=LocalContext.current
-   var permissionHint by remember { mutableStateOf(false) }
-   val permissionLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-    permissionHint=!granted
-    if(granted) vm.alertsEnabled(true)
-   }
-   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
-    Column(Modifier.weight(1f)) {
-     Text("Avisar sobre alterações importantes",fontWeight=FontWeight.SemiBold)
-     Text("Desativado por padrão",style=MaterialTheme.typography.bodySmall)
-    }
-    Switch(checked=s.alertsEnabled,onCheckedChange={ enable ->
-     if(!enable) vm.alertsEnabled(false)
-     else if(Build.VERSION.SDK_INT>=33 && ContextCompat.checkSelfPermission(context,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)
-      permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-     else if(NotificationManagerCompat.from(context).areNotificationsEnabled()) vm.alertsEnabled(true)
-     else permissionHint=true
-    })
-   }
-   if(permissionHint) Text("Permita notificações para o Pulso nas configurações do Android e tente novamente.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
-   if(s.alertsEnabled) {
-    AlertThresholdRow("Bateria baixa (%)",s.lowBatteryAlert,listOf(10,15,20,25,30),vm::alertLow)
-    AlertThresholdRow("Temperatura máxima (°C)",s.hotBatteryAlert,listOf(40,43,45,48),vm::alertTemp)
-    AlertThresholdRow("Meta de carga (%)",s.chargeTargetAlert,listOf(75,80,85,90),vm::alertTarget)
-    AlertThresholdRow("Descarga rápida (%/h)",s.fastDrainAlert,listOf(15,20,25,30),vm::alertDrain)
-   }
-   Text("Avisos locais após duas leituras consecutivas, no máximo uma vez por episódio e com intervalo mínimo de 1 hora. Não interrompe carregamento, não usa Internet nem garante alerta se o Android suspender o monitoramento.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-  } }
-  item { SettingsCard("Estimativa de corrente (opcional)") {
-   Text("Informe a capacidade ÚTIL aproximada da bateria, somente se souber. Sem esse valor, não estimamos mA a partir de %/h. A corrente estimada será indicada como tal.",style=MaterialTheme.typography.bodySmall)
-   val presets=listOf(2500,3000,3500,4000,4500,5000,5500,6000,6500,7000)
-   var capacityOption by rememberSaveable(s.capacityMah) {
-    mutableStateOf(if(s.capacityMah != null && s.capacityMah in presets) s.capacityMah.toString() else "outro")
-   }
-   var capacityInput by rememberSaveable(s.capacityMah) { mutableStateOf(s.capacityMah?.toString() ?: "") }
-   var capacityMenuExpanded by remember { mutableStateOf(false) }
-   ExposedDropdownMenuBox(expanded=capacityMenuExpanded,onExpandedChange={capacityMenuExpanded=it}) {
-    OutlinedTextField(value=if(capacityOption=="outro") "Digitar outro valor" else "${formatCapacityMah(capacityOption.toInt())} mAh",
-     onValueChange={},readOnly=true,label={Text("Capacidade predefinida")},
-     trailingIcon={ExposedDropdownMenuDefaults.TrailingIcon(expanded=capacityMenuExpanded)},
-     modifier=Modifier.menuAnchor().fillMaxWidth())
-    ExposedDropdownMenu(expanded=capacityMenuExpanded,onDismissRequest={capacityMenuExpanded=false}) {
-     presets.forEach { amount ->
-      DropdownMenuItem(text={Text("${formatCapacityMah(amount)} mAh")},onClick={capacityOption=amount.toString();capacityMenuExpanded=false})
-     }
-     DropdownMenuItem(text={Text("Digitar outro valor…")},onClick={capacityOption="outro";capacityMenuExpanded=false})
-    }
-   }
-   if(capacityOption=="outro") OutlinedTextField(
-    value=capacityInput.toIntOrNull()?.let(::formatCapacityMah) ?: capacityInput,
-    onValueChange={ value ->
-     val digits=value.filter(Char::isDigit)
-     if(digits.length<=5) capacityInput=digits
-    },label={Text("Capacidade útil (mAh)")},placeholder={Text("Ex.: 5.000")},
-    keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),singleLine=true,
-    isError=capacityInput.toIntOrNull()?.let { it !in 500..30_000 } ?: false,
-    modifier=Modifier.fillMaxWidth())
-   val capacityValue = if(capacityOption=="outro") capacityInput.toIntOrNull() else capacityOption.toIntOrNull()
-   val valid = capacityValue != null && capacityValue in 500..30_000
-   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-    Button(onClick={vm.capacityMah(capacityValue)},enabled=valid && capacityValue!=s.capacityMah) { Text("Salvar") }
-    TextButton(onClick={vm.capacityMah(null)},enabled=s.capacityMah!=null) { Text("Remover") }
-   }
-   Text("Valor salvo: ${s.capacityMah?.let { "${formatCapacityMah(it)} mAh" } ?: "não informado"}. Estimativas ignoram degradação e não equivalem a uma leitura de corrente.",style=MaterialTheme.typography.bodySmall)
-  } }
-  item { SettingsCard("Diagnóstico de corrente") {
-   var expanded by rememberSaveable { mutableStateOf(false) }
-   Text("Origem: ${r.currentInfo.source.label}",style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.SemiBold)
-   Text(r.currentInfo.note,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-   TextButton(onClick={expanded=!expanded}) { Text(if(expanded) "Ocultar dados brutos" else "Mostrar dados brutos") }
-   if(expanded) {
-    if(r.updated>0) SessionDetailRow("Horário da leitura",SimpleDateFormat("dd/MM/yyyy HH:mm:ss",Locale.forLanguageTag("pt-BR")).format(Date(r.updated)))
-    SessionDetailRow("CURRENT_NOW",r.currentInfo.rawNow?.let { "$it (µA declarados)" } ?: "Indisponível")
-    SessionDetailRow("CURRENT_AVERAGE",r.currentInfo.rawAverage?.let { "$it (µA declarados)" } ?: "Indisponível")
-    SessionDetailRow("CHARGE_COUNTER",r.currentInfo.rawCounter?.let { "$it µAh" } ?: "Indisponível")
-    SessionDetailRow("Média Android convertida",currentText(r.currentInfo.androidAverageMa))
-    SessionDetailRow("Média pelo contador",if(r.currentInfo.counterMeanMa==null) "Indisponível" else if(matchesModeDirection(r.mode,r.currentInfo.counterMeanMa)) currentText(r.currentInfo.counterMeanMa) else "Sinal em verificação")
-    SessionDetailRow("Calibração instantânea",r.currentInfo.nowAdjustment)
-    SessionDetailRow("Calibração média",r.currentInfo.averageAdjustment)
-    Text(r.currentInfo.comparison,style=MaterialTheme.typography.bodySmall)
-    Text("Ajustes da instantânea: três blocos estáveis de pelo menos 90 s. Validade de até 7 dias, vinculada à instalação e ao firmware, com nova confirmação após pausas. Média Android não é recalibrada: sua janela é desconhecida. Sentinelas brutas permanecem visíveis para diagnóstico.",style=MaterialTheme.typography.bodySmall)
-    TextButton(onClick={vm.resetCalibration()}) { Text("Recalibrar agora") }
-   }
-  } }
-  item { SettingsCard("Backup e restauração") {
-   Text("Exporte sessões, pontos dos gráficos e preferências em JSON local. O arquivo não é criptografado; guarde em lugar privado.",style=MaterialTheme.typography.bodySmall)
-   Row(horizontalArrangement=Arrangement.spacedBy(8.dp),modifier=Modifier.fillMaxWidth()) {
-    Button(onClick=onExport,enabled=!vm.backupBusy) { Text("Exportar") }
-    OutlinedButton(onClick=onImport,enabled=!vm.backupBusy) { Text("Importar") }
-   }
-   if(vm.backupBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
-   Text(vm.backupStatus,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-   Text("Importar substitui todo o histórico atual. Desative o monitoramento contínuo antes de restaurar. Faça uma cópia antes.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
-  } }
-  item { SettingsCard("Sobre o Pulso") {
-   Text("Pulso Bateria ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",fontWeight=FontWeight.SemiBold)
-   Text("100% offline • Sem anúncios • Sem rastreamento",style=MaterialTheme.typography.bodySmall)
-   Text("Histórico e preferências ficam neste aparelho. Desinstalar ou limpar os dados os remove. Exporte um backup manual antes de trocar a instalação.",style=MaterialTheme.typography.bodySmall)
-   TextButton(onClick=onLimitations) { Text("Limitações das medições") }
-  } }
- }
- vm.pendingBackup?.let { preview ->
-  val date=SimpleDateFormat("dd/MM/yyyy HH:mm",Locale.forLanguageTag("pt-BR")).format(Date(preview.exportedAt))
-  AlertDialog(onDismissRequest={vm.cancelBackupRestore()},
-   title={Text("Substituir histórico atual?")},
-   text={Text("Backup de $date com ${preview.sessions.size} sessões e ${preview.samples.size} pontos. A restauração apagará os registros atuais e aplicará as configurações do arquivo. Não há mesclagem. Deseja continuar?")},
-   confirmButton={TextButton(onClick={vm.restoreBackup()},enabled=!vm.backupBusy && !active) { Text("Substituir e restaurar") }},
-   dismissButton={TextButton(onClick={vm.cancelBackupRestore()},enabled=!vm.backupBusy) { Text("Cancelar") }})
- }
-}
-
-@Composable
-private fun IntervalPicker(interval: Int, vm: PulsoViewModel) {
- Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
-  Text("Atualização • s",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
-  val intervals=listOf(15,30,60)
-  SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-   intervals.forEachIndexed { index,seconds ->
-    SegmentedButton(selected=interval==seconds,onClick={vm.interval(seconds)},shape=SegmentedButtonDefaults.itemShape(index,intervals.size),label={
-     Text("$seconds",style=MaterialTheme.typography.labelSmall,maxLines=1)
-    })
-   }
-  }
- }
-}
-
-@Composable
-private fun TemperaturePicker(fahrenheit: Boolean, vm: PulsoViewModel) {
- Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
-  Text("Temperatura",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
-  SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-   listOf(false,true).forEachIndexed { index,unit ->
-    SegmentedButton(selected=fahrenheit==unit,onClick={vm.fahrenheit(unit)},shape=SegmentedButtonDefaults.itemShape(index,2),label={
-     Text(if(unit) "°F" else "°C",style=MaterialTheme.typography.labelSmall)
-    })
-   }
-  }
- }
-}
-
 @Composable
 private fun SettingsCard(title: String,content: @Composable ColumnScope.()->Unit) {
  Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
   Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
    Text(title,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
    content()
-  }
- }
-}
-
-@Composable
-private fun AlertThresholdRow(label: String,selected: Int,values: List<Int>,onChange: (Int)->Unit) {
- Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
-  Text(label,style=MaterialTheme.typography.labelMedium)
-  SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-   values.forEachIndexed { i,value ->
-    SegmentedButton(selected=selected==value,onClick={onChange(value)},
-     shape=SegmentedButtonDefaults.itemShape(i,values.size),label={ Text("$value",style=MaterialTheme.typography.labelSmall) })
-   }
   }
  }
 }

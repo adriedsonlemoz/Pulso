@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-alpha.25 (25) — 2026-10-15
+
+### Configurações: menu por assunto e seletores compactos
+- Redesenho completo da aba Config.: menu por categorias com resumos de estado, páginas internas e navegação Voltar, preservando todos os ajustes e ações existentes.
+- Seletores menores para aparência, intervalo, unidade e quatro limites de alertas; textos técnicos recolhíveis, dados brutos somente sob comando.
+- Harmonização dos tokens Material 3 para os temas claro e AMOLED: `primaryContainer`, `secondaryContainer` e variantes de superfície/borda deixam de usar o lilás padrão.
+- Apenas interface; permanece Room v7, backup JSON v5, Labs, lógica de alertas, corrente, permissões e assinatura. APK e inspeção visual no aparelho pendentes.
+
 ## 0.1.0-alpha.24 (24) — 2026-10-15
 
 ### Labs: menu de experimentos e teste de consumo

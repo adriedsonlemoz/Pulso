@@ -1,29 +1,27 @@
-# Validação — Pulso Bateria 0.1.0-alpha.24 / versionCode 24
+# Validação — Pulso Bateria 0.1.0-alpha.25 / versionCode 25
 
-## Implementação
+## Alteração implementada
 
-- A aba Labs abre em menu: Teste Solar / Teste de Consumo, últimos cinco experimentos e acesso ao histórico completo. Os controles de clima ficam somente na página Solar.
-- Teste de Consumo exige leitura recente de bateria desconectada, mede queda em pontos percentuais (não mAh), permite duração programada com padrão de 120 min e finaliza automaticamente ao prazo quando o Android executa o processo.
-- Leitura de `EXTRA_PLUGGED` permite sinalizar interferência por fonte externa observada, inclusive nos estados de carga completa/ocioso. Pares com mudanças, lacunas ou relógios incoerentes não viram tempo medido. Conexões entre amostras podem escapar da detecção.
-- Teste Solar, relatório e notificações preservados. Room v7 com migração 6→7 e valores padrão para testes legados; backup JSON v5 com importação v1–v4.
-- Reutiliza FGS especial existente, sem nova permissão/serviço, wakelock, internet, câmera ou sensor externo.
+- Página Configurações substituída por menu por categorias, com oito destinos, status resumido, seletores compactos, detalhes técnicos recolhíveis e retorno por botão ou gesto/sistema.
+- Restauração da rolagem ao entrar ou voltar de uma categoria, evitando abrir uma tela no fim da lista.
+- Cor principal, containers selecionados, bordas e indicador de navegação coordenados nos temas claro/AMOLED. Todas as opções originais de configuração continuam ligadas aos mesmos métodos ViewModel.
+- Nenhuma alteração de `BatteryManager`, medições, Labs, Room v7, backup JSON v5, serviço, permissões ou aplicativo ID.
 
-## Verificações executadas neste ambiente
+## Verificações executadas
 
-- `python tools/validate_source.py`: **APROVADO** (arquivos, versão, Manifest, SHA-256 e CRC do Gradle Wrapper).
-- `python tools/test_navigation_contract.py`: **11/11 APROVADOS** (contratos anteriores das telas).
-- `python tools/test_storage_sql.py`: **14/14 APROVADOS**, incluindo migração 6→7, default SOLAR e persistência de testes DISCHARGE. São verificações SQLite locais, não migrações Android instrumentadas. Script legado pode produzir `ResourceWarning` de SQLite.
-- `kotlinc` + execução Java de LabMath real: **13/13 verificações APROVADAS**, incluindo tempos desconectados, fonte externa, lacunas e queda em pontos percentuais.
-- Parser PSI do compilador Kotlin: **44 arquivos Kotlin do projeto, zero erros de sintaxe**, sem resolver dependências Compose/Room.
-- `./gradlew :core:test :app:assembleDebug --offline --no-daemon`: **NÃO EXECUTOU BUILD**: o wrapper tentou baixar gradle-8.11.1 e falhou com `UnknownHostException` em services.gradle.org. Não houve compilação Android, lint, APK nem testes instrumentados.
+- `python tools/validate_source.py`: **APROVADO** (14 arquivos essenciais, XML/Manifest, versionamento, Wrapper SHA-256/CRC).
+- `python tools/test_navigation_contract.py`: **11/11 APROVADOS** (contratos estáticos de páginas e navegação existentes).
+- `python tools/test_storage_sql.py`: **14/14 APROVADOS** (testes SQLite/migrações existentes). O script exibe avisos ResourceWarning de conexões não fechadas em um dos testes, mas sem falhas.
+- `python tools/test_settings_ui.py`: **21/21 APROVADOS** (contratos estáticos das novas categorias, persistência das ações, permissões, backup, retorno, rolagem e tokens de cor). Não é um teste visual nem substitui build Android.
+- Parser PSI do compilador Kotlin: **45 fontes Kotlin, zero erros de sintaxe**. Não resolve tipos Compose nem outras dependências Android.
+- `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon`: **BUILD NÃO INICIADO**, pois o Gradle Wrapper tentou baixar `gradle-8.11.1-bin.zip` e recebeu `UnknownHostException: services.gradle.org`. Não foi gerado APK local.
+- `tools/run_local_jvm_tests.py`: não executado, depende de `--toolchain-dir` com pacotes que não estão disponíveis neste ambiente.
 
-## Pendências em CI/aparelho
+## Validação pendente no GitHub Actions e aparelho
 
-1. Rodar `:core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` e `:app:connectedDebugAndroidTest` com Android SDK e rede.
-2. Obter e versionar somente `7.json` gerado pelo compilador KSP real; não escrever JSON fictício.
-3. Instalar sobre a versão alpha.23 com banco Room v6; verificar migração e retenção do teste Solar anterior.
-4. Testar duas horas com tela apagada, serviço autorizado, notificação permitida, Android restringindo background, processo interrompido e relógio ajustado.
-5. Testar fonte externa presente antes do início (bloqueio), conectada durante o teste (aviso), conectada entre leituras (limitação) e porcentagem final defasada (aviso).
-6. Verificar backup v5 exportado/restaurado, importação v1–v4 e compatibilidade dos relatórios existentes.
+1. Rodar `:core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug` com Android SDK e dependências.
+2. Inspecionar tela em temas claro e AMOLED, fontes padrão/ampliadas e largura reduzida, inclusive opções com 5 alternativas.
+3. Exercitar ícones/retorno, navegação por categoria, scroll, exportação/restauração, permissões dos alertas, monitoramento e recalibração.
+4. Confirmar atualização por cima da alpha.24 usando assinatura estável. Não desinstalar versões anteriores sem backup dos dados.
 
-**Limitação:** prazo de finalização pode ser observado tardiamente pelo Android, e a notificação pode atrasar. Tempo sem dados permanece desconhecido. O monitoramento contínuo continua ativo até o usuário desligá-lo nas Configurações.
+**Não afirmar build Android, APK ou validação visual em aparelho como concluídos.**

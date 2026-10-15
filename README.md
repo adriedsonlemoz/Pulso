@@ -1,7 +1,15 @@
 # Pulso Bateria
 
-**0.1.0-alpha.24 • versionCode 24** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.25 • versionCode 25** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
+
+## Novidades da alpha.25 — Configurações organizadas e tema consistente
+
+- **Configurações em menu:** categorias Preferências, Controle e segurança, Bateria e diagnóstico, Dados e aplicativo. Cada item apresenta o estado atual; ao tocar, exibe apenas os controles daquela categoria, com retorno à lista.
+- **Seletores compactos:** temas, intervalo, unidades e limites de alerta usam opções independentes em cartões menores e com contraste de seleção, evitando grandes faixas segmentadas.
+- **Menos rolagem:** informação técnica sobre monitoramento e calibração fica recolhida e diagnóstico bruto só aparece por ação explícita. Capacidade da bateria e backup continuam disponíveis em páginas próprias.
+- **Paleta coerente:** tons de azul/verde nos componentes Material 3, sem indicadores lilases desconectados do tema. AMOLED permanece com fundo preto.
+- **Preservação:** nenhuma mudança no BatteryManager, Lab, Room v7, backup JSON v5, serviço de monitoramento, permissões ou Secrets. Continuam necessários os testes de interface em aparelho e compilação Android.
 
 ## Novidades da alpha.24 — Labs com dois experimentos
 
