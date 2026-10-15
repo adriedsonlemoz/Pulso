@@ -140,6 +140,7 @@ interface LabDao {
  @Query("SELECT * FROM lab_tests WHERE status='RUNNING' ORDER BY id DESC LIMIT 1") suspend fun active(): LabTest?
  @Insert suspend fun insert(test: LabTest): Long
  @Update suspend fun update(test: LabTest)
+ @Query("DELETE FROM lab_tests WHERE id = :id AND status != 'RUNNING'") suspend fun deleteFinished(id: Long): Int
  @Query("DELETE FROM lab_tests WHERE id NOT IN (SELECT id FROM lab_tests ORDER BY id DESC LIMIT 100)") suspend fun trim()
  @Query("SELECT * FROM lab_tests ORDER BY id ASC") suspend fun exportAll(): List<LabTest>
  @Insert suspend fun insertAll(items: List<LabTest>)

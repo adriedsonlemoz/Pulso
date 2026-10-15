@@ -1,7 +1,14 @@
 # Pulso Bateria
 
-**0.1.0-alpha.25 • versionCode 25** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.26 • versionCode 26** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
+
+## Novidades da alpha.26 — Histórico do Labs mais compacto
+
+- Nos detalhes de cada resultado, horários de início e fim ficam lado a lado em uma única linha com data e hora abreviadas.
+- O comando **Excluir** aparece junto de **Recolher**, apenas com o cartão expandido. A exclusão exige confirmação e remove somente o teste finalizado selecionado do Room; o teste em andamento não pode ser apagado.
+- Cartões solares recolhidos destacam o nível inicial/final da bateria. Experimentos sem intervalo observado deixam o aviso de medição incompleta explícito, sem sugerir 0 min medidos com confiança.
+- Sem migração: Room v7, backup JSON v5, monitoramento e sensores preservados. APK requer validação no CI e aparelho.
 
 ## Novidades da alpha.25 — Configurações organizadas e tema consistente
 

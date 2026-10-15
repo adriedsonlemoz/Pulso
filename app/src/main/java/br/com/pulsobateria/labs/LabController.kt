@@ -113,6 +113,16 @@ class LabController(
   }
  }
 
+ /** Exclui apenas resultados finalizados, sem tocar no teste ativo nem nos demais registros. */
+ suspend fun deleteFinished(id: Long): Boolean {
+  require(id > 0L)
+  ready.await()
+  return mutex.withLock {
+   if(mutable.value?.id == id) return@withLock false
+   withContext(Dispatchers.IO) { dao.deleteFinished(id) > 0 }
+  }
+ }
+
  suspend fun stop() {
   ready.await()
   mutex.withLock {

@@ -37,6 +37,7 @@ private fun duration(ms: Long): String {
  return "%02d:%02d:%02d".format(Locale.getDefault(),seconds/3600,(seconds/60)%60,seconds%60)
 }
 private fun date(time: Long): String = SimpleDateFormat("dd/MM/yyyy HH:mm",Locale.getDefault()).format(Date(time))
+private fun dateCompact(time: Long): String = SimpleDateFormat("dd/MM HH:mm",Locale.getDefault()).format(Date(time))
 
 @Composable
 fun LabsScreen(vm: PulsoViewModel, modifier: Modifier = Modifier, onMonitor: (Boolean) -> Unit) {
@@ -83,9 +84,10 @@ fun LabsScreen(vm: PulsoViewModel, modifier: Modifier = Modifier, onMonitor: (Bo
       TextButton(onClick={page="history"}) { Text("Ver todos ›") }
      }
     }
+    if(vm.labError!=null) item { Text(vm.labError ?: "",color=MaterialTheme.colorScheme.error) }
     if(completed.isEmpty()) item { Text("Nenhum experimento concluído ainda.",style=MaterialTheme.typography.bodySmall,
      color=MaterialTheme.colorScheme.onSurfaceVariant) }
-    items(completed.take(5), key={it.id}) { test -> LabResult(test) }
+    items(completed.take(5), key={it.id}) { test -> LabResult(test,onDelete=vm::deleteLab) }
    }
    "solar", "discharge" -> {
     val solar=page=="solar"
@@ -168,8 +170,9 @@ fun LabsScreen(vm: PulsoViewModel, modifier: Modifier = Modifier, onMonitor: (Bo
    "history" -> {
     item { TextButton(onClick={page="home"}) { Text("‹ Voltar ao Labs") } }
     item { Text("Histórico de experimentos",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold) }
+    if(vm.labError!=null) item { Text(vm.labError ?: "",color=MaterialTheme.colorScheme.error) }
     if(completed.isEmpty()) item { Text("Nenhum teste concluído ainda.") }
-    items(completed,key={it.id}) { test -> LabResult(test) }
+    items(completed,key={it.id}) { test -> LabResult(test,onDelete=vm::deleteLab) }
    }
   }
  }
@@ -254,8 +257,9 @@ private fun RunningLabCard(test: LabTest,now: Long,vm: PulsoViewModel) {
 }
 
 @Composable
-private fun LabResult(test: LabTest) {
+private fun LabResult(test: LabTest, onDelete: (Long) -> Unit) {
  var expanded by rememberSaveable(test.id) { mutableStateOf(false) }
+ var confirmDelete by rememberSaveable(test.id) { mutableStateOf(false) }
  val total=((test.endedAt ?: test.startedAt)-test.startedAt).coerceAtLeast(0)
  val missing=LabMath.unknownMs(total,test.chargingMs,test.notChargingMs)
  val discharge=test.kind=="DISCHARGE"
@@ -279,6 +283,8 @@ private fun LabResult(test: LabTest) {
    } else {
     Text("${skyLabel(test.sky)} • Carga ${duration(test.chargingMs)} • Sem carga ${duration(test.notChargingMs)}",
      style=MaterialTheme.typography.bodySmall)
+    if(!expanded) Text("Bateria: ${test.initialPercent?.let { "$it%" } ?: "?"} → ${test.finalPercent?.let { "$it%" } ?: "?"}",
+     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
    }
    if(expanded) {
     HorizontalDivider()
@@ -298,12 +304,36 @@ private fun LabResult(test: LabTest) {
      }}",style=MaterialTheme.typography.bodySmall)
     }
     LabResultRow("Sem leitura / lacunas",duration(missing))
-    LabResultRow("Início",date(test.startedAt))
-    LabResultRow("Fim",date(test.endedAt ?: test.startedAt))
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+     LabDateCell("Início",dateCompact(test.startedAt),Modifier.weight(1f))
+     LabDateCell("Fim",dateCompact(test.endedAt ?: test.startedAt),Modifier.weight(1f))
+    }
    }
-   Text(if(expanded) "Toque para recolher" else "Toque para ver detalhes",style=MaterialTheme.typography.labelSmall,
-    color=MaterialTheme.colorScheme.primary)
+   if(missing>=total && total>0L) Text("Sem leituras confirmadas: resultado incompleto.",
+    style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
+    horizontalArrangement=Arrangement.SpaceBetween) {
+    TextButton(onClick={expanded=!expanded}) { Text(if(expanded) "Recolher ↑" else "Ver detalhes ↓") }
+    if(expanded) TextButton(onClick={confirmDelete=true},
+     colors=ButtonDefaults.textButtonColors(contentColor=MaterialTheme.colorScheme.error)) {
+     Text("Excluir")
+    }
+   }
   }
+ }
+ if(confirmDelete) AlertDialog(onDismissRequest={confirmDelete=false},
+  title={Text("Excluir este teste?")},
+  text={Text("O resultado será apagado do histórico do Labs. Esta ação não pode ser desfeita.")},
+  confirmButton={TextButton(onClick={confirmDelete=false; onDelete(test.id)},
+   colors=ButtonDefaults.textButtonColors(contentColor=MaterialTheme.colorScheme.error)) { Text("Excluir") }},
+  dismissButton={TextButton(onClick={confirmDelete=false}) { Text("Cancelar") }})
+}
+
+@Composable
+private fun LabDateCell(label: String, value: String, modifier: Modifier = Modifier) {
+ Column(modifier,verticalArrangement=Arrangement.spacedBy(2.dp)) {
+  Text(label,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  Text(value,style=MaterialTheme.typography.bodySmall,fontWeight=FontWeight.Medium)
  }
 }
 

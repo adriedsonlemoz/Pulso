@@ -45,6 +45,14 @@ class PulsoViewModel(application: Application): AndroidViewModel(application) {
    } catch(e: Exception) { labError=e.message ?: "Não foi possível iniciar o teste." }
   }
  }
+ fun deleteLab(id: Long) {
+  viewModelScope.launch {
+   try {
+    labError = null
+    if (!app.labs.deleteFinished(id)) labError = "Não foi possível excluir este teste."
+   } catch (e: Exception) { labError = e.message ?: "Erro ao excluir o teste." }
+  }
+ }
  fun stopLab() { viewModelScope.launch { runCatching { app.labs.stop() }.onFailure { labError=it.message } } }
  fun changeLabSky(sky: String) { viewModelScope.launch { runCatching { app.labs.changeSky(sky) }.onFailure { labError=it.message } } }
  val reading = app.repository.reading
