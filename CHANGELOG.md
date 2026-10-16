@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0-alpha.28 (28) — 2026-10-16
+
+- Home mostra previsão do horário em que a bateria deve esgotar e duração residual, mantendo o cartão de carga até 100% quando conectado.
+- Duração média equivalente a 100% a partir das sessões de descarga reais retidas (até 500), taxa calculada por somas de queda e tempo observado, sem reconstruir lacunas.
+- Previsão usa sessões recentes (até 8 dos últimos 7 dias), combinadas com 70% de peso da taxa instantânea recente válida quando existir; rejeita leituras antigas e amostras insuficientes.
+- Cálculo em core Kotlin com testes específicos. Room v8, backup JSON v6, banco, serviço, sensores, permissões e Secrets inalterados.
+
+
 ## 0.1.0-alpha.27 (27) — 2026-10-15
 
 - Redesigned Labs report: reference-based enlarged 2×2 metrics, duration chip, observed coverage bar, battery temperatures, and side-by-side start/end.

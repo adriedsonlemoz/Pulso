@@ -43,6 +43,7 @@ import br.com.pulsobateria.data.*
 import br.com.pulsobateria.monitor.Reading
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.Calendar
 import java.util.Locale
 import kotlin.math.abs
 
@@ -52,6 +53,9 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, openLabs: Boolean = false, vm: Pul
  val settings by vm.settings.collectAsStateWithLifecycle()
  val reading by vm.reading.collectAsStateWithLifecycle()
  val sessions by vm.sessions.collectAsStateWithLifecycle()
+ val dischargeHistory = remember(sessions,reading.updated) {
+  DischargeForecast.history(sessions.map { HistoricalDischarge(it.started,it.ended,it.durationMs,it.initial,it.final,it.samples,it.mode) },System.currentTimeMillis())
+ }
  val telemetry by vm.telemetry.collectAsStateWithLifecycle()
  val weeklyTelemetry by vm.weeklyTelemetry.collectAsStateWithLifecycle()
  val active by vm.active.collectAsStateWithLifecycle()
@@ -124,9 +128,9 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, openLabs: Boolean = false, vm: Pul
     }
    } else when(tab) {
     0 -> when(reading.mode) {
-     Mode.CHARGING -> ChargingScreen(reading,settings,telemetry,Modifier.padding(padding),onDetails={detailPage="analysis"}) { limitations=true }
-     Mode.DISCHARGING -> DischargingScreen(reading,settings,telemetry,Modifier.padding(padding),onDetails={detailPage="analysis"}) { limitations=true }
-     else -> MonitorScreen(reading,settings,telemetry,Modifier.padding(padding),"Visão da bateria",onDetails={detailPage="analysis"},onLimitations={limitations=true})
+     Mode.CHARGING -> ChargingScreen(reading,settings,telemetry,dischargeHistory,Modifier.padding(padding),onDetails={detailPage="analysis"}) { limitations=true }
+     Mode.DISCHARGING -> DischargingScreen(reading,settings,telemetry,dischargeHistory,Modifier.padding(padding),onDetails={detailPage="analysis"}) { limitations=true }
+     else -> MonitorScreen(reading,settings,telemetry,dischargeHistory,Modifier.padding(padding),"Visão da bateria",onDetails={detailPage="analysis"},onLimitations={limitations=true})
     }
     1 -> History(sessions,settings,vm,Modifier.padding(padding),onCompare={detailPage="compare"},onReports={detailPage="reports"})
     2 -> AppUsageScreen(Modifier.padding(padding))
@@ -138,7 +142,7 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, openLabs: Boolean = false, vm: Pul
    }
   }
   if(limitations) AlertDialog(onDismissRequest={limitations=false},confirmButton={TextButton(onClick={limitations=false}){Text("Entendi")}},title={Text("Sobre as medições")},text={
-   Text("Os dados vêm do Android e dependem do sensor e do fabricante. Corrente positiva indica entrada líquida na bateria; negativa indica saída. O app usa µA e sinal Android. Ajustes da corrente instantânea exigem três janelas estáveis comparadas ao contador; isso não substitui calibração com instrumento. A média Android usa a janela desconhecida do hardware. Estar conectado não garante carga.\n\nTaxa e autonomia exigem pelo menos 5 minutos e 2% de variação na escala da bateria. São estimativas, não garantias. A previsão do sistema só é aceita durante a carga quando compatível com a tendência medida.\n\nSem monitoramento contínuo, só registramos com o app visível. Pausas de até 90 segundos podem retomar a mesma sessão se estado e porcentagem permanecerem iguais; o tempo parado não entra na duração. Lacunas de coleta acima de 3 minutos criam outra sessão. O Android pode suspender o serviço. Não há coleta durante desligamento nem recuperação de intervalos perdidos. Temperatura é da bateria, não da CPU. Corrente não é potência nem capacidade em mAh.")
+   Text("Os dados vêm do Android e dependem do sensor e do fabricante. Corrente positiva indica entrada líquida na bateria; negativa indica saída. O app usa µA e sinal Android. Ajustes da corrente instantânea exigem três janelas estáveis comparadas ao contador; isso não substitui calibração com instrumento. A média Android usa a janela desconhecida do hardware. Estar conectado não garante carga.\n\nA taxa local exige pelo menos 5 minutos e 2% de variação. A duração média com 100% usa sessões de descarga observadas, com dados mínimos; a previsão combina consumo atual e histórico quando disponíveis. São estimativas, não garantias. A previsão do sistema só é aceita durante a carga quando compatível com a tendência medida.\n\nSem monitoramento contínuo, só registramos com o app visível. Pausas de até 90 segundos podem retomar a mesma sessão se estado e porcentagem permanecerem iguais; o tempo parado não entra na duração. Lacunas de coleta acima de 3 minutos criam outra sessão. O Android pode suspender o serviço. Não há coleta durante desligamento nem recuperação de intervalos perdidos. Temperatura é da bateria, não da CPU. Corrente não é potência nem capacidade em mAh.")
   })
  }
 }
@@ -173,16 +177,33 @@ private fun UsageTabIcon() {
  }
 }
 
+/** Arredonda a previsão para cima aos próximos cinco minutos, sem alterar a estimativa física. */
+private fun dischargeEndText(estimatedEnd: Long, measuredAt: Long): String {
+ val step = 300_000L
+ val rounded = estimatedEnd + (step - estimatedEnd % step) % step
+ val fmt = SimpleDateFormat("HH:mm",Locale.forLanguageTag("pt-BR"))
+ val today = SimpleDateFormat("yyyy-MM-dd",Locale.forLanguageTag("pt-BR"))
+ val date = Date(rounded)
+ val base = Date(measuredAt)
+ val tomorrow = Calendar.getInstance().apply { time=base; add(Calendar.DAY_OF_YEAR,1) }.time
+ val label = when(today.format(date)) {
+  today.format(base) -> "Hoje"
+  today.format(tomorrow) -> "Amanhã"
+  else -> SimpleDateFormat("dd/MM",Locale.forLanguageTag("pt-BR")).format(date)
+ }
+ return "$label, às ${fmt.format(date)}"
+}
+
 @Composable
-private fun ChargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, modifier: Modifier, onDetails: () -> Unit, onLimitations: () -> Unit) {
- MonitorScreen(r,s,telemetry,modifier,"Recarga",onDetails,onLimitations)
+private fun ChargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, autonomy: HistoricalAutonomy?, modifier: Modifier, onDetails: () -> Unit, onLimitations: () -> Unit) {
+ MonitorScreen(r,s,telemetry,autonomy,modifier,"Recarga",onDetails,onLimitations)
 }
 @Composable
-private fun DischargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, modifier: Modifier, onDetails: () -> Unit, onLimitations: () -> Unit) {
- MonitorScreen(r,s,telemetry,modifier,"Autonomia",onDetails,onLimitations)
+private fun DischargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, autonomy: HistoricalAutonomy?, modifier: Modifier, onDetails: () -> Unit, onLimitations: () -> Unit) {
+ MonitorScreen(r,s,telemetry,autonomy,modifier,"Autonomia",onDetails,onLimitations)
 }
 @Composable
-private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, modifier: Modifier, pageTitle: String, onDetails: () -> Unit, onLimitations: () -> Unit) {
+private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, autonomy: HistoricalAutonomy?, modifier: Modifier, pageTitle: String, onDetails: () -> Unit, onLimitations: () -> Unit) {
  val isDark = MaterialTheme.colorScheme.background == Color.Black
  val accent by animateColorAsState(
   if(r.mode==Mode.CHARGING) (if(isDark) Color(0xFF38E8C4) else Color(0xFF00785D)) else MaterialTheme.colorScheme.primary,
@@ -191,6 +212,9 @@ private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySamp
  val progress by animateFloatAsState((r.percent ?: 0)/100f,tween(700),label="bateria")
  val charging = r.mode==Mode.CHARGING
  val measuring = charging || r.mode==Mode.DISCHARGING
+ val dischargeEta = remember(r.percent,r.rate,r.updated,r.mode,autonomy) {
+  if (r.mode==Mode.DISCHARGING) DischargeForecast.prediction(r.percent,r.rate,r.updated,System.currentTimeMillis(),autonomy) else null
+ }
  var metricDetails by remember { mutableStateOf<Pair<String,String>?>(null) }
  val currentLabel = if(charging) "Corrente" else "Consumo"
  val currentValue = r.current?.let { currentText(it).removeSuffix(" mA") } ?: "—"
@@ -250,8 +274,24 @@ private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySamp
    Surface(shape=RoundedCornerShape(20.dp),color=accent.copy(alpha=.10f)) {
     Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=14.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
      Text(if(charging) "TEMPO ESTIMADO ATÉ 100%" else "AUTONOMIA ESTIMADA",style=MaterialTheme.typography.labelMedium,color=accent,letterSpacing=1.sp)
-     Text(if(measuring) durationText(r.remaining) else "Indisponível",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
-     if(r.remaining==null) Text("Aguardando dados suficientes",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     if(charging) {
+      Text(durationText(r.remaining),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
+      if(r.remaining==null) Text("Aguardando dados suficientes",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     } else {
+      Text(dischargeEta?.let { dischargeEndText(it.estimatedEndAtMs,r.updated) } ?: "Calculando…",
+       style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
+      Text(dischargeEta?.let { "Tempo restante: ${durationText(it.remainingMs)}" }
+       ?: if(r.mode!=Mode.DISCHARGING) "Previsão disponível quando descarregando" else "Aguardando dados de descarga ou leitura recente",
+       style=MaterialTheme.typography.bodyMedium)
+      if(dischargeEta!=null) Text(dischargeEta.basis+" • horário aproximado",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+      HorizontalDivider(Modifier.padding(vertical=6.dp),color=MaterialTheme.colorScheme.outlineVariant)
+      Text("MÉDIA COM 100%",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+      Text(autonomy?.let { durationText(it.fullBatteryMs) } ?: "Dados insuficientes",
+       style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
+      Text(autonomy?.let { "${it.sessionsUsed} sessões válidas de descarga no histórico disponível" }
+       ?: "Exige ao menos 30 min observados e 4% consumidos em sessões válidas.",
+       style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     }
     }
    }
   }

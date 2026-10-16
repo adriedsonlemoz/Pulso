@@ -1,7 +1,13 @@
 # Pulso Bateria
 
-**0.1.0-alpha.27 • versionCode 27** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.28 • versionCode 28** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
+
+## Novidades da alpha.28 — Autonomia histórica na Home
+
+- A Home mostra **hora prevista para acabar a bateria** (arredondada para cima a cada 5 minutos), **tempo restante** e **média teórica com 100%** a partir das sessões reais de descarga preservadas (até 500).
+- Média por tempo observado das sessões elegíveis; ignora cargas, variações incoerentes e durações com evidência insuficiente. As 8 descargas válidas mais recentes nos últimos 7 dias ajudam a adaptar a previsão. Quando há taxa atual confiável, seu peso é 70% e o histórico 30%.
+- Faltando dados ou leitura recente, sinaliza indisponibilidade; a recarga continua com a previsão anterior até 100%. Sem migração: Room v8 e backup JSON v6 inalterados.
 
 ## Novidades da alpha.27 — Relatórios Labs, temperatura e cópia
 
