@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.32 (32) — 2026-10-16
+
+- Aba Sessões agrupa visualmente trechos de carga/descarga retomados no mesmo percentual em até 3 min e de fontes compatíveis, sem fundir registros Room; grupo expansível mantém gráficos, temperatura, corrente e motivo individuais.
+- Agrupamento pode ser desligado no histórico; horários de começo/fim permanecem e duração observada não inclui lacunas entre sessões. Média agrupada é indicativa, calculada sobre a soma de durações efetivamente observadas.
+- Selo **ATUAL** na sessão com leitura recente confirmada; estados antigos ou pausados não são anunciados como atuais.
+- Room v8, backup v6, serviço, sensores, cálculos das previsões, Labs e Secrets preservados. Compilação Android completa permanece pendente em ambiente local.
+
 ## 0.1.0-alpha.31 (31) — 2026-10-16
 
 - Redesenho compacto da parte inferior da Home: corrente média, gráfico Pulso recente e consumo por período, reduzindo distâncias e paddings.

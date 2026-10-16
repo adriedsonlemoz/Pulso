@@ -38,6 +38,7 @@ import android.app.Activity
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.delay
 import br.com.pulsobateria.core.*
 import br.com.pulsobateria.data.*
 import br.com.pulsobateria.monitor.Reading
@@ -136,7 +137,7 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, openLabs: Boolean = false, vm: Pul
      Mode.DISCHARGING -> DischargingScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),onDetails={detailPage="analysis"}) { limitations=true }
      else -> MonitorScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),"Visão da bateria",onDetails={detailPage="analysis"},onLimitations={limitations=true})
     }
-    1 -> History(sessions,settings,vm,Modifier.padding(padding),onCompare={detailPage="compare"},onReports={detailPage="reports"})
+    1 -> History(sessions,settings,reading,vm,Modifier.padding(padding),onCompare={detailPage="compare"},onReports={detailPage="reports"})
     2 -> AppUsageScreen(Modifier.padding(padding))
     3 -> LabsScreen(vm,Modifier.padding(padding),onMonitor)
     else -> SettingsPage(settings,reading,active,error,vm,onMonitor,{limitations=true},
@@ -555,25 +556,41 @@ private fun Chart(points: List<Point>,accent: Color) {
  }
 }
 @Composable
-private fun History(sessions: List<Session>, settings: Settings, vm: PulsoViewModel, modifier: Modifier, onCompare: () -> Unit, onReports: () -> Unit) {
+private fun History(sessions: List<Session>, settings: Settings, reading: Reading, vm: PulsoViewModel, modifier: Modifier, onCompare: () -> Unit, onReports: () -> Unit) {
  var filter by rememberSaveable { mutableIntStateOf(0) }
+ var groupNearby by rememberSaveable { mutableStateOf(true) }
  var showInfo by rememberSaveable { mutableStateOf(false) }
- val filtered = remember(sessions,filter) {
-  sessions.filter { filter==0 || it.mode==(if(filter==1) Mode.CHARGING.name else Mode.DISCHARGING.name) }
+ var screenNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
+ LaunchedEffect(Unit) {
+  while(true) { delay(60_000L); screenNow=System.currentTimeMillis() }
  }
  val locale = remember { Locale.forLanguageTag("pt-BR") }
- // Toda a lista, ANTES dos filtros, impede associar duas descargas separadas por carga.
- // A indicação é apenas uma hipótese, não faz junção física ou alteração no banco.
+ // Agrupar SEMPRE sobre todas as sessões antes de filtrar. Uma sessão FULL/IDLE no meio
+ // impede uma união falsa. A lista Room e seus IDs permanecem intocados.
+ val sessionGroups = remember(sessions,groupNearby) {
+  val chronological=sessions.sortedWith(compareBy<Session> { it.started }.thenBy { it.id })
+  val partitions=if(groupNearby) SessionHistoryText.groupConsecutive(chronological.map { it.toBoundary() })
+   else chronological.indices.map { listOf(it) }
+  partitions.map { indices -> indices.map { chronological[it] } }.asReversed()
+ }
+ val filteredGroups = remember(sessionGroups,filter) {
+  sessionGroups.filter { members -> filter==0 || members.first().mode==(if(filter==1) Mode.CHARGING.name else Mode.DISCHARGING.name) }
+ }
+ // Um rótulo Atual exige leitura RECENTE e sessão aberta coerente com o Android.
+ val currentSessionId = remember(sessions,reading.mode,reading.updated,screenNow) {
+  if(reading.updated<=0L || screenNow-reading.updated !in 0L..180_000L) null else
+   sessions.firstOrNull { !it.closed && !it.reason.startsWith("Pausada") && it.mode==reading.mode.name &&
+    kotlin.math.abs(it.ended-reading.updated)<=3_000L }?.id
+ }
  val possibleResumptions = remember(sessions) {
   sessions.sortedWith(compareBy<Session> { it.started }.thenBy { it.id })
    .zipWithNext().filter { (before, after) ->
     SessionHistoryText.possibleContinuation(before.toBoundary(), after.toBoundary())
    }.associate { (before, after) -> after.id to (after.started-before.ended) }
  }
- // O DAO já retorna as sessões mais recentes primeiro. Nenhuma data é inventada.
- val groups = remember(filtered) {
+ val groups = remember(filteredGroups) {
   val day = SimpleDateFormat("yyyy-MM-dd",locale)
-  filtered.groupBy { day.format(Date(it.started)) }
+  filteredGroups.groupBy { day.format(Date(it.first().started)) }
  }
  LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
   item(key="history-header") {
@@ -601,7 +618,13 @@ private fun History(sessions: List<Session>, settings: Settings, vm: PulsoViewMo
     }
    }
   }
-  if(filtered.isEmpty()) item(key="history-empty") {
+  item(key="history-group-toggle") {
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+    Text("Agrupar sessões próximas",style=MaterialTheme.typography.bodyMedium,modifier=Modifier.weight(1f))
+    Switch(checked=groupNearby,onCheckedChange={groupNearby=it})
+   }
+  }
+  if(filteredGroups.isEmpty()) item(key="history-empty") {
    Card(colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface),shape=RoundedCornerShape(20.dp)) {
     Column(Modifier.fillMaxWidth().padding(20.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
      Text(if(filter==1) "Nenhuma carga registrada" else if(filter==2) "Nenhuma descarga registrada" else "Nenhuma sessão registrada",fontWeight=FontWeight.SemiBold)
@@ -609,28 +632,105 @@ private fun History(sessions: List<Session>, settings: Settings, vm: PulsoViewMo
     }
    }
   }
-  groups.forEach { (dayKey, dailySessions) ->
+  groups.forEach { (dayKey, dailyGroups) ->
    item(key="day-$dayKey") {
-    val dayTitle = remember(dayKey) { SimpleDateFormat("dd 'de' MMMM 'de' yyyy",locale).format(Date(dailySessions.first().started)) }
+    val dayTitle = remember(dayKey) { SimpleDateFormat("dd 'de' MMMM 'de' yyyy",locale).format(Date(dailyGroups.first().first().started)) }
     Text(dayTitle,style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.SemiBold,color=MaterialTheme.colorScheme.onSurfaceVariant,modifier=Modifier.padding(top=8.dp,bottom=2.dp))
    }
-   items(dailySessions,key={ "session-${it.id}" }) { session ->
-    SessionHistoryCard(session,settings,vm,possibleResumptions[session.id])
+   items(dailyGroups,key={ "session-group-${it.last().id}" }) { members ->
+    if(members.size==1) {
+     val session=members.first()
+     SessionHistoryCard(session,settings,vm,possibleResumptions[session.id],isCurrent=session.id==currentSessionId)
+    } else {
+     GroupedSessionCard(members,settings,vm,possibleResumptions,currentSessionId)
+    }
    }
   }
  }
  if(showInfo) AlertDialog(onDismissRequest={showInfo=false},title={Text("Sobre as sessões")},text={
-  Text("As sessões guardam leituras reais e são separadas por estado da bateria. Pausas curtas podem manter um registro, sem contar o tempo não observado. Após reinício do processo, encerramento do serviço ou lacuna prolongada, um novo registro é iniciado para não inventar medições. Quando duas sessões próximas têm mesmo estado e porcentagem na fronteira, mostramos uma possível retomada, mas preservamos os dois registros separados. Guardamos os 500 resumos mais recentes.\n\nA partir desta versão, também salvamos pontos para gráficos individuais, até 480 por sessão. Sessões antigas preservam seus resumos, mas não têm gráficos retroativos. Valores médios só aparecem quando os dados são suficientes.")
+  Text("Os cartões podem reunir visualmente sessões de carga ou descarga interrompidas e retomadas no mesmo percentual em até 3 minutos, sem uma mudança de estado ou fonte conhecida entre elas. Isso não garante continuidade física: todos os registros continuam separados no banco e podem ser inspecionados ao expandir. A duração exibida soma apenas tempos observados, e nunca os intervalos sem coleta. A média do cartão agrupado é indicativa, não uma medição de corrente.\n\nO selo ATUAL aparece apenas com leitura recente da sessão aberta. Interrupções do processo, atualizações e reinícios podem originar novos registros. O histórico conserva até 500 resumos, com até 480 pontos por sessão. Gráficos das sessões originais não são unidos por linhas fictícias.")
  },confirmButton={TextButton(onClick={showInfo=false}){Text("Entendi")}})
 }
 
 private fun Session.toBoundary(): SessionBoundary = SessionBoundary(
  mode=runCatching { Mode.valueOf(mode) }.getOrDefault(Mode.UNKNOWN),
- started=started,ended=ended,initial=initial,final=final,closed=closed,reason=reason
+ started=started,ended=ended,initial=initial,final=final,closed=closed,reason=reason,
+ chargeSource=chargeSource,chargerLabel=chargerLabel
 )
 
 @Composable
-private fun SessionHistoryCard(session: Session,settings: Settings,vm: PulsoViewModel,possibleGapMs: Long?) {
+private fun CurrentSessionBadge(accent: Color) {
+ Surface(shape=RoundedCornerShape(50),color=accent) {
+  Text("ATUAL",Modifier.padding(horizontal=8.dp,vertical=3.dp),color=MaterialTheme.colorScheme.surface,
+   style=MaterialTheme.typography.labelSmall,fontWeight=FontWeight.Bold)
+ }
+}
+
+/** Resumo virtual. Nenhuma sessão Room, amostra, relatório ou backup é alterado. */
+@Composable
+private fun GroupedSessionCard(
+ members: List<Session>,settings: Settings,vm: PulsoViewModel,
+ possibleResumptions: Map<Long,Long>,currentSessionId: Long?
+) {
+ val first=members.first()
+ val last=members.last()
+ val mode=runCatching { Mode.valueOf(last.mode) }.getOrDefault(Mode.UNKNOWN)
+ val accent=if(mode==Mode.CHARGING) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+ val current=members.any { it.id==currentSessionId }
+ val duration=members.sumOf { it.durationMs.coerceAtLeast(0L) }
+ val samples=members.sumOf { it.samples.coerceAtLeast(0) }
+ val gap=members.zipWithNext().sumOf { (before,after) -> (after.started-before.ended).coerceAtLeast(0L) }
+ val change=SessionHistoryText.variation(first.initial,last.final,mode)
+ val pace=SessionHistoryText.pace(BatteryMath.sessionRate(first.initial,last.final,duration,samples),mode,!last.closed)
+ val timeFormat=remember { SimpleDateFormat("HH:mm",Locale.forLanguageTag("pt-BR")) }
+ val dateTimeFormat=remember { SimpleDateFormat("dd/MM HH:mm",Locale.forLanguageTag("pt-BR")) }
+ val dateFormat=remember { SimpleDateFormat("yyyy-MM-dd",Locale.forLanguageTag("pt-BR")) }
+ val sameDay=dateFormat.format(Date(first.started))==dateFormat.format(Date(last.ended))
+ val period=if(sameDay) "${timeFormat.format(Date(first.started))} → ${timeFormat.format(Date(last.ended))}"
+  else "${dateTimeFormat.format(Date(first.started))} → ${dateTimeFormat.format(Date(last.ended))}"
+ var expanded by rememberSaveable(last.id) { mutableStateOf(false) }
+ Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+  Card(onClick={expanded=!expanded},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),
+   colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
+   Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=14.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+      Text(mode.label,style=MaterialTheme.typography.titleSmall,fontWeight=FontWeight.SemiBold,color=accent)
+      if(current) CurrentSessionBadge(accent)
+     }
+     Surface(shape=RoundedCornerShape(50),color=accent.copy(alpha=.10f)) {
+      Text(if(!last.closed) "Em andamento" else "Finalizada",Modifier.padding(horizontal=9.dp,vertical=4.dp),
+       style=MaterialTheme.typography.labelSmall,color=accent)
+     }
+    }
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
+     Text("${first.initial}% → ${last.final}%",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.SemiBold)
+     Text(durationText(duration),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
+     Text(change,style=MaterialTheme.typography.bodyMedium)
+     Text(period,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    Text("${members.size} sessões próximas reunidas • tempo observado somado",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    if(gap>0L) Text("${durationText(gap)} entre sessões sem leitura (não contado)",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+     Text("Ritmo médio: $pace",Modifier.weight(1f),style=MaterialTheme.typography.labelMedium,maxLines=1,overflow=TextOverflow.Ellipsis)
+     Text(if(expanded) "Recolher ▲" else "Ver originais ▼",style=MaterialTheme.typography.labelMedium,color=accent)
+    }
+   }
+  }
+  if(expanded) {
+   Text("Registros individuais preservados (${members.size})",modifier=Modifier.padding(start=12.dp),
+    style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+   members.forEach { session ->
+    SessionHistoryCard(session,settings,vm,possibleResumptions[session.id],isCurrent=session.id==currentSessionId)
+   }
+  }
+ }
+}
+
+@Composable
+private fun SessionHistoryCard(session: Session,settings: Settings,vm: PulsoViewModel,possibleGapMs: Long?,isCurrent: Boolean=false) {
  var expanded by rememberSaveable(session.id) { mutableStateOf(false) }
  val mode = remember(session.mode) { runCatching { Mode.valueOf(session.mode) }.getOrDefault(Mode.UNKNOWN) }
  val change = SessionHistoryText.variation(session.initial,session.final,mode)
@@ -645,7 +745,10 @@ private fun SessionHistoryCard(session: Session,settings: Settings,vm: PulsoView
  Card(onClick={expanded=!expanded},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
   Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=14.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
-    Text(mode.label,fontWeight=FontWeight.SemiBold,color=accent,style=MaterialTheme.typography.titleSmall)
+    Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+     Text(mode.label,fontWeight=FontWeight.SemiBold,color=accent,style=MaterialTheme.typography.titleSmall)
+     if(isCurrent) CurrentSessionBadge(accent)
+    }
     Surface(shape=RoundedCornerShape(50),color=accent.copy(alpha=.10f)) {
      Text(stateText,modifier=Modifier.padding(horizontal=9.dp,vertical=4.dp),style=MaterialTheme.typography.labelSmall,color=accent)
     }

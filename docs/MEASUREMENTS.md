@@ -62,6 +62,14 @@ Os resumos Room existentes informam percentuais de início/fim, tempo observado 
 
 A UI pode exibir **Possível retomada** para duas sessões imediatamente consecutivas no histórico completo, com mesmo modo e mesmo percentual na fronteira, sessão anterior encerrada por motivo compatível e `0..180 s` entre o fim da anterior e o início da seguinte. Isso é um indício heurístico, não prova de continuidade; não une Room, não atribui amostras inexistentes, não calcula uma média combinada e não supõe que o Android trabalhou sem interrupções. A verificação usa a lista completa, anterior à filtragem visual. A fragmentação observada após morte de processo/serviço pode ser legítima: não há informação suficiente para reunificá-la sem riscos.
 
+## Agrupamento visual de sessões — alpha.32
+
+A aba Sessões pode agrupar, **somente na apresentação**, registros consecutivos de `CHARGING` ou `DISCHARGING` do histórico completo. O anterior precisa estar fechado com motivo `Observação interrompida`, `Intervalo sem observação` ou `Monitoramento pausado`; os níveis de fronteira precisam ser iguais e a lacuna civil precisa estar entre 0 e 180 segundos. Registros de carga exigem o mesmo tipo de fonte e o mesmo rótulo manual (incluindo nulos). Uma sessão de outro estado entre dois segmentos impede junção mesmo com filtro ativo. Não há suposição de atividade durante lacunas.
+
+O cartão de grupo soma exclusivamente `durationMs` observados em cada resumo; o ritmo é diferença líquida dos percentuais de início/fim dividida por essa soma, sujeito às validações já usadas pelo app. Intervalos sem leituras **entre** sessões são informados separadamente e não entram na duração. Gráficos, médias e detalhes técnicos permanecem individuais, acessíveis por `Ver originais`, sem conectar pontos de sessões distintas. A chave `Agrupar sessões próximas` permite recuperar a visualização com todos os cartões separados. A classificação de grupo é heurística e não prova continuidade física.
+
+O selo `ATUAL` requer sessão aberta, não pausada, com estado compatível com o Android e leitura dentro de 180 segundos; a última leitura deve coincidir com o fim da sessão com tolerância de 3 segundos. Não basta ter o maior ID. A aba Sessões reavalia a validade do selo a cada minuto enquanto está aberta, sem serviço ou alarme extra. Após interrupção longa, o rótulo fica ausente até nova leitura.
+
 ## Sessões e integridade
 
 Resumo, ponto e retenção são gravados juntos em transação Room. Máximo de 500 sessões e 480 pontos por sessão (primeiro + 479 recentes), primeira leitura, mudanças de nível ou intervalo de 60 s para nível estável. Não há integral de corrente de sessão persistida. O gráfico reduzido não é matéria-prima suficiente para calculá-la.

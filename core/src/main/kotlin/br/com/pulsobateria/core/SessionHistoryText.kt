@@ -26,6 +26,26 @@ object SessionHistoryText {
   return String.format(locale, "%s%.1f%%/h", sign, abs(rate))
  }
 
+ /**
+  * Agrupa apenas para exibição. Os índices referem-se à lista completa em ordem cronológica:
+  * isso impede juntar trechos separados por uma sessão de outro estado, mesmo com filtros ativos.
+  * Nenhum dado Room é atualizado e lacunas não são somadas à duração observada.
+  */
+ fun groupConsecutive(chronological: List<SessionBoundary>): List<List<Int>> {
+  if (chronological.isEmpty()) return emptyList()
+  val groups = mutableListOf<MutableList<Int>>()
+  for (i in chronological.indices) {
+   val previous = chronological.getOrNull(i-1)
+   val current = chronological[i]
+   val canGroup = previous != null && possibleContinuation(previous,current) &&
+    previous.reason in setOf("Observação interrompida", "Intervalo sem observação", "Monitoramento pausado") &&
+    previous.chargeSource == current.chargeSource &&
+    previous.chargerLabel == current.chargerLabel
+   if(canGroup) groups.last().add(i) else groups.add(mutableListOf(i))
+  }
+  return groups
+ }
+
  /** Indício visual somente: nunca mesclar registros nem contar o tempo sem monitoramento. */
  fun possibleContinuation(previous: SessionBoundary, next: SessionBoundary): Boolean {
   val gap = next.started - previous.ended
@@ -33,7 +53,8 @@ object SessionHistoryText {
    previous.mode in setOf(Mode.CHARGING, Mode.DISCHARGING) &&
    previous.final == next.initial && previous.final in 0..100 &&
    previous.started <= previous.ended && next.started <= next.ended &&
-   previous.reason !in setOf("Estado alterado", "Histórico restaurado") &&
+   previous.reason !in setOf("Estado alterado", "Histórico restaurado", "Fonte de carga alterada", "Leitura indisponível") &&
+   previous.chargeSource == next.chargeSource && previous.chargerLabel == next.chargerLabel &&
    gap in 0L..180_000L
  }
 }
@@ -41,5 +62,6 @@ object SessionHistoryText {
 /** Apenas dados dos resumos Room, sem inferência de amostras ou continuidade física. */
 data class SessionBoundary(
  val mode: Mode, val started: Long, val ended: Long,
- val initial: Int, val final: Int, val closed: Boolean, val reason: String
+ val initial: Int, val final: Int, val closed: Boolean, val reason: String,
+ val chargeSource: String? = null, val chargerLabel: String? = null
 )

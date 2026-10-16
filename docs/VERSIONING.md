@@ -1,7 +1,7 @@
 # Versionamento
 
-Versão atual: **0.1.0-alpha.31**, **versionCode 31**.
-Próxima entrega: **0.1.0-alpha.32**, **versionCode 32**.
+Versão atual: **0.1.0-alpha.32**, **versionCode 32**.
+Próxima entrega: **0.1.0-alpha.33**, **versionCode 33**.
 
 Fonte Android: `app/build.gradle.kts`; a tela Sobre usa BuildConfig. Sincronizar README, CHANGELOG, RELEASE_NOTES, AGENTS, este documento, validação, workflow e ZIP. Preservar `applicationId = br.com.pulsobateria` e os Secrets/keystore existentes.
 
@@ -31,3 +31,5 @@ Alpha.29 acrescenta projeção de recarga no `core` com filtro por estado, tipo 
 Alpha.30 reorganiza somente a interface da Home em estilo compacto: não altera Room v8, backup JSON v6, cálculos do core, permissões ou Secrets. Próxima sequência: alpha.31 / 31.
 
 Alpha.31 reorganiza os cartões inferiores da Home, exclusivamente em Compose. Sem alterações no Room v8, backup JSON v6, módulo core, serviço, fontes de leitura ou Secrets. Próxima alpha.32 / 32.
+
+Alpha.32 implementa agrupamento visual na aba Sessões, sem junção permanente de dados. Room v8 e backup JSON v6, core de autonomia/recarga, Secrets e serviços mantidos. Próxima alpha.33 / 33.

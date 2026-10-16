@@ -1,4 +1,19 @@
-# Validação — Pulso Bateria 0.1.0-alpha.31 / versionCode 31
+# Validação — Pulso Bateria 0.1.0-alpha.32 / versionCode 32
+
+## Implementação — alpha.32 (sessões próximas e marcador Atual)
+
+- `SessionHistoryText.groupConsecutive` é função pura no módulo `core`, computando somente índices do histórico completo em ordem cronológica; usa as condições conservadoras descritas em `docs/MEASUREMENTS.md`.
+- `History` agrupa a exibição por padrão com interruptor para desagrupar. O resumo combinado soma durações observadas e preserva os cartões, amostras, gráficos e motivos individuais em `Ver originais`. A fonte de dados Room, regras de retenção, relatórios e previsões não foram alteradas.
+- `ATUAL` requer leitura recente, sessão aberta/não pausada e correspondência da leitura com a sessão; não é selo decorativo da última linha.
+- Room v8, backup JSON v6, permissões e Secrets inalterados.
+
+## Testes locais — alpha.32
+
+- Núcleo Kotlin compilado com `kotlinc` 1.9.0; `SessionHistoryTextTest` e `SessionHistoryGroupingTest`: **10/10 PASS** (3 existentes + 7 novos). Testes reais executados na JVM com substitutos locais de assert JUnit, **não** com o runner JUnit/Gradle.
+- `tools/validate_source.py` **PASS**, `tools/test_storage_sql.py` **15/15 PASS**, `tools/test_navigation_contract.py` **11/11 PASS**, `tools/test_settings_ui.py` **21/21 PASS**, `tools/test_labs_history.py` **PASS**, `tools/test_home_compact.py` **16/16 PASS**, `tools/test_session_grouping_ui.py` **10/10 PASS** (contratos estáticos). Parser Kotlin PSI: **21 fontes Android, 0 erros sintáticos**.
+- `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon` **não começou a compilação**: o wrapper tentou baixar Gradle 8.11.1 de services.gradle.org e terminou com `UnknownHostException`. Compilação Android/Compose/KSP, execução instrumentada e validação visual em dispositivo real seguem pendentes.
+
+---
 
 ## Implementação — alpha.31 (Home inferior compacta)
 

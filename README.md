@@ -1,7 +1,15 @@
 # Pulso Bateria
 
-**0.1.0-alpha.31 • versionCode 31** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.32 • versionCode 32** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
+
+## Novidades da alpha.32 — Sessões próximas reunidas na visualização
+
+- Sessões consecutivas de carga ou descarga podem ser mostradas em um cartão único, com opção de **Agrupar sessões próximas** habilitada por padrão. Um clique em **Ver originais** revela todos os cartões e gráficos individuais.
+- Agrupamento conservador: mesmas direção e porcentagem na fronteira, lacuna de 0 a 3 minutos, motivo de interrupção compatível e mesma fonte/nome de carregador na carga. Filtra sempre sobre o histórico completo para não esconder alterações de estado.
+- A duração agrupada soma **somente os tempos observados**. O tempo sem amostras entre os registros é informado separadamente, não entra na taxa calculada e nunca gera leituras artificiais.
+- Selo **ATUAL** junto ao estado da sessão somente quando existe leitura recente e registro aberto, coerente com o estado do Android. Sessões pausadas ou antigas não ganham esse selo.
+- Room v8, backup JSON v6, previsão histórica, relatórios, gráficos, comparação, monitoramento e Secrets inalterados. A união é **visual**, reversível com a chave e não modifica IDs nem dados salvos.
 
 ## Novidades da alpha.31 — Cartões inferiores compactos
 
