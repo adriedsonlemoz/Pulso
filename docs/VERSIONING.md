@@ -1,7 +1,7 @@
 # Versionamento
 
-Versão atual: **0.1.0-alpha.28**, **versionCode 28**.
-Próxima entrega: **0.1.0-alpha.29**, **versionCode 29**.
+Versão atual: **0.1.0-alpha.30**, **versionCode 30**.
+Próxima entrega: **0.1.0-alpha.31**, **versionCode 31**.
 
 Fonte Android: `app/build.gradle.kts`; a tela Sobre usa BuildConfig. Sincronizar README, CHANGELOG, RELEASE_NOTES, AGENTS, este documento, validação, workflow e ZIP. Preservar `applicationId = br.com.pulsobateria` e os Secrets/keystore existentes.
 
@@ -23,4 +23,9 @@ Alpha.26 altera somente a UI do Labs e adiciona exclusão individual segura no D
 
 Alpha.27: **Room v8** com migração aditiva 7→8 (temperaturas opcionais e contexto manual Labs), **backup JSON v6** preserva importação v1..v5. Nenhuma permissão ou Secret adicional.
 
-Alpha.28 adiciona apenas projeção sobre os resumos de sessões do Room v8: não altera tabelas ou backup JSON v6, nem os Secrets. A próxima sequência é alpha.29 / 29.
+Alpha.28 adiciona apenas projeção sobre os resumos de sessões do Room v8: não altera tabelas ou backup JSON v6, nem os Secrets. A próxima sequência é alpha.30 / 30.
+
+Alpha.29 acrescenta projeção de recarga no `core` com filtro por estado, tipo de fonte e fase final observada; Room v8, backup JSON v6 e Secrets mantidos. Próxima alpha.30 / 30.
+
+
+Alpha.30 reorganiza somente a interface da Home em estilo compacto: não altera Room v8, backup JSON v6, cálculos do core, permissões ou Secrets. Próxima sequência: alpha.31 / 31.

@@ -1,8 +1,8 @@
-# Pulso Bateria 0.1.0-alpha.28
+# Pulso Bateria 0.1.0-alpha.30
 
-- Nova autonomia na Home: horário aproximado de esgotamento, tempo restante e duração histórica equivalente a 100%, reunindo sessões válidas de descarga.
-- Previsão adapta-se ao consumo recente e ao ritmo local quando disponível. Uma leitura antiga não vira horário fictício.
-- Requer observações suficientes; informações de carga, sensores, histórico e Labs anteriores preservadas.
-- Room v8, backup JSON v6, permissões e Secrets de assinatura inalterados.
+- Nova Home no estilo **compacto**, com melhor hierarquia visual, menos espaço desperdiçado e leitura mais rápida das informações principais.
+- Cabeçalho da tela Início agora resume percentual, estado, fonte e tempo observado em um único cartão com medidor reduzido.
+- Autonomia/recarga estimadas aparecem mais cedo na tela e destacam o horário previsto, o tempo restante e a média histórica, preservando os cálculos da alpha.28 e alpha.29.
+- Histórico, gráficos, análises, Labs, configurações, Room v8, backup JSON v6 e demais funcionalidades permanecem ativos.
 
-APK esperado: `Pulso-Bateria-v0.1.0-alpha.28-debug.apk` após build Android no GitHub Actions. O ZIP contém código-fonte, não APK validado.
+APK esperado: `Pulso-Bateria-v0.1.0-alpha.30-debug.apk` após compilação no GitHub Actions. ZIP contém código-fonte, não APK testado.

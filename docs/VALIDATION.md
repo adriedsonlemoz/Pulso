@@ -1,3 +1,49 @@
+# Validação — Pulso Bateria 0.1.0-alpha.30 / versionCode 30
+
+## Implementação — alpha.30 (Home compacta)
+
+- A tela Início (`PulsoScreen.kt`) foi reorganizada para o estilo compacto: cabeçalho em cartão com resumo do estado, chips de contexto e medidor circular menor, ocupando menos altura que o medidor semicircular anterior.
+- O cartão de previsão foi redesenhado para destacar o horário previsto e mostrar, lado a lado, o tempo restante e a média histórica (descarga ou recarga), preservando exatamente os mesmos dados e regras calculadas no `core`.
+- Nenhuma alteração em Room v8, backup JSON v6, cálculos de autonomia/recarga, permissões, serviço, monitoramento, histórico, Labs ou configurações.
+
+## Testes locais executados — alpha.30
+
+- `python3 tools/validate_source.py`: **PASS**.
+- `python3 tools/test_storage_sql.py`: **15/15 PASS**.
+- `python3 tools/test_navigation_contract.py`: **11/11 PASS**.
+- `python3 tools/test_settings_ui.py`: **21/21 PASS**.
+- `python3 tools/test_labs_history.py`: **PASS** em verificações estáticas/SQL.
+- `kotlinc` 1.9.0 compilando todos os arquivos `.kt` do módulo `core`: **PASS**.
+- `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon`: **não iniciou o build** por `UnknownHostException` ao tentar resolver a distribuição do Gradle em `services.gradle.org`.
+
+## Pendências — alpha.30
+
+- Validar a renderização da Home compacta em aparelho real com fontes grandes, tema claro/AMOLED, 100%, pouca bateria, carregando, descarregando e estado desconhecido.
+- Confirmar compilação Android/Compose/KSP e inspeção visual no GitHub Actions antes de afirmar APK pronto.
+
+---
+
+## Implementação
+
+- Adicionado `core/ChargeForecast.kt`: sessões de carregamento observadas e válidas, tempo médio equivalente a carga completa, seleção opcional de histórico do tipo de fonte, média recente e fase 80–100% somente com observação real. Nenhum intervalo de lacuna foi simulado.
+- Home durante `CHARGING` mostra previsão aproximada do relógio de 100%, duração restante e média equivalente 0–100%; mantém cálculo anterior do Android como fallback local quando apropriado. O cartão de descarga de alpha.28 permanece separado e inalterado.
+- Estimativa não equivale a medição exata de uma recarga completa. Categoria USB/tomada/sem fio não identifica potência ou carregador; painel solar ligado por USB pode apresentar comportamento distinto. Não prever 100% em estado `FULL`/`IDLE`/`UNKNOWN`.
+- Sem mudança no banco Room v8, backup JSON v6, permissões, serviço ou Secrets.
+
+## Testes locais executados
+
+- `kotlinc` 1.9.0 compilando todos os arquivos `.kt` do módulo `core`: **PASS**.
+- `ChargeForecastTest.kt` **7/7 PASS**; `DischargeForecastTest.kt` **6/6 PASS**. Executados na JVM com stubs mínimos de `org.junit.Test` e `org.junit.Assert` para permitir rodar as asserções, **não** com JUnit 4/Gradle real.
+- `python tools/validate_source.py` **PASS**; `python tools/test_storage_sql.py` **15/15 PASS**; `python tools/test_navigation_contract.py` **11/11 PASS**; `python tools/test_settings_ui.py` **21/21 PASS**; `python tools/test_labs_history.py` **PASS** em verificações e SQL.
+- `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon` **não iniciou o build**: Gradle Wrapper tentou alcançar `services.gradle.org` e retornou `UnknownHostException` porque a distribuição 8.11.1 não está no cache local.
+
+## Pendências
+
+- Compilação Kotlin/Compose/Room/KSP pelo Gradle no GitHub Actions e teste visual/funcional no aparelho (fontes grandes, 100%, variação de tipo de fonte, USB/solar intermitente, sessões antigas e fusos/virada de dia).
+- Inspecionar APK gerado e validar atualização assinada sobre a instalação existente; não desinstalar o app sem backup das sessões.
+
+---
+
 # Validação — Pulso Bateria 0.1.0-alpha.28 / versionCode 28
 
 ## Autonomia histórica e horário previsto

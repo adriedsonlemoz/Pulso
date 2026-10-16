@@ -2,7 +2,7 @@
 
 - Android Kotlin/Compose, offline, sem anúncios/rastreamento/INTERNET. Não inventar medições ou capacidades do aparelho.
 - Antes de editar, ler README, docs/MEASUREMENTS.md e docs/VERSIONING.md.
-- Versão atual 0.1.0-alpha.28 / versionCode 28. Próxima 0.1.0-alpha.29 / 29. Incrementar sequencialmente cada entrega e sincronizar todos os documentos, Gradle, workflow e nome do ZIP.
+- Versão atual 0.1.0-alpha.30 / versionCode 30. Próxima 0.1.0-alpha.31 / 31. Incrementar sequencialmente cada entrega e sincronizar todos os documentos, Gradle, workflow e nome do ZIP.
 - Preservar applicationId. Keystore privada e Secrets nunca entram no ZIP de código ou repositório. Para Debug atualizável, requer Secrets estáveis; sem Secrets a chave temporária deve receber aviso.
 - Manter cálculos no módulo core, testáveis sem Android; validar nulos, sentinelas, sinal, relógio e lacunas.
 - Não iniciar foreground service fora de ação permitida; manter tipo specialUse e sua justificativa, sem simular dataSync/health. Não adicionar wake locks, permissões privilegiadas ou mecanismos de evasão.
@@ -25,4 +25,8 @@
 
 - Alpha.27: Labs Room v8 com migração 7→8 e backup JSON v6; temperatura da bateria vem apenas de leituras reais (initial/final/max opcionais). Campos de contexto são declarados manualmente. Ação copiar é textual, excluir mantém confirmação. Não preencher valores legados.
 
-- Alpha.28: Home apresenta hora estimada de descarga e média com 100% calculadas no core usando apenas histórico válido, mantendo previsão de carga anterior. Room v8 / backup v6 sem alteração. Próxima alpha.29 / 29.
+- Alpha.28: Home apresenta hora estimada de descarga e média com 100% calculadas no core usando apenas histórico válido, mantendo previsão de carga anterior. Room v8 / backup v6 sem alteração. Próxima alpha.30 / 30.
+
+- Alpha.29: Home inclui previsão histórica de recarga independente da descarga; apenas CHARGING, com preferências por fonte detectada e faixa 80..100 observada. Sem banco novo.
+
+- Alpha.30: Home redesenhada no estilo compacto, com resumo superior mais enxuto, medidor reduzido e cartão de previsão promovido para a primeira dobra. Mudança visual somente; Room v8, backup v6 e cálculos do core intactos. Próxima alpha.31 / 31.

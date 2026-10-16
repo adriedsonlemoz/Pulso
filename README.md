@@ -1,13 +1,27 @@
 # Pulso Bateria
 
-**0.1.0-alpha.28 • versionCode 28** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.30 • versionCode 30** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
+
+## Novidades da alpha.30 — Home compacta
+
+- A Home ganhou um visual **compacto e mais hierárquico**: o estado da bateria, a fonte, o percentual atual e o tempo observado aparecem no topo em um cartão-resumo com medidor menor.
+- O cartão de **Autonomia estimada** / **Recarga estimada** sobe na tela e passa a destacar o horário previsto, o tempo restante e a média histórica em dois blocos compactos, reduzindo rolagem sem remover informações.
+- Os cartões técnicos, o gráfico recente, a análise, o histórico, Labs, configurações, Room v8 e backup JSON v6 permanecem preservados; a mudança é visual e de organização.
+- Sem alterações nos cálculos do `core`, nas permissões, no serviço ou na estrutura do banco. A próxima etapa continua sendo validar a renderização real no aparelho e no GitHub Actions.
+
+## Novidades da alpha.29 — Recarga histórica na Home
+
+- Carregando: horário aproximado de 100%, tempo restante e média **equivalente** de 0 a 100%, calculada só sobre sessões CHARGING reais (recargas parciais contam). Sessões de descarga, FULL/IDLE e leituras inválidas não contam.
+- Previsão combina ritmo local (70%) e histórico (30%) quando disponíveis; recargas recentes e mesmo **tipo de fonte** (USB/tomada/sem fio) têm preferência com dados suficientes. Tipo de fonte não identifica carregador, cabo ou painel solar específico.
+- Em 80..100%, usa uma taxa separada apenas se houver sessões inteiras nessa faixa; sem dados, mantém extrapolação sinalizada. Caso histórico e taxa não estejam disponíveis, conserva fallback local preexistente do Android.
+- Sem mudanças no Room v8, backup v6, sensores, serviço, permissões ou Secrets. Continua uma estimativa e não um horário garantido.
 
 ## Novidades da alpha.28 — Autonomia histórica na Home
 
 - A Home mostra **hora prevista para acabar a bateria** (arredondada para cima a cada 5 minutos), **tempo restante** e **média teórica com 100%** a partir das sessões reais de descarga preservadas (até 500).
 - Média por tempo observado das sessões elegíveis; ignora cargas, variações incoerentes e durações com evidência insuficiente. As 8 descargas válidas mais recentes nos últimos 7 dias ajudam a adaptar a previsão. Quando há taxa atual confiável, seu peso é 70% e o histórico 30%.
-- Faltando dados ou leitura recente, sinaliza indisponibilidade; a recarga continua com a previsão anterior até 100%. Sem migração: Room v8 e backup JSON v6 inalterados.
+- Faltando dados ou leitura recente, sinaliza indisponibilidade; a recarga originalmente mantinha a previsão local preexistente até 100% (agora complementada na alpha.29). Sem migração: Room v8 e backup JSON v6 inalterados.
 
 ## Novidades da alpha.27 — Relatórios Labs, temperatura e cópia
 

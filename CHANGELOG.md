@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.0-alpha.30 (30) — 2026-10-16
+
+- Redesenho da Home para o estilo compacto: cabeçalho-resumo com medidor menor, chips de estado/fonte e melhor aproveitamento da primeira dobra da tela.
+- Cartões de autonomia e recarga estimadas reorganizados para destacar o horário previsto, o tempo restante e a média histórica em duas miniáreas, sem remover nenhum cálculo existente.
+- Mantidos histórico, gráfico, análise completa, Labs, configurações, Room v8, backup JSON v6, serviço e permissões; entrega focada em interface.
+- Compilação Android completa continua pendente neste ambiente; ver `docs/VALIDATION.md`.
+
+## 0.1.0-alpha.29 (29) — 2026-10-16
+
+- Home agora mostra horário estimado de conclusão da recarga, tempo restante e média equivalente 0–100% baseada exclusivamente nas sessões CHARGING válidas; histórico de descarga continua separado.
+- Combina taxa local com taxas históricas; dá preferência a recargas recentes e ao tipo de fonte detectado pelo Android quando existe amostra suficiente; não confunde categoria de fonte com carregador específico.
+- Ao chegar à fase final, aplica taxa da faixa 80–100% apenas quando há sessões realmente observadas inteiras nessa faixa. Sem essa evidência, deixa explícita a natureza estimada.
+- Núcleo Kotlin puro e testes. Room v8, backup JSON v6, assinatura, serviços e permissões inalterados.
+
 ## 0.1.0-alpha.28 (28) — 2026-10-16
 
 - Home mostra previsão do horário em que a bateria deve esgotar e duração residual, mantendo o cartão de carga até 100% quando conectado.

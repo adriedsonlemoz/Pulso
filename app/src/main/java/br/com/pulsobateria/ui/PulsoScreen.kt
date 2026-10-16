@@ -56,6 +56,10 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, openLabs: Boolean = false, vm: Pul
  val dischargeHistory = remember(sessions,reading.updated) {
   DischargeForecast.history(sessions.map { HistoricalDischarge(it.started,it.ended,it.durationMs,it.initial,it.final,it.samples,it.mode) },System.currentTimeMillis())
  }
+ val chargeHistory = remember(sessions,reading.updated,reading.source) {
+  ChargeForecast.history(sessions.map { HistoricalCharge(it.started,it.ended,it.durationMs,it.initial,it.final,it.samples,it.mode,it.chargeSource) },
+   System.currentTimeMillis(),reading.source)
+ }
  val telemetry by vm.telemetry.collectAsStateWithLifecycle()
  val weeklyTelemetry by vm.weeklyTelemetry.collectAsStateWithLifecycle()
  val active by vm.active.collectAsStateWithLifecycle()
@@ -128,9 +132,9 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, openLabs: Boolean = false, vm: Pul
     }
    } else when(tab) {
     0 -> when(reading.mode) {
-     Mode.CHARGING -> ChargingScreen(reading,settings,telemetry,dischargeHistory,Modifier.padding(padding),onDetails={detailPage="analysis"}) { limitations=true }
-     Mode.DISCHARGING -> DischargingScreen(reading,settings,telemetry,dischargeHistory,Modifier.padding(padding),onDetails={detailPage="analysis"}) { limitations=true }
-     else -> MonitorScreen(reading,settings,telemetry,dischargeHistory,Modifier.padding(padding),"Visão da bateria",onDetails={detailPage="analysis"},onLimitations={limitations=true})
+     Mode.CHARGING -> ChargingScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),onDetails={detailPage="analysis"}) { limitations=true }
+     Mode.DISCHARGING -> DischargingScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),onDetails={detailPage="analysis"}) { limitations=true }
+     else -> MonitorScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),"Visão da bateria",onDetails={detailPage="analysis"},onLimitations={limitations=true})
     }
     1 -> History(sessions,settings,vm,Modifier.padding(padding),onCompare={detailPage="compare"},onReports={detailPage="reports"})
     2 -> AppUsageScreen(Modifier.padding(padding))
@@ -142,7 +146,7 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, openLabs: Boolean = false, vm: Pul
    }
   }
   if(limitations) AlertDialog(onDismissRequest={limitations=false},confirmButton={TextButton(onClick={limitations=false}){Text("Entendi")}},title={Text("Sobre as medições")},text={
-   Text("Os dados vêm do Android e dependem do sensor e do fabricante. Corrente positiva indica entrada líquida na bateria; negativa indica saída. O app usa µA e sinal Android. Ajustes da corrente instantânea exigem três janelas estáveis comparadas ao contador; isso não substitui calibração com instrumento. A média Android usa a janela desconhecida do hardware. Estar conectado não garante carga.\n\nA taxa local exige pelo menos 5 minutos e 2% de variação. A duração média com 100% usa sessões de descarga observadas, com dados mínimos; a previsão combina consumo atual e histórico quando disponíveis. São estimativas, não garantias. A previsão do sistema só é aceita durante a carga quando compatível com a tendência medida.\n\nSem monitoramento contínuo, só registramos com o app visível. Pausas de até 90 segundos podem retomar a mesma sessão se estado e porcentagem permanecerem iguais; o tempo parado não entra na duração. Lacunas de coleta acima de 3 minutos criam outra sessão. O Android pode suspender o serviço. Não há coleta durante desligamento nem recuperação de intervalos perdidos. Temperatura é da bateria, não da CPU. Corrente não é potência nem capacidade em mAh.")
+   Text("Os dados vêm do Android e dependem do sensor e do fabricante. Corrente positiva indica entrada líquida na bateria; negativa indica saída. O app usa µA e sinal Android. Ajustes da corrente instantânea exigem três janelas estáveis comparadas ao contador; isso não substitui calibração com instrumento. A média Android usa a janela desconhecida do hardware. Estar conectado não garante carga.\n\nA taxa local exige pelo menos 5 minutos e 2% de variação. A duração média com 100% usa só sessões de descarga; a duração equivalente de carga 0 a 100% usa apenas sessões carregando, inclusive parciais, com dados mínimos. Ambas combinam tendência atual e histórico quando disponíveis. Carregadores, fontes USB e energia solar podem apresentar taxas diferentes; perto de 100% a carga pode desacelerar. São estimativas, não garantias. A previsão do sistema só é aceita durante a carga quando compatível com a tendência medida.\n\nSem monitoramento contínuo, só registramos com o app visível. Pausas de até 90 segundos podem retomar a mesma sessão se estado e porcentagem permanecerem iguais; o tempo parado não entra na duração. Lacunas de coleta acima de 3 minutos criam outra sessão. O Android pode suspender o serviço. Não há coleta durante desligamento nem recuperação de intervalos perdidos. Temperatura é da bateria, não da CPU. Corrente não é potência nem capacidade em mAh.")
   })
  }
 }
@@ -195,15 +199,15 @@ private fun dischargeEndText(estimatedEnd: Long, measuredAt: Long): String {
 }
 
 @Composable
-private fun ChargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, autonomy: HistoricalAutonomy?, modifier: Modifier, onDetails: () -> Unit, onLimitations: () -> Unit) {
- MonitorScreen(r,s,telemetry,autonomy,modifier,"Recarga",onDetails,onLimitations)
+private fun ChargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, autonomy: HistoricalAutonomy?, chargeHistory: HistoricalCharging?, modifier: Modifier, onDetails: () -> Unit, onLimitations: () -> Unit) {
+ MonitorScreen(r,s,telemetry,autonomy,chargeHistory,modifier,"Recarga",onDetails,onLimitations)
 }
 @Composable
-private fun DischargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, autonomy: HistoricalAutonomy?, modifier: Modifier, onDetails: () -> Unit, onLimitations: () -> Unit) {
- MonitorScreen(r,s,telemetry,autonomy,modifier,"Autonomia",onDetails,onLimitations)
+private fun DischargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, autonomy: HistoricalAutonomy?, chargeHistory: HistoricalCharging?, modifier: Modifier, onDetails: () -> Unit, onLimitations: () -> Unit) {
+ MonitorScreen(r,s,telemetry,autonomy,chargeHistory,modifier,"Autonomia",onDetails,onLimitations)
 }
 @Composable
-private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, autonomy: HistoricalAutonomy?, modifier: Modifier, pageTitle: String, onDetails: () -> Unit, onLimitations: () -> Unit) {
+private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, autonomy: HistoricalAutonomy?, chargeHistory: HistoricalCharging?, modifier: Modifier, pageTitle: String, onDetails: () -> Unit, onLimitations: () -> Unit) {
  val isDark = MaterialTheme.colorScheme.background == Color.Black
  val accent by animateColorAsState(
   if(r.mode==Mode.CHARGING) (if(isDark) Color(0xFF38E8C4) else Color(0xFF00785D)) else MaterialTheme.colorScheme.primary,
@@ -214,6 +218,13 @@ private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySamp
  val measuring = charging || r.mode==Mode.DISCHARGING
  val dischargeEta = remember(r.percent,r.rate,r.updated,r.mode,autonomy) {
   if (r.mode==Mode.DISCHARGING) DischargeForecast.prediction(r.percent,r.rate,r.updated,System.currentTimeMillis(),autonomy) else null
+ }
+ val chargeEta = remember(r.percent,r.rate,r.remaining,r.updated,r.mode,chargeHistory) {
+  if (r.mode != Mode.CHARGING || r.percent == null || r.percent !in 0..99) null
+  else ChargeForecast.prediction(r.percent,r.rate,r.updated,System.currentTimeMillis(),chargeHistory)
+   ?: r.remaining?.takeIf { it in 1L..604_800_000L && r.updated > 0L &&
+    System.currentTimeMillis() - r.updated in 0L..180_000L && r.updated <= Long.MAX_VALUE-it }
+    ?.let { ChargeEta(it,r.updated+it,if(r.systemEstimate) "Previsão local validada do Android" else "Tendência de carga atual") }
  }
  var metricDetails by remember { mutableStateOf<Pair<String,String>?>(null) }
  val currentLabel = if(charging) "Corrente" else "Consumo"
@@ -245,55 +256,46 @@ private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySamp
  }
  LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
   item {
-   Text(pageTitle,style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold,color=accent)
-   Text(if(charging) "Acompanhe o tempo até completar a carga" else if(r.mode==Mode.DISCHARGING) "Veja quanto tempo de bateria ainda resta" else r.mode.label,style=MaterialTheme.typography.bodySmall)
+   CompactHomeHeaderCard(
+    pageTitle=pageTitle,
+    subtitle=if(charging) "Acompanhe o tempo até completar a carga" else if(r.mode==Mode.DISCHARGING) "Veja quanto tempo de bateria ainda resta" else r.mode.label,
+    modeLabel=r.mode.label,
+    source=r.source,
+    percent=r.percent,
+    observedText=if(r.updated==0L) "Aguardando leitura" else "${durationText(r.duration)} observados",
+    accent=accent,
+    progress=progress
+   )
   }
   item {
-   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
-    Surface(color=accent.copy(alpha=.12f),shape=RoundedCornerShape(50)) { Text(r.mode.label,Modifier.padding(horizontal=12.dp,vertical=6.dp),color=accent,style=MaterialTheme.typography.labelLarge) }
-    Text(r.source,style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
-   }
-  }
-  item {
-   Box(Modifier.fillMaxWidth().padding(vertical=4.dp),contentAlignment=Alignment.Center) {
-    val track=MaterialTheme.colorScheme.surfaceVariant
-    Canvas(Modifier.size(212.dp).semantics { contentDescription="Bateria ${r.percent?.toString() ?: "indisponível"} por cento" }) {
-     val inset=8.dp.toPx()
-     val arcSize=Size(size.width-2*inset,size.height-2*inset)
-     drawArc(track,135f,270f,false,topLeft=Offset(inset,inset),size=arcSize,style=Stroke(12.dp.toPx(),cap=StrokeCap.Round))
-     drawArc(accent,135f,270f*progress,false,topLeft=Offset(inset,inset),size=arcSize,style=Stroke(12.dp.toPx(),cap=StrokeCap.Round))
-    }
-    Column(horizontalAlignment=Alignment.CenterHorizontally) {
-     Text(r.percent?.let { "$it%" } ?: "—",fontSize=54.sp,fontWeight=FontWeight.Bold,letterSpacing=(-2).sp)
-     Spacer(Modifier.height(6.dp))
-     Text(if(r.updated==0L) "Aguardando leitura" else "${durationText(r.duration)} observados",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-   }
-  }
-  item {
-   Surface(shape=RoundedCornerShape(20.dp),color=accent.copy(alpha=.10f)) {
-    Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=14.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-     Text(if(charging) "TEMPO ESTIMADO ATÉ 100%" else "AUTONOMIA ESTIMADA",style=MaterialTheme.typography.labelMedium,color=accent,letterSpacing=1.sp)
-     if(charging) {
-      Text(durationText(r.remaining),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
-      if(r.remaining==null) Text("Aguardando dados suficientes",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-     } else {
-      Text(dischargeEta?.let { dischargeEndText(it.estimatedEndAtMs,r.updated) } ?: "Calculando…",
-       style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
-      Text(dischargeEta?.let { "Tempo restante: ${durationText(it.remainingMs)}" }
-       ?: if(r.mode!=Mode.DISCHARGING) "Previsão disponível quando descarregando" else "Aguardando dados de descarga ou leitura recente",
-       style=MaterialTheme.typography.bodyMedium)
-      if(dischargeEta!=null) Text(dischargeEta.basis+" • horário aproximado",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-      HorizontalDivider(Modifier.padding(vertical=6.dp),color=MaterialTheme.colorScheme.outlineVariant)
-      Text("MÉDIA COM 100%",style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
-      Text(autonomy?.let { durationText(it.fullBatteryMs) } ?: "Dados insuficientes",
-       style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
-      Text(autonomy?.let { "${it.sessionsUsed} sessões válidas de descarga no histórico disponível" }
-       ?: "Exige ao menos 30 min observados e 4% consumidos em sessões válidas.",
-       style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-     }
-    }
-   }
+   CompactForecastCard(
+    charging=charging,
+    accent=accent,
+    headline=if(charging) {
+     if(r.percent==100) "100% no indicador" else chargeEta?.let { dischargeEndText(it.estimatedFullAtMs,r.updated) } ?: "Calculando…"
+    } else {
+     dischargeEta?.let { dischargeEndText(it.estimatedEndAtMs,r.updated) } ?: "Calculando…"
+    },
+    supporting=if(charging) {
+     chargeEta?.let { "Até 100%: ${durationText(it.remainingMs)}" }
+      ?: if(r.percent==100) "Android ainda indica carregando" else "Aguardando histórico ou taxa de recarga válida"
+    } else {
+     dischargeEta?.let { "Tempo restante: ${durationText(it.remainingMs)}" }
+      ?: if(r.mode!=Mode.DISCHARGING) "Previsão disponível quando descarregando" else "Aguardando dados de descarga ou leitura recente"
+    },
+    basis=if(charging) chargeEta?.let { it.basis+" • horário aproximado" } else dischargeEta?.let { it.basis+" • horário aproximado" },
+    averageTitle=if(charging) "Média equivalente de 0 a 100%" else "Média com 100%",
+    averageValue=if(charging) chargeHistory?.let { durationText(it.fullChargeMs) } ?: "Dados insuficientes" else autonomy?.let { durationText(it.fullBatteryMs) } ?: "Dados insuficientes",
+    averageDescription=if(charging) {
+     chargeHistory?.let { "${it.sessionsUsed} sessões válidas de carregamento; extrapolação de recargas parciais" }
+      ?: "Exige 30 min observados e ganho de 4% em sessões válidas de carga."
+    } else {
+     autonomy?.let { "${it.sessionsUsed} sessões válidas de descarga no histórico disponível" }
+      ?: "Exige ao menos 30 min observados e 4% consumidos em sessões válidas."
+    },
+    statLabel=if(charging) "Tempo restante" else "Tempo restante",
+    statValue=if(charging) chargeEta?.let { durationText(it.remainingMs) } ?: "—" else dischargeEta?.let { durationText(it.remainingMs) } ?: "—"
+   )
   }
   item {
    BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -346,6 +348,119 @@ private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySamp
  }
  metricDetails?.let { (title, explanation) ->
   AlertDialog(onDismissRequest={metricDetails=null},title={Text(title)},text={Text(explanation)},confirmButton={TextButton(onClick={metricDetails=null}){Text("Fechar")}})
+ }
+}
+
+
+@Composable
+private fun CompactHomeHeaderCard(
+ pageTitle: String,
+ subtitle: String,
+ modeLabel: String,
+ source: String,
+ percent: Int?,
+ observedText: String,
+ accent: Color,
+ progress: Float,
+) {
+ ElevatedCard(shape=RoundedCornerShape(24.dp),colors=CardDefaults.elevatedCardColors(containerColor=MaterialTheme.colorScheme.surface)) {
+  Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Top) {
+    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+     Text(pageTitle,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold,color=accent)
+     Text(subtitle,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    StatusPill(modeLabel,accent)
+   }
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(14.dp),verticalAlignment=Alignment.CenterVertically) {
+    CompactBatteryGauge(percent,progress,accent,Modifier.size(114.dp))
+    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+     SmallInfoChip("Fonte",source)
+     SmallInfoChip("Status",observedText)
+     Text(
+      "Resumo compacto com a carga atual e o tempo realmente observado nesta sessão.",
+      style=MaterialTheme.typography.bodySmall,
+      color=MaterialTheme.colorScheme.onSurfaceVariant,
+      maxLines=3,
+      overflow=TextOverflow.Ellipsis
+     )
+    }
+   }
+  }
+ }
+}
+
+@Composable
+private fun CompactForecastCard(
+ charging: Boolean,
+ accent: Color,
+ headline: String,
+ supporting: String,
+ basis: String?,
+ averageTitle: String,
+ averageValue: String,
+ averageDescription: String,
+ statLabel: String,
+ statValue: String,
+) {
+ Card(shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=accent.copy(alpha=.10f))) {
+  Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+   Text(if(charging) "RECARGA ESTIMADA" else "AUTONOMIA ESTIMADA",style=MaterialTheme.typography.labelMedium,color=accent,letterSpacing=1.sp)
+   Text(headline,style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.Bold)
+   Text(supporting,style=MaterialTheme.typography.bodyMedium)
+   basis?.let {
+    Text(it,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+   }
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+    ForecastMiniCard(statLabel,statValue,Modifier.weight(1f))
+    ForecastMiniCard(averageTitle,averageValue,Modifier.weight(1f))
+   }
+   Text(averageDescription,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  }
+ }
+}
+
+@Composable
+private fun ForecastMiniCard(label: String,value: String,modifier: Modifier=Modifier) {
+ Surface(modifier=modifier,shape=RoundedCornerShape(18.dp),color=MaterialTheme.colorScheme.surface.copy(alpha=.92f)) {
+  Column(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=11.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+   Text(label.uppercase(Locale.forLanguageTag("pt-BR")),style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant,maxLines=2,overflow=TextOverflow.Ellipsis)
+   Text(value,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis)
+  }
+ }
+}
+
+@Composable
+private fun StatusPill(text: String,accent: Color) {
+ Surface(color=accent.copy(alpha=.12f),shape=RoundedCornerShape(50)) {
+  Text(text,Modifier.padding(horizontal=12.dp,vertical=6.dp),color=accent,style=MaterialTheme.typography.labelLarge)
+ }
+}
+
+@Composable
+private fun SmallInfoChip(label: String,value: String) {
+ Surface(shape=RoundedCornerShape(16.dp),color=MaterialTheme.colorScheme.surfaceVariant.copy(alpha=.65f)) {
+  Column(Modifier.fillMaxWidth().padding(horizontal=10.dp,vertical=8.dp),verticalArrangement=Arrangement.spacedBy(2.dp)) {
+   Text(label,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+   Text(value,style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.Medium,maxLines=2,overflow=TextOverflow.Ellipsis)
+  }
+ }
+}
+
+@Composable
+private fun CompactBatteryGauge(percent: Int?,progress: Float,accent: Color,modifier: Modifier=Modifier) {
+ Box(modifier.semantics { contentDescription="Bateria ${percent?.toString() ?: "indisponível"} por cento" },contentAlignment=Alignment.Center) {
+  val track=MaterialTheme.colorScheme.surfaceVariant
+  Canvas(Modifier.fillMaxSize()) {
+   val stroke=10.dp.toPx()
+   val inset=stroke/2
+   drawCircle(track,radius=size.minDimension/2-stroke/2,style=Stroke(width=stroke))
+   drawArc(accent,-90f,360f*progress,false,topLeft=Offset(inset,inset),size=Size(size.width-stroke,size.height-stroke),style=Stroke(width=stroke,cap=StrokeCap.Round))
+  }
+  Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(2.dp)) {
+   Text(percent?.let { "$it%" } ?: "—",fontSize=28.sp,fontWeight=FontWeight.Bold,letterSpacing=(-1).sp)
+   Text("bateria",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+  }
  }
 }
 
