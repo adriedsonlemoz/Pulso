@@ -317,29 +317,18 @@ private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySamp
    }
   }
   item {
+   // As mesmas fontes e os mesmos filtros conservadores da alpha.30.
    val counter=r.currentInfo.counterMeanMa?.takeIf { matchesModeDirection(r.mode,it) }
-   // Zero durante carga ou descarga não é, por si só, uma média útil.
    val androidAverage=r.currentInfo.androidAverageMa?.takeIf {
     matchesModeDirection(r.mode,it) && (it != 0.0 || !measuring)
    }
-   val mean=counter ?: androidAverage
-   val fromCounter=counter!=null
-   var showDetails by remember { mutableStateOf(false) }
-   SettingsCard("Corrente da bateria") {
-    Text(if(charging) "Carga média observada" else if(r.mode==Mode.DISCHARGING) "Consumo médio observado" else "Corrente média observada",
-     style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
-    Text(mean?.let(::currentText) ?: "Aguardando média confiável",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.SemiBold)
-    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
-     Text(if(fromCounter) "Pelo contador da bateria" else if(androidAverage!=null) "Informada pelo Android" else "Dados insuficientes",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-     SectionHelpButton("Corrente da bateria", "Valor líquido que entra ou sai da bateria, não a potência do cabo. Contador e Android podem usar períodos diferentes. Um zero não confirmado durante carga ou descarga é mostrado como ausência de leitura útil.")
-    }
-    TextButton(onClick={showDetails=!showDetails}) { Text(if(showDetails) "Ocultar detalhes" else "Detalhes da medição") }
-    if(showDetails) {
-     SessionDetailRow("Média do contador",counter?.let(::currentText) ?: "Sem leitura válida")
-     SessionDetailRow("Média informada pelo Android",androidAverage?.let(::currentText) ?: "Sem leitura válida")
-
-    }
-   }
+   CompactCurrentCard(
+    title=if(charging) "Carga média observada" else if(r.mode==Mode.DISCHARGING) "Consumo médio observado" else "Corrente média observada",
+    value=(counter ?: androidAverage)?.let(::currentText) ?: "Aguardando média confiável",
+    source=if(counter!=null) "Pelo contador da bateria" else if(androidAverage!=null) "Informada pelo Android" else "Dados insuficientes",
+    counter=counter,
+    androidAverage=androidAverage
+   )
   }
   item { Chart(r.points,accent) }
   item { TelemetrySummaryCard(telemetry,System.currentTimeMillis(),onDetails) }
@@ -464,6 +453,39 @@ private fun CompactBatteryGauge(percent: Int?,progress: Float,accent: Color,modi
  }
 }
 
+/** Resumo técnico compacto. Ajuda e fontes independentes continuam disponíveis. */
+@Composable
+private fun CompactCurrentCard(
+ title: String,
+ value: String,
+ source: String,
+ counter: Double?,
+ androidAverage: Double?
+) {
+ var showDetails by rememberSaveable { mutableStateOf(false) }
+ Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
+  Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(7.dp)) {
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+    Text("Corrente da bateria",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+    SectionHelpButton("Corrente da bateria", "Valor líquido que entra ou sai da bateria, não a potência do cabo. Contador e Android podem usar períodos diferentes. Um zero não confirmado durante carga ou descarga é mostrado como ausência de leitura útil.")
+   }
+   Text(title,style=MaterialTheme.typography.labelMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+   Text(value,style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
+   Text(source,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+   TextButton(onClick={showDetails=!showDetails},contentPadding=PaddingValues(horizontal=0.dp,vertical=0.dp)) {
+    Text(if(showDetails) "Ocultar detalhes" else "Detalhes da medição")
+    Spacer(Modifier.width(4.dp))
+    Icon(if(showDetails) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,contentDescription=null,modifier=Modifier.size(18.dp))
+   }
+   if(showDetails) {
+    HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
+    SessionDetailRow("Média do contador",counter?.let(::currentText) ?: "Sem leitura válida")
+    SessionDetailRow("Média informada pelo Android",androidAverage?.let(::currentText) ?: "Sem leitura válida")
+   }
+  }
+ }
+}
+
 @Composable
 private fun MetricTile(label: String,value: String,unit: String,modifier: Modifier=Modifier,onClick: () -> Unit) {
  Card(onClick=onClick,modifier=modifier.heightIn(min=94.dp).semantics { contentDescription="$label: $value $unit. Toque para detalhes." },
@@ -490,8 +512,11 @@ private fun Metric(label: String,value: String,detail: String,modifier: Modifier
 @Composable
 private fun Chart(points: List<Point>,accent: Color) {
  Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
-  Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-   Text("Pulso recente",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+  Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(7.dp)) {
+   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
+    Text("Pulso recente",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
+    Text("Últimos 30 min",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+   }
    val range=BatteryMath.chartRange(points)
    if(points.size<2 || range==null) {
     Text("Aguardando novas amostras…",Modifier.padding(vertical=20.dp),style=MaterialTheme.typography.bodySmall)
@@ -501,9 +526,8 @@ private fun Chart(points: List<Point>,accent: Color) {
     val difference=(upper-lower).coerceAtLeast(1)
     val elapsed=(points.last().elapsed-points.first().elapsed).coerceAtLeast(0L)
     val timeLabel=if(elapsed<60_000L) "há menos de 1 min" else "há ${elapsed/60_000L} min"
-    Text("Últimos 30 min",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
     val track=MaterialTheme.colorScheme.surfaceVariant
-    Row(Modifier.fillMaxWidth().height(88.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.fillMaxWidth().height(76.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
      Column(Modifier.fillMaxHeight(),verticalArrangement=Arrangement.SpaceBetween) {
       Text("$upper%",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
       Text("$lower%",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)

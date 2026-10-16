@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.31 (31) — 2026-10-16
+
+- Redesenho compacto da parte inferior da Home: corrente média, gráfico Pulso recente e consumo por período, reduzindo distâncias e paddings.
+- Informações técnicas, ajuda e detalhamento de fontes continuam acessíveis. Gráfico preserva pontos e escala; filtros 5/20/60 min, cobertura parcial e atalho para análise completa preservados.
+- Resposta a fontes ampliadas no resumo de consumo por período, sem fixar larguras que cortem valores.
+- Versões de Android/CI/documentação sincronizadas. Sem alterações em `core`, Room v8, backup JSON v6, permissões ou serviço.
+
 ## 0.1.0-alpha.30 (30) — 2026-10-16
 
 - Redesenho da Home para o estilo compacto: cabeçalho-resumo com medidor menor, chips de estado/fonte e melhor aproveitamento da primeira dobra da tela.

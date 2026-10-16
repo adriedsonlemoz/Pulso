@@ -1,8 +1,9 @@
-# Pulso Bateria 0.1.0-alpha.30
+# Pulso Bateria 0.1.0-alpha.31
 
-- Nova Home no estilo **compacto**, com melhor hierarquia visual, menos espaço desperdiçado e leitura mais rápida das informações principais.
-- Cabeçalho da tela Início agora resume percentual, estado, fonte e tempo observado em um único cartão com medidor reduzido.
-- Autonomia/recarga estimadas aparecem mais cedo na tela e destacam o horário previsto, o tempo restante e a média histórica, preservando os cálculos da alpha.28 e alpha.29.
-- Histórico, gráficos, análises, Labs, configurações, Room v8, backup JSON v6 e demais funcionalidades permanecem ativos.
+- A seção inferior da Home acompanha a interface compacta da alpha.30.
+- O cartão **Corrente da bateria** reúne média, origem e acesso à ajuda e aos detalhes num espaço menor.
+- O gráfico **Pulso recente** ocupa menos altura, mantendo os percentuais reais, a escala e os momentos exibidos.
+- **Consumo por período** organiza os filtros de 5/20/60 min, média, mAh, cobertura e acesso à análise completa. Mantém avisos de dados insuficientes/parciais.
+- Interface adaptativa para fontes grandes. Demais funcionalidades e lógica de cálculo preservadas, sem migração Room (v8) ou mudança de backup (v6).
 
-APK esperado: `Pulso-Bateria-v0.1.0-alpha.30-debug.apk` após compilação no GitHub Actions. ZIP contém código-fonte, não APK testado.
+APK esperado no GitHub Actions: `Pulso-Bateria-v0.1.0-alpha.31-debug.apk`. Este ZIP contém código-fonte, não APK compilado.

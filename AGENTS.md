@@ -2,7 +2,7 @@
 
 - Android Kotlin/Compose, offline, sem anúncios/rastreamento/INTERNET. Não inventar medições ou capacidades do aparelho.
 - Antes de editar, ler README, docs/MEASUREMENTS.md e docs/VERSIONING.md.
-- Versão atual 0.1.0-alpha.30 / versionCode 30. Próxima 0.1.0-alpha.31 / 31. Incrementar sequencialmente cada entrega e sincronizar todos os documentos, Gradle, workflow e nome do ZIP.
+- Versão atual 0.1.0-alpha.31 / versionCode 31. Próxima 0.1.0-alpha.32 / 32. Incrementar sequencialmente cada entrega e sincronizar todos os documentos, Gradle, workflow e nome do ZIP.
 - Preservar applicationId. Keystore privada e Secrets nunca entram no ZIP de código ou repositório. Para Debug atualizável, requer Secrets estáveis; sem Secrets a chave temporária deve receber aviso.
 - Manter cálculos no módulo core, testáveis sem Android; validar nulos, sentinelas, sinal, relógio e lacunas.
 - Não iniciar foreground service fora de ação permitida; manter tipo specialUse e sua justificativa, sem simular dataSync/health. Não adicionar wake locks, permissões privilegiadas ou mecanismos de evasão.
@@ -30,3 +30,5 @@
 - Alpha.29: Home inclui previsão histórica de recarga independente da descarga; apenas CHARGING, com preferências por fonte detectada e faixa 80..100 observada. Sem banco novo.
 
 - Alpha.30: Home redesenhada no estilo compacto, com resumo superior mais enxuto, medidor reduzido e cartão de previsão promovido para a primeira dobra. Mudança visual somente; Room v8, backup v6 e cálculos do core intactos. Próxima alpha.31 / 31.
+
+- Alpha.31: três cartões inferiores da Home compactados visualmente; preservar filtro 5/20/60, detalhes independentes de corrente, acessibilidade do gráfico e acesso à análise completa. Lógica, Room v8 e backup v6 inalterados. Próxima alpha.32 / 32.

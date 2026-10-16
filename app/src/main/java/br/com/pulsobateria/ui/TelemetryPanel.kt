@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -31,27 +32,52 @@ fun TelemetrySummaryCard(samples: List<TelemetrySample>, now: Long, onDetails: (
   it.percent,it.currentMa,it.currentSource,it.temperatureC,it.counterUah) } }
  val result=remember(readings,now,minutes) { TelemetryAnalysis.summarize(readings,now,minutes) }
  Card(shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface)) {
-  Column(Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-   Row(verticalAlignment=Alignment.CenterVertically) {
+  Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
     Text("Consumo por período",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
     SectionHelpButton("Consumo por período","Corrente líquida na bateria, não no cabo ou por aplicativo. A carga em mAh só cobre intervalos válidos. Cobertura indica tempo efetivamente observado, não precisão do sensor.")
    }
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-    listOf(5,20,60).forEach { n -> FilterChip(selected=minutes==n,onClick={minutes=n},label={Text("$n min")},modifier=Modifier.weight(1f)) }
+    listOf(5,20,60).forEach { n ->
+     FilterChip(selected=minutes==n,onClick={minutes=n},label={Text("$n min")},modifier=Modifier.weight(1f))
+    }
    }
-   Text(result.meanMa?.let(::currentText) ?: "Sem média suficiente",style=MaterialTheme.typography.headlineMedium,fontWeight=FontWeight.SemiBold)
+   BoxWithConstraints(Modifier.fillMaxWidth()) {
+    val compactStack=maxWidth<310.dp || LocalDensity.current.fontScale>1.2f
+    val current: @Composable () -> Unit = {
+     Column(verticalArrangement=Arrangement.spacedBy(2.dp)) {
+      Text("Corrente média",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+      Text(result.meanMa?.let(::currentText) ?: "Sem média suficiente",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
+     }
+    }
+    val coverage: @Composable () -> Unit = {
+     Column(horizontalAlignment=if(compactStack) Alignment.Start else Alignment.End,verticalArrangement=Arrangement.spacedBy(3.dp)) {
+      Text("Dados disponíveis",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+      Text(if(result.meanMa==null) "Insuficientes" else if(result.coveragePercent<80) "Parciais" else "${result.coveragePercent}% do período",
+       style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.Medium)
+     }
+    }
+    if(compactStack) {
+     Column(verticalArrangement=Arrangement.spacedBy(8.dp)) { current(); coverage() }
+    } else {
+     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+      Box(Modifier.weight(1f)) { current() }
+      coverage()
+     }
+    }
+   }
+   HorizontalDivider(color=MaterialTheme.colorScheme.outlineVariant)
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
-    Column {
+    Column(verticalArrangement=Arrangement.spacedBy(2.dp)) {
      Text("Carga acumulada",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-     Text(result.deltaMah?.let(::signedMah) ?: "Indisponível",style=MaterialTheme.typography.bodyLarge,fontWeight=FontWeight.Medium)
+     Text(result.deltaMah?.let(::signedMah) ?: "Indisponível",style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.Medium)
     }
-    Column(horizontalAlignment=Alignment.End) {
-     Text("Dados disponíveis",style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-     Text(if(result.meanMa==null) "Insuficientes" else if(result.coveragePercent<80) "Parciais" else "${result.coveragePercent}% do período",
-      style=MaterialTheme.typography.bodyMedium,fontWeight=FontWeight.Medium)
+    TextButton(onClick=onDetails) {
+     Text("Análise completa")
+     Spacer(Modifier.width(3.dp))
+     Text("›")
     }
    }
-   TextButton(onClick=onDetails,modifier=Modifier.fillMaxWidth()) { Text("Ver análise completa"); Spacer(Modifier.width(8.dp)); Text("›") }
   }
  }
 }

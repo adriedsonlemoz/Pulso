@@ -1,4 +1,23 @@
-# Validação — Pulso Bateria 0.1.0-alpha.30 / versionCode 30
+# Validação — Pulso Bateria 0.1.0-alpha.31 / versionCode 31
+
+## Implementação — alpha.31 (Home inferior compacta)
+
+- `CompactCurrentCard` substitui somente o bloco de layout de corrente: a escolha conservadora do contador e da média Android é idêntica; mantém explicação técnica e detalhes expansíveis.
+- `Chart` ficou menor, sem mudanças em escala, pontos, curvas ou cálculos da bateria.
+- `TelemetrySummaryCard` reorganiza os mesmos filtros, média mA, mAh e cobertura, mantendo o link para `TelemetryPanel`; layout responde a largura e fonte ampliada.
+- Versão e workflow foram sincronizados, sem mudar Room v8, backup JSON v6, core, serviços, permissões ou armazenamento.
+
+## Testes locais — alpha.31
+
+- `tools/validate_source.py` e verificações de contratos estáticos — PASS.
+- `tools/test_home_compact.py` verifica interações e dados preservados — PASS.
+- `tools/test_storage_sql.py` — 15/15 PASS.
+- `tools/test_navigation_contract.py`, `tools/test_settings_ui.py`, `tools/test_labs_history.py` — PASS.
+- `kotlinc` 1.9.0 compila o módulo `core` — PASS.
+- Análise sintática PSI com o compilador Kotlin: **51 arquivos .kt, 0 erros**. Não verifica resolução das bibliotecas Android/Compose.
+- `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon`: **não iniciou o build**, pois o Wrapper tentou buscar `services.gradle.org` e retornou `UnknownHostException`. Build Android, lint e testes em aparelho continuam pendentes.
+
+---
 
 ## Implementação — alpha.30 (Home compacta)
 

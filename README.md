@@ -1,7 +1,15 @@
 # Pulso Bateria
 
-**0.1.0-alpha.30 • versionCode 30** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.31 • versionCode 31** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
+
+## Novidades da alpha.31 — Cartões inferiores compactos
+
+- A seção inferior da Home agora segue o mesmo padrão compacto da alpha.30, com menos espaços vazios, sem esconder indicadores técnicos.
+- **Corrente da bateria:** valor, categoria da média e fonte da medição aparecem agrupados; o ícone de ajuda e a expansão **Detalhes da medição** preservam acesso às médias do contador e do Android.
+- **Pulso recente:** gráfico de percentual com menor altura, mantendo escala, leitura inicial/final e recorte dos últimos 30 minutos.
+- **Consumo por período:** filtros interativos de 5/20/60 min, média em mA, carga em mAh, cobertura de dados e atalho **Análise completa** reorganizados com layout responsivo para fontes maiores.
+- Alteração somente de interface. Todos os cálculos, amostragens, dados e demais telas, Room v8, backup JSON v6 e segurança do monitoramento permanecem inalterados.
 
 ## Novidades da alpha.30 — Home compacta
 
