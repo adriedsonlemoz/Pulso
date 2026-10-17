@@ -1,3 +1,27 @@
+# Validação — Pulso Bateria 0.1.0-alpha.36 / versionCode 36
+
+## Escopo
+
+- Evolução compatível da API Labs v1 para até 20 clientes autorizados e verificáveis, permissões individuais e revogação individual/geral com confirmação.
+- A autorização da alpha.35 continua visível na alpha.36, com assinatura fixada e último teste próprio. Cada novo cliente mantém um último ID isolado, sem compartilhar relatórios via AIDL.
+- Mutex serializa comandos Binder; identidade do chamador tem UID e pin de SHA-256 verificados em toda transação, e UID compartilhado é recusado.
+- Corrente em mAh não foi alterada; capacidade útil configurada já era fallback de estimativa e continua assim.
+- Nenhuma migração Room, mudança no backup JSON, permissões adicionais, aba Uso, cliente Vigia IA ou API HTTP.
+
+## Testes executados (17/10/2026)
+
+- `python tools/test_external_labs_contract.py`: **26/26 verificações estáticas PASS**.
+- `bash tools/run_external_labs_policy_test.sh`: **16 invariantes executados no Kotlin/JVM PASS**, incluindo múltiplos clientes, revogação, identidade, assinatura e isolamento de IDs.
+- `kotlinc core/src/main/kotlin/br/com/pulsobateria/core/*.kt`: **compilação core PASS** (sem Android SDK).
+- PSI Kotlin: **6 arquivos modificados, sem erros sintáticos**. Não resolve dependências Android/Compose/AIDL.
+- `python tools/validate_source.py`: **PASS** (versões, manifest, XML, hash/CRC do Gradle Wrapper).
+- Navegação, Labs, UI Sessões, Configurações e Home: **PASS** nos respectivos scripts `tools/test_*`.
+- SQLite `tools/test_storage_sql.py`: **15/15 PASS**, com ResourceWarnings do harness.
+- `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon`: **não iniciou a compilação**; `UnknownHostException` em `services.gradle.org` ao tentar obter Gradle 8.11.1.
+- **Pendentes:** Gradle Android/JUnit, testes instrumentados entre dois aplicativos assinados, regressão de atualização DataStore alpha.35→36 em dispositivo, e teste visual da lista de parceiros.
+
+---
+
 # Validação — Pulso Bateria 0.1.0-alpha.35 / versionCode 35
 
 ## Escopo alpha.35

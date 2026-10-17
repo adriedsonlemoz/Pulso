@@ -1,0 +1,15 @@
+Pulso Bateria alpha.36 - verificacoes locais 17/10/2026
+PASS: 26 contratos estaticos da API Labs (tools/test_external_labs_contract.py)
+PASS: 16 invariantes Kotlin/JVM da politica de parceiros (tools/run_external_labs_policy_test.sh)
+PASS: compilacao de todos os arquivos Kotlin core com kotlinc
+PASS: sintaxe Kotlin PSI em 6 arquivos alterados
+PASS: tools/validate_source.py (14 arquivos essenciais, 7 XML, wrapper SHA-256/CRC)
+PASS: tools/test_navigation_contract.py
+PASS: tools/test_labs_history.py
+PASS: tools/test_session_grouping_ui.py (10/10)
+PASS: tools/test_settings_ui.py (21/21)
+PASS: tools/test_home_compact.py (16/16)
+PASS: tools/test_storage_sql.py (15/15; ResourceWarning no harness sqlite)
+PENDENTE: :core:test (JUnit), :app:testDebugUnitTest, :app:lintDebug, :app:assembleDebug
+BLOQUEADO: ./gradlew --offline tentou obter Gradle 8.11.1 de services.gradle.org e falhou com UnknownHostException.
+PENDENTE: instrumentacao real da API AIDL e verificacao visual Compose em Android.

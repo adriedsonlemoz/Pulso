@@ -86,7 +86,7 @@ internal fun SettingsPage(
      SettingsMenuDivider()
      SettingsMenuItem(Icons.Default.Info,"Alertas inteligentes",if(s.alertsEnabled) "Ativados" else "Desativados") { section="alerts" }
      SettingsMenuDivider()
-     SettingsMenuItem(Icons.Default.Share,"Integração com aplicativos",if(s.externalLabsEnabled) "API Labs autorizada" else "API Labs desativada") { section="integration" }
+     SettingsMenuItem(Icons.Default.Share,"Integração com aplicativos",if(s.externalLabsEnabled) "${s.externalLabsClients.count { it.enabled }} apps ativos" else "API Labs desativada") { section="integration" }
     }
    }
    item {
@@ -176,7 +176,7 @@ internal fun SettingsPage(
     }
     "capacity" -> {
      item { SettingsPanel("Capacidade útil aproximada") {
-      Text("Informe apenas se souber. Esse valor permite estimativas de corrente por %/h; não altera a leitura real do Android.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+      Text("Informe a capacidade útil apenas se souber. O Pulso usa este valor como estimativa por %/h quando nenhuma corrente confiável do Android estiver disponível e houver dados suficientes. Não calibra os sensores.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
       val presets=listOf(2500,3000,3500,4000,4500,5000,5500,6000,6500,7000)
       var option by rememberSaveable(s.capacityMah) { mutableStateOf(if(s.capacityMah != null && s.capacityMah in presets) s.capacityMah.toString() else "outro") }
       var input by rememberSaveable(s.capacityMah) { mutableStateOf(s.capacityMah?.toString() ?: "") }
@@ -203,7 +203,7 @@ internal fun SettingsPage(
        TextButton(onClick={vm.capacityMah(null)},enabled=s.capacityMah!=null) { Text("Remover") }
       }
       Text("Salvo: ${s.capacityMah?.let { "${formatCapacityMah(it)} mAh" } ?: "não informado"}",style=MaterialTheme.typography.labelMedium)
-      Text("Estimativas não consideram degradação e não equivalem a uma medição de corrente.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+      Text("A capacidade útil pode diminuir com desgaste e temperatura. Consulte Configurações → Diagnóstico de corrente para ver se a fonte atual é medição ou estimativa.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
      } }
     }
     "diagnostic" -> {
@@ -235,9 +235,11 @@ internal fun SettingsPage(
     }
     "integration" -> {
      item { SettingsPanel("Controle dos testes Labs") {
-      Text("Autorize um aplicativo instalado, como o Vigia IA, a iniciar, consultar e encerrar somente os testes criados por ele. Funciona offline e não ativa sozinho o monitoramento.",style=MaterialTheme.typography.bodySmall)
+      Text("Autorize vários aplicativos instalados a iniciar e acompanhar seus próprios testes. Apenas um teste Labs pode executar por vez. Funciona offline e não inicia o monitoramento automaticamente.",style=MaterialTheme.typography.bodySmall)
       var chooser by remember { mutableStateOf(false) }
       var search by remember { mutableStateOf("") }
+      var removeAllConfirm by remember { mutableStateOf(false) }
+      var pendingRemove by remember { mutableStateOf<String?>(null) }
       val pm = context.packageManager
       val installed = remember(chooser) {
        if (!chooser) emptyList() else pm.queryIntentActivities(
@@ -248,14 +250,22 @@ internal fun SettingsPage(
          else (result.loadLabel(pm)?.toString() ?: packageName) to packageName
         }.distinctBy { it.second }.sortedBy { it.first.lowercase(Locale.ROOT) }
       }
-      Text("Aplicativo autorizado: ${s.externalLabsPackage ?: "nenhum"}",style=MaterialTheme.typography.bodySmall)
-      OutlinedButton(onClick={chooser=true},modifier=Modifier.fillMaxWidth()) { Text("Selecionar aplicativo instalado") }
+      SettingsToggleRow("Habilitar API local","Habilita comandos apenas dos aplicativos autorizados",s.externalLabsEnabled,vm::externalLabsEnabled)
+      Text("${s.externalLabsClients.size} de 20 aplicativos cadastrados",style=MaterialTheme.typography.labelMedium)
+      OutlinedButton(onClick={chooser=true},modifier=Modifier.fillMaxWidth(),enabled=s.externalLabsClients.size < 20) {
+       Icon(Icons.Default.Add,contentDescription=null)
+       Spacer(Modifier.width(6.dp))
+       Text("Adicionar aplicativo")
+      }
       if(chooser) AlertDialog(onDismissRequest={chooser=false},title={Text("Autorizar aplicativo")},text={
        Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(value=search,onValueChange={search=it.take(50)},singleLine=true,
          label={Text("Pesquisar aplicativo")},modifier=Modifier.fillMaxWidth())
         LazyColumn(Modifier.heightIn(max=320.dp)) {
-         items(installed.filter { it.first.contains(search,true) || it.second.contains(search,true) }) { entry ->
+         items(installed.filter { (label, pkg) ->
+          (label.contains(search,true) || pkg.contains(search,true)) &&
+           s.externalLabsClients.none { it.packageName == pkg }
+         }) { entry ->
           TextButton(onClick={vm.pairExternalLabs(entry.second);chooser=false},modifier=Modifier.fillMaxWidth()) {
            Column(Modifier.fillMaxWidth()) {
             Text(entry.first,maxLines=1,overflow=TextOverflow.Ellipsis)
@@ -266,10 +276,39 @@ internal fun SettingsPage(
         }
        }
       },confirmButton={TextButton(onClick={chooser=false}) { Text("Fechar") }})
-      SettingsToggleRow("Permitir controle externo","Exige seleção de aplicativo e assinatura válida",s.externalLabsEnabled,vm::externalLabsEnabled)
-      if(s.externalLabsEnabled && s.externalLabsPackage!=null) Text("Autorizado: ${s.externalLabsPackage}",style=MaterialTheme.typography.labelSmall)
-      TextButton(onClick={vm.clearExternalLabs()},enabled=s.externalLabsPackage!=null) { Text("Revogar autorização") }
-      Text("A autorização é local e desativada por padrão. Não é incluída em backups. Se a assinatura do outro aplicativo mudar, selecione-o novamente. Um teste manual não pode ser encerrado pela API.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+      if(s.externalLabsClients.isEmpty()) {
+       Text("Nenhum aplicativo autorizado. Adicione um aplicativo e habilite a API para permitir comandos externos.",style=MaterialTheme.typography.bodySmall)
+      } else {
+       s.externalLabsClients.forEach { partner ->
+        val label = remember(partner.packageName) {
+         runCatching { pm.getApplicationLabel(pm.getApplicationInfo(partner.packageName, 0)).toString() }
+          .getOrDefault(partner.packageName)
+        }
+        val signatureMatches = remember(partner.packageName, partner.signer) {
+         br.com.pulsobateria.integration.TrustedPartner.signerFingerprint(context, partner.packageName) == partner.signer
+        }
+        HorizontalDivider()
+        Text(label,style=MaterialTheme.typography.titleSmall)
+        Text(partner.packageName,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        if (!signatureMatches) Text("Aplicativo removido ou assinatura alterada. Revogue e autorize novamente.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.error)
+        SettingsToggleRow("Permitir comandos","${if (partner.enabled && s.externalLabsEnabled && signatureMatches) "Acesso ativo" else "Acesso bloqueado"}",partner.enabled) {
+         vm.enableExternalPartner(partner.packageName, it)
+        }
+        TextButton(onClick={pendingRemove=partner.packageName}) { Text("Revogar este aplicativo") }
+       }
+       TextButton(onClick={removeAllConfirm=true}) { Text("Revogar todos") }
+      }
+      if(pendingRemove != null) AlertDialog(onDismissRequest={pendingRemove=null},
+       title={Text("Revogar acesso?")},
+       text={Text("O aplicativo ${pendingRemove} deixará de controlar e consultar seus testes pela API. Os relatórios salvos permanecem no Pulso.")},
+       confirmButton={TextButton(onClick={pendingRemove?.let(vm::removeExternalPartner);pendingRemove=null}) { Text("Revogar") }},
+       dismissButton={TextButton(onClick={pendingRemove=null}) { Text("Cancelar") }})
+      if(removeAllConfirm) AlertDialog(onDismissRequest={removeAllConfirm=false},
+       title={Text("Revogar todos os aplicativos?")},
+       text={Text("Todas as autorizações externas serão removidas. O histórico dos Labs será preservado.")},
+       confirmButton={TextButton(onClick={vm.clearExternalLabs();removeAllConfirm=false}) { Text("Revogar todos") }},
+       dismissButton={TextButton(onClick={removeAllConfirm=false}) { Text("Cancelar") }})
+      Text("Cada cliente é identificado pelo pacote, UID e assinatura instalada. UIDs compartilhados são recusados. Não é possível encerrar o teste de outro app pela API; autorizações não entram no backup.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
      } }
     }
     "backup" -> {

@@ -2,7 +2,7 @@
 
 - Android Kotlin/Compose, offline, sem anúncios/rastreamento/INTERNET. Não inventar medições ou capacidades do aparelho.
 - Antes de editar, ler README, docs/MEASUREMENTS.md e docs/VERSIONING.md.
-- Versão atual 0.1.0-alpha.35 / versionCode 35. Próxima 0.1.0-alpha.36 / 36. Incrementar sequencialmente cada entrega e sincronizar todos os documentos, Gradle, workflow e nome do ZIP.
+- Versão atual 0.1.0-alpha.36 / versionCode 36. Próxima 0.1.0-alpha.37 / 37. Incrementar sequencialmente cada entrega e sincronizar todos os documentos, Gradle, workflow e nome do ZIP.
 - Preservar applicationId. Keystore privada e Secrets nunca entram no ZIP de código ou repositório. Para Debug atualizável, requer Secrets estáveis; sem Secrets a chave temporária deve receber aviso.
 - Manter cálculos no módulo core, testáveis sem Android; validar nulos, sentinelas, sinal, relógio e lacunas.
 - Não iniciar foreground service fora de ação permitida; manter tipo specialUse e sua justificativa, sem simular dataSync/health. Não adicionar wake locks, permissões privilegiadas ou mecanismos de evasão.
@@ -40,3 +40,5 @@
 - Alpha.34: a navegação usa Início/Sessões/Labs/Config.; **Uso foi removida da barra**, não os dados. O histórico ocupa a aba 1 e permanece acessível pela Home. Labs conserva melhorias da alpha.33. Room v8 e backup v6 inalterados. Próxima alpha.35 / 35.
 
 - Alpha.35: AIDL externo apenas para um cliente instalado explicitamente pareado, com UID do Binder coletado antes da troca de dispatcher e certificado SHA-256 conferido a cada chamada. Não ativar FGS remoto, não incluir API HTTP, não incluir autorizados no backup, proteger testes manuais e preservar Room v8/JSON v6. Contrato v1 documentado em docs/INTEGRACAO_VIGIA_IA.md. Próxima alpha.36 / 36.
+
+- Alpha.36: API multiaplicativos mantém AIDL v1, DataStore migra cliente legado alpha.35, por-app signers/IDs, limite 20, recusa UID compartilhado e revogação individual/geral. Não alterar Room/backup/cálculo. Próxima alpha.37 / 37.

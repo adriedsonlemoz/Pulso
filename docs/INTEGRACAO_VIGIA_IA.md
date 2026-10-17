@@ -1,4 +1,4 @@
-# Pulso Bateria ↔ Vigia IA: API local Labs v1 (alpha.35)
+# Pulso Bateria ↔ Vigia IA: API local Labs v1 (alpha.36)
 
 ## Objetivo e limites
 
@@ -8,12 +8,12 @@ O serviço externo **não** inicia o foreground service: antes do primeiro coman
 
 ## Como autorizar
 
-1. Instale no mesmo aparelho o Pulso Bateria alpha.35 e o Vigia IA (ou outro cliente Android).
-2. No Pulso, Config. → **Integração com aplicativos** → **Selecionar aplicativo instalado**. Escolha o aplicativo correto conferindo nome **e pacote**. O pacote do Vigia IA deve ser obtido do aplicativo instalado, não há um ID presumido neste projeto.
-3. Ative **Permitir controle externo**. Essa autorização fica **desligada por padrão** e não é exportada no backup. O Pulso guarda o pacote e o SHA-256 do conjunto de certificados atuais; trocar/reinstalar o cliente com outra assinatura exige novo pareamento.
+1. Instale no mesmo aparelho o Pulso Bateria alpha.36 e o Vigia IA (ou outro cliente Android).
+2. No Pulso, Config. → **Integração com aplicativos** → **Adicionar aplicativo**. Escolha o aplicativo correto conferindo nome **e pacote**. O pacote do Vigia IA deve ser obtido do aplicativo instalado, não há um ID presumido neste projeto.
+3. Ative **Habilitar API local** e verifique **Permitir comandos** para cada parceiro. Essa autorização fica **desligada por padrão** e não é exportada no backup. O Pulso guarda o pacote e o SHA-256 do conjunto de certificados atuais; trocar/reinstalar o cliente com outra assinatura exige novo pareamento.
 4. Habilite o monitoramento contínuo do Pulso e valide uma leitura recente. A chamada de consumo requer aparelho **desconectado de carregador/fonte**.
 
-Apenas um cliente fica pareado por vez. O controle é validado em **todas** as transações AIDL usando o **UID fornecido pelo Binder** na thread original e a assinatura real do pacote instalado. Informar outro pacote nos parâmetros **não** concede acesso. A revogação é imediata para novos comandos; um experimento já iniciado pode ser encerrado manualmente na interface Labs.
+Até **20 clientes** podem ficar pareados simultaneamente, cada um com sua própria autorização, assinatura fixada e ID do último teste. O controle é validado em **todas** as transações AIDL usando o **UID fornecido pelo Binder** na thread original e a assinatura real do pacote instalado. UIDs compartilhados entre múltiplos pacotes são recusados, pois não permitem atribuir a chamada a um pacote específico. Informar outro pacote nos parâmetros **não** concede acesso. A revogação individual/global se aplica a novos comandos, independentemente dos demais clientes; um experimento já iniciado pode ser encerrado manualmente na interface Labs.
 
 ## Contrato estável v1
 
@@ -78,18 +78,28 @@ if (response.getBoolean("ok")) {
 }
 ```
 
-`Bundle stopTest(long testId)` encerra **somente** o último teste criado pelo cliente pareado, se ainda estiver ativo. Não encerra testes manuais da aba Labs.
+`Bundle stopTest(long testId)` encerra **somente** o último teste criado por aquele cliente autorizado, se ainda estiver ativo. Não encerra testes manuais da aba Labs.
 
 `Bundle getStatus()` indica `running` e, quando existir um teste deste cliente, campos de resumo. Se houver experimento manual em andamento, retorna `OTHER_TEST_ACTIVE` sem ler dados privados dele.
 
-`Bundle getReport(long testId)` busca no banco Room o último teste iniciado por esse cliente. Durante o teste retorna `status=RUNNING`; após conclusão, `status=COMPLETED` (prazo automático) ou `STOPPED` (encerrado manualmente/API). O relatório fica disponível até a retenção normal do histórico ou exclusão pelo usuário.
+`Bundle getReport(long testId)` busca no banco Room o último teste iniciado por esse cliente, com ID salvo separadamente dos outros aplicativos. Durante o teste retorna `status=RUNNING`; após conclusão, `status=COMPLETED` (prazo automático) ou `STOPPED` (encerrado manualmente/API). O relatório fica disponível até a retenção normal do histórico ou exclusão pelo usuário.
 
 **Respostas**: `ok:Boolean`, `code:String`, `message:String`, `protocolVersion:Int=1` e, quando aplicável: `testId`, `kind`, `status`, `startedAt`, `deadlineAt` (`-1` se ausente), `endedAt` (`-1` se ausente), `durationMs`, `initialPercent`/`finalPercent` (`-1` se ausente), `chargingObservedMs`, `notChargingObservedMs`, `unobservedMs`, `sky`, `panelWatts` (quando informado), `screenCondition`, `cameraReported`, `wifiReported`, `recordingReported`, `validCurrentMs`, `meanCurrentMa` (**apenas** se houve corrente válida) e `externalPowerDetected`. Tempos de inatividade sem leituras **não são estimados** como consumo. `durationMs` é o tempo civil decorrido, não o total observado.
 
 **Códigos de erro**: `UNAUTHORIZED`, `BAD_REQUEST`, `BUSY`, `MONITOR_OFF`, `NOT_READY`, `NOT_RUNNING`, `NOT_OWNER`, `NOT_FOUND`, `OTHER_TEST_ACTIVE`, `ERROR`.
 
-O cliente deve persistir o ID retornado e consultar `getReport(id)` após terminar. Somente o último ID externo por pareamento fica consultável via API, embora os anteriores continuem no histórico de Labs. Evite poll excessivo; consulte em pontos relevantes (início, fim, reabertura de tela).
+O cliente deve persistir o ID retornado e consultar `getReport(id)` após terminar. Cada cliente pode consultar apenas seu próprio último ID de teste via API; os anteriores continuam no histórico local de Labs. Se outro cliente tiver criado o teste ativo, `getStatus` responderá `OTHER_TEST_ACTIVE`. Não existem dois testes Labs simultâneos. Evite poll excessivo; consulte em pontos relevantes (início, fim, reabertura de tela).
 
 ## Integração futura do Vigia IA
 
 O pacote fonte do Vigia IA **não** foi alterado nesta entrega. Quando ele estiver disponível, implemente um wrapper Android (`MethodChannel`) e exponha ações na UI do módulo de navegação. Valide o AIDL no aparelho e faça testes com serviço ativo/desativado, troca de certificado, desautorização, reinício do processo, descarregamento conectado e cronômetro vencido.
+
+## Evolução alpha.36: múltiplos clientes sem alterar o contrato
+
+- Mantém a mesma ação de bind, pacote, interface AIDL e `protocolVersion=1`. Clientes alpha.35 continuam usando as mesmas quatro operações.
+- Se o usuário tinha um cliente autorizado na alpha.35, ele aparece automaticamente na lista da alpha.36, com seu estado e ID antigo; novos cadastros são armazenados em DataStore num registro por aplicativo.
+- A seleção de um segundo aplicativo não substitui o primeiro. Cada um pode ser pausado ou revogado separadamente nas Configurações. Existe também uma chave geral e **Revogar todos** com confirmação.
+- Se o cliente for atualizado com outra assinatura, perdeu-se a autorização válida até que seja revogado e cadastrado novamente; reautorizar o mesmo certificado preserva seu último ID, mas uma assinatura diferente não herda IDs antigos.
+- **Limitação:** há apenas um teste Labs por vez. Outro cliente recebe `BUSY` ao tentar iniciar durante um teste ativo. Não existe medição do consumo isolado de cada cliente. Sem monitoramento já ativo, `MONITOR_OFF`.
+- O serviço mantém um mutex para serializar comandos concorrentes; autorização de cada chamada é conferida sob a trava. UIDs compartilhados são rejeitados.
+- Permissões e lista de clientes não são incluídas em exportação/backup; restauração revoga tudo. Room v8/backup JSON v6 inalterados.

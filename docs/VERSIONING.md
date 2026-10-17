@@ -1,7 +1,9 @@
 # Versionamento
 
-Versão atual: **0.1.0-alpha.35**, **versionCode 35**.
-Próxima entrega: **0.1.0-alpha.36**, **versionCode 36**.
+Versão atual: **0.1.0-alpha.36**, **versionCode 36**.
+Próxima entrega: **0.1.0-alpha.37**, **versionCode 37**.
+
+Alpha.36: múltiplos clientes autorizados por pacote+certificado, até 20, migração da autorização alpha.35 em DataStore, revogação individual, AIDL v1 inalterado; Room v8 e backup v6 preservados. Próxima alpha.37 / 37.
 
 Alpha.35: API AIDL local desativada por padrão, pareamento com assinatura fixada e UID verificado. Settings DataStore adiciona campos opcionais, sem migração Room v8 e sem alterar JSON v6. A autorização não é incluída em backups e é apagada na restauração. O cliente Vigia IA fica para outra entrega. Próxima alpha.36 / 36.
 

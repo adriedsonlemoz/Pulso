@@ -13,6 +13,10 @@ import android.util.AtomicFile
 import java.io.File
 import java.security.MessageDigest
 import java.util.UUID
+import org.json.JSONArray
+import org.json.JSONObject
+import br.com.pulsobateria.core.ExternalLabsClient
+import br.com.pulsobateria.core.ExternalLabsPolicy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -20,8 +24,8 @@ private val Context.preferences by preferencesDataStore("settings")
 data class Settings(val theme: String = "system", val interval: Int = 30, val fahrenheit: Boolean = false, val continuous: Boolean = false, val capacityMah: Int? = null, val calibration: String? = null, val startOnBoot: Boolean = false,
  val alertsEnabled: Boolean = false, val lowBatteryAlert: Int = 20, val hotBatteryAlert: Int = 43,
  val chargeTargetAlert: Int = 80, val fastDrainAlert: Int = 20,
- val externalLabsEnabled: Boolean = false, val externalLabsPackage: String? = null,
- val externalLabsCert: String? = null, val externalLabsLastId: Long? = null)
+ val externalLabsEnabled: Boolean = false, val externalLabsClients: List<ExternalLabsClient> = emptyList())
+
 class SettingsStore(private val context: Context) {
  private val theme = stringPreferencesKey("theme")
  private val interval = intPreferencesKey("interval")
@@ -39,6 +43,42 @@ class SettingsStore(private val context: Context) {
  private val extPackage = stringPreferencesKey("external_labs_package")
  private val extCert = stringPreferencesKey("external_labs_signer")
  private val extLastId = longPreferencesKey("external_labs_last_id")
+ private val extClients = stringPreferencesKey("external_labs_clients_v2")
+
+ private fun clients(raw: String?): List<ExternalLabsClient> = runCatching {
+  val data = JSONArray(raw ?: "[]")
+  val seen = mutableSetOf<String>()
+  buildList {
+   for (index in 0 until minOf(data.length(), ExternalLabsPolicy.MAX_CLIENTS)) {
+    val node = data.optJSONObject(index) ?: continue
+    val pkg = node.optString("package")
+    val signer = node.optString("signer")
+    if (!ExternalLabsPolicy.validIdentity(pkg, signer) || !seen.add(pkg)) continue
+    val id = node.optLong("lastId", 0L).takeIf { it > 0L }
+    add(ExternalLabsClient(pkg, signer, node.optBoolean("enabled", false), id))
+   }
+  }
+ }.getOrDefault(emptyList())
+
+ private fun oldClient(prefs: androidx.datastore.preferences.core.Preferences): List<ExternalLabsClient> {
+  val pkg = prefs[extPackage] ?: return emptyList()
+  val signer = prefs[extCert] ?: return emptyList()
+  if (!ExternalLabsPolicy.validIdentity(pkg, signer)) return emptyList()
+  return listOf(ExternalLabsClient(pkg, signer, true, prefs[extLastId]?.takeIf { it > 0L }))
+ }
+
+ private fun storedClients(prefs: androidx.datastore.preferences.core.Preferences): List<ExternalLabsClient> =
+  if (prefs.contains(extClients)) clients(prefs[extClients]) else oldClient(prefs)
+
+ private fun saveClients(prefs: androidx.datastore.preferences.core.MutablePreferences, values: List<ExternalLabsClient>) {
+  val array = JSONArray()
+  values.forEach { item ->
+   array.put(JSONObject().put("package", item.packageName).put("signer", item.signer)
+    .put("enabled", item.enabled).put("lastId", item.lastTestId ?: JSONObject.NULL))
+  }
+  prefs[extClients] = array.toString()
+  prefs.remove(extPackage); prefs.remove(extCert); prefs.remove(extLastId)
+ }
  val flow = context.preferences.data.catch { if (it is IOException) emit(emptyPreferences()) else throw it }.map {
   Settings(it[theme] ?: "system", (it[interval] ?: 30).coerceIn(15,60), it[fahrenheit] ?: false, it[continuous] ?: false,
    it[capacity]?.takeIf { mah -> mah in 500..30_000 }, it[calibration], it[startOnBoot] ?: false,
@@ -46,7 +86,7 @@ class SettingsStore(private val context: Context) {
    (it[alertTemp] ?: 43).takeIf { x -> x in 35..55 } ?: 43,
    (it[alertTarget] ?: 80).takeIf { x -> x in 60..100 } ?: 80,
    (it[alertDrain] ?: 20).takeIf { x -> x in 10..40 } ?: 20,
-   it[extEnabled] ?: false, it[extPackage], it[extCert], it[extLastId]?.takeIf { id -> id > 0L })
+   it[extEnabled] ?: false, storedClients(it))
  }
  /** Identidade local excluída de backup + firmware: não confundir ajuste entre instalações. */
  suspend fun calibrationScope(): String = withContext(Dispatchers.IO) {
@@ -70,24 +110,42 @@ class SettingsStore(private val context: Context) {
  suspend fun alertTemp(value: Int) { require(value in 35..55); context.preferences.edit { it[alertTemp] = value } }
  suspend fun alertTarget(value: Int) { require(value in 60..100); context.preferences.edit { it[alertTarget] = value } }
  suspend fun alertDrain(value: Int) { require(value in 10..40); context.preferences.edit { it[alertDrain] = value } }
- /** Pareamento explícito: identifica um app + certificado. A troca revoga a autorização anterior. */
+ /** A seleção explícita autoriza este pacote, sem desautorizar os demais. Máximo de 20 clientes. */
  suspend fun pairExternalLabs(packageName: String, signer: String) {
-  require(packageName.matches(Regex("[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)+")))
-  require(signer.matches(Regex("[0-9a-f]{64}(,[0-9a-f]{64})*")))
-  context.preferences.edit {
-   it[extPackage] = packageName; it[extCert] = signer; it[extEnabled] = false; it.remove(extLastId)
+  require(ExternalLabsPolicy.validIdentity(packageName, signer))
+  context.preferences.edit { prefs ->
+   val existing = storedClients(prefs)
+   saveClients(prefs, ExternalLabsPolicy.pair(existing, packageName, signer))
   }
  }
  suspend fun enableExternalLabs(enabled: Boolean) {
-  context.preferences.edit {
-   if (enabled) require(!it[extPackage].isNullOrBlank() && !it[extCert].isNullOrBlank())
-   it[extEnabled] = enabled
+  context.preferences.edit { prefs ->
+   if (enabled) require(storedClients(prefs).isNotEmpty())
+   prefs[extEnabled] = enabled
   }
  }
- suspend fun clearExternalLabs() { context.preferences.edit {
-  it[extEnabled] = false; it.remove(extPackage); it.remove(extCert); it.remove(extLastId)
+ suspend fun enableExternalPartner(packageName: String, enabled: Boolean) {
+  context.preferences.edit { prefs ->
+   val clients = storedClients(prefs)
+   saveClients(prefs, ExternalLabsPolicy.enabled(clients, packageName, enabled))
+  }
+ }
+ suspend fun removeExternalPartner(packageName: String) { context.preferences.edit { prefs ->
+  val remaining = storedClients(prefs).filterNot { it.packageName == packageName }
+  saveClients(prefs, remaining)
+  if (remaining.isEmpty()) prefs[extEnabled] = false
  } }
- suspend fun rememberExternalLab(id: Long) { require(id>0); context.preferences.edit { it[extLastId] = id } }
+ suspend fun clearExternalLabs() { context.preferences.edit { prefs ->
+  prefs[extEnabled] = false; saveClients(prefs, emptyList())
+ } }
+ suspend fun rememberExternalLab(packageName: String, id: Long) {
+  require(id > 0L)
+  context.preferences.edit { prefs ->
+   require(prefs[extEnabled] == true)
+   val clients = storedClients(prefs)
+   saveClients(prefs, ExternalLabsPolicy.remember(clients, packageName, id))
+  }
+ }
  suspend fun capacityMah(value: Int?) { require(value == null || value in 500..30_000); context.preferences.edit { if (value == null) it.remove(capacity) else it[capacity] = value } }
  suspend fun calibration(value: String?) { context.preferences.edit { if(value==null) it.remove(calibration) else it[calibration]=value } }
  suspend fun replaceFromBackup(value: Settings) {
@@ -101,7 +159,7 @@ class SettingsStore(private val context: Context) {
    // Não ativar alertas silenciosamente após restaurar um backup.
    it[alertsEnabled] = false
    // Nunca restaurar acesso entre aplicativos de outro aparelho/backup.
-   it[extEnabled] = false; it.remove(extPackage); it.remove(extCert); it.remove(extLastId)
+   it[extEnabled] = false; saveClients(it, emptyList())
    it[alertLow] = 20; it[alertTemp] = 43; it[alertTarget] = 80; it[alertDrain] = 20
    if(value.capacityMah != null) it[capacity] = value.capacityMah else it.remove(capacity)
    // Nunca importar calibração específica de hardware de outro aparelho.

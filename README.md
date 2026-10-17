@@ -1,7 +1,15 @@
 # Pulso Bateria
 
-**0.1.0-alpha.35 • versionCode 35** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.36 • versionCode 36** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
+
+## Novidades da alpha.36 — Multiaplicativos na API Labs
+
+- Até 20 aplicativos autorizados, cada qual com liga/desliga, assinatura e histórico de último teste próprio; revogação individual/global com confirmação.
+- Clientes instalados anteriormente na alpha.35 continuam pareados após atualizar, sem resetar o último ID de teste quando o certificado é o mesmo.
+- A API AIDL v1 permanece compatível; chamadas concorrentes serializadas, UID compartilhado rejeitado e testes manuais protegidos.
+- Monitoramento não é ligado pela API; apenas um teste Labs pode estar ativo por vez. Não houve alteração no cálculo de corrente, no Room v8, backup JSON v6, nem na ordem das abas.
+- A capacidade útil configurável em Configurações > Estimativa de corrente **já** era usada como fallback de `CurrentTracker` quando fontes de corrente oficiais não eram utilizáveis e a taxa percentual tinha dados suficientes. A corrente calculada é identificada como estimativa, não medição do sensor.
 
 ## Novidades da alpha.35 — API local dos Labs
 

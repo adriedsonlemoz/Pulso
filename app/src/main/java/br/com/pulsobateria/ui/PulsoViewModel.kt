@@ -122,6 +122,12 @@ class PulsoViewModel(application: Application): AndroidViewModel(application) {
  fun externalLabsEnabled(value: Boolean) { viewModelScope.launch {
   runCatching { app.settings.enableExternalLabs(value) }
  } }
+ fun enableExternalPartner(packageName: String, value: Boolean) { viewModelScope.launch {
+  runCatching { app.settings.enableExternalPartner(packageName, value) }
+ } }
+ fun removeExternalPartner(packageName: String) { viewModelScope.launch {
+  app.settings.removeExternalPartner(packageName)
+ } }
  fun clearExternalLabs() { viewModelScope.launch { app.settings.clearExternalLabs() } }
  fun interval(value: Int) { viewModelScope.launch { app.settings.interval(value) } }
  fun fahrenheit(value: Boolean) { viewModelScope.launch { app.settings.fahrenheit(value) } }

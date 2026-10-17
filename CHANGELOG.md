@@ -1,3 +1,10 @@
+## 0.1.0-alpha.36 (17/10/2026)
+
+- API Labs permite até 20 aplicativos autorizados simultaneamente, mantendo autorização e último ID próprios, seleção por aplicativo e revogação individual/global.
+- Migração transparente da autorização única da alpha.35 para o novo formato de DataStore, sem importar permissões do backup.
+- Segurança: UID Binder + pin SHA-256 em cada chamada, UIDs compartilhados recusados e mutex serializa transações AIDL.
+- Política de acesso testável no core, preservando AIDL v1 e exclusividade do teste Labs. Sem alteração Room v8/backup JSON v6, cálculo de corrente ou abas.
+
 # Changelog
 
 ## 0.1.0-alpha.35 (35) — 2026-10-17

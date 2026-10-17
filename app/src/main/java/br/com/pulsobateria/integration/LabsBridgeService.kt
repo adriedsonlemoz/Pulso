@@ -10,6 +10,10 @@ import br.com.pulsobateria.data.LabTest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import br.com.pulsobateria.core.ExternalLabsClient
+import br.com.pulsobateria.core.ExternalLabsPolicy
 import java.lang.IllegalArgumentException
 import java.lang.IllegalStateException
 
@@ -21,6 +25,7 @@ import java.lang.IllegalStateException
 class LabsBridgeService : Service() {
  companion object { const val ACTION_BIND = "br.com.pulsobateria.LABS_API_V1" }
  private val app get() = application as PulsoApp
+ private val operationLock = Mutex()
  private fun respond(code: String, message: String = "") = Bundle().apply {
   putBoolean("ok", code == "OK")
   putString("code", code)
@@ -28,22 +33,26 @@ class LabsBridgeService : Service() {
   putInt("protocolVersion", 1)
  }
 
- /** Retorna apenas o pacote pareado, após verificar autorização local, UID e assinatura. */
- private suspend fun caller(uid: Int): String? {
-  val s = app.settings.flow.first()
-  val name = s.externalLabsPackage ?: return null
-  val pinned = s.externalLabsCert ?: return null
-  if (!s.externalLabsEnabled || uid == android.os.Process.myUid()) return null
-  if (packageManager.getPackagesForUid(uid)?.contains(name) != true) return null
-  val current = TrustedPartner.signerFingerprint(this, name) ?: return null
-  return name.takeIf { current == pinned }
+ /** Identificação sempre pelo UID real do Binder e pelo pin SHA-256 específico do cliente. */
+ private suspend fun caller(uid: Int): ExternalLabsClient? {
+  if (uid == android.os.Process.myUid()) return null
+  val settings = app.settings.flow.first()
+  if (!settings.externalLabsEnabled) return null
+  // UIDs compartilhados não permitem distinguir qual pacote efetivamente invocou o Binder.
+  val packages = packageManager.getPackagesForUid(uid) ?: return null
+  if (packages.size != 1) return null
+  val signer = TrustedPartner.signerFingerprint(this, packages.single()) ?: return null
+  return ExternalLabsPolicy.authorized(settings.externalLabsEnabled, settings.externalLabsClients,
+   packages.toList(), signer)
  }
- private fun <T> perform(operation: suspend (String) -> T, rejected: () -> T): T {
-  // UID deve ser capturado NA thread da transação Binder, antes de trocar dispatcher.
+ private fun <T> perform(operation: suspend (ExternalLabsClient) -> T, rejected: () -> T): T {
+  // Captura o UID na thread Binder antes de mudar dispatcher, inclusive sob concorrência.
   val callerUid = Binder.getCallingUid()
   return runBlocking(Dispatchers.IO) {
-   val trusted = caller(callerUid) ?: return@runBlocking rejected()
-   try { operation(trusted) } catch (_: Exception) { rejected() }
+   operationLock.withLock {
+    val trusted = caller(callerUid) ?: return@withLock rejected()
+    try { operation(trusted) } catch (_: Exception) { rejected() }
+   }
   }
  }
 
@@ -90,7 +99,7 @@ class LabsBridgeService : Service() {
      return@perform respond("BAD_REQUEST", "Parâmetros inválidos.")
     if (app.labs.snapshot() != null) return@perform respond("BUSY", "Já existe um teste em andamento.")
     if (!app.repository.serviceActive.value) return@perform respond("MONITOR_OFF", "Ative o monitoramento no Pulso Bateria antes do teste.")
-    val annotation = "App: $caller" + if (notes.isBlank()) "" else " | $notes"
+    val annotation = "App: ${caller.packageName}" + if (notes.isBlank()) "" else " | $notes"
     val limitedNotes = annotation.take(160)
     if (kind == "DISCHARGE") {
      app.labs.startDischarge(minutes, screen, camera, wifi, recording, limitedNotes)
@@ -100,17 +109,16 @@ class LabsBridgeService : Service() {
      app.labs.start(sky, watts, minutes, screen, camera, wifi, recording, limitedNotes)
     }
     val test = app.labs.snapshot() ?: return@perform respond("ERROR", "Teste criado, mas status indisponível.")
-    app.settings.rememberExternalLab(test.id)
+    app.settings.rememberExternalLab(caller.packageName, test.id)
     respond("OK").apply { putAll(data(test)) }
    } catch (e: IllegalArgumentException) { respond("BAD_REQUEST", e.message.orEmpty()) }
    catch (e: IllegalStateException) { respond("NOT_READY", e.message.orEmpty()) }
    catch (e: Exception) { respond("ERROR", "Falha ao iniciar o experimento.") }
   }, { respond("UNAUTHORIZED", "Aplicativo não autorizado.") })
 
-  override fun stopTest(testId: Long): Bundle = perform({ _ ->
+  override fun stopTest(testId: Long): Bundle = perform({ caller ->
    try {
-    val s = app.settings.flow.first()
-    if (testId <= 0L || s.externalLabsLastId != testId) return@perform respond("NOT_OWNER", "Teste não pertence ao cliente pareado.")
+    if (!ExternalLabsPolicy.owns(caller, testId)) return@perform respond("NOT_OWNER", "Teste não pertence ao cliente pareado.")
     val current = app.labs.snapshot()
     if (current?.id != testId) return@perform respond("NOT_RUNNING", "Teste não está em execução.")
     app.labs.stop()
@@ -118,9 +126,9 @@ class LabsBridgeService : Service() {
    } catch (e: Exception) { respond("ERROR", "Falha ao finalizar o teste.") }
   }, { respond("UNAUTHORIZED", "Aplicativo não autorizado.") })
 
-  override fun getStatus(): Bundle = perform({ _ ->
+  override fun getStatus(): Bundle = perform({ caller ->
    val current = app.labs.snapshot()
-   val ownedId = app.settings.flow.first().externalLabsLastId
+   val ownedId = caller.lastTestId
    when {
     current == null -> respond("OK").apply { putBoolean("running", false) }
     current.id != ownedId -> respond("OTHER_TEST_ACTIVE", "Há um experimento manual ativo.").apply { putBoolean("running", false) }
@@ -128,8 +136,8 @@ class LabsBridgeService : Service() {
    }
   }, { respond("UNAUTHORIZED", "Aplicativo não autorizado.") })
 
-  override fun getReport(testId: Long): Bundle = perform({ _ ->
-   if (testId <= 0L || app.settings.flow.first().externalLabsLastId != testId)
+  override fun getReport(testId: Long): Bundle = perform({ caller ->
+   if (!ExternalLabsPolicy.owns(caller, testId))
     return@perform respond("NOT_OWNER", "Relatório não pertence ao cliente pareado.")
    val test = app.labs.report(testId) ?: return@perform respond("NOT_FOUND", "Relatório indisponível.")
    respond("OK").apply { putAll(data(test)) }
