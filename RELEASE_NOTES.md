@@ -1,10 +1,10 @@
-# Pulso Bateria 0.1.0-alpha.33
+# Pulso Bateria 0.1.0-alpha.35
 
-- Quatro abas inferiores: Início, Uso, Labs e Configurações. Sessões não aparece mais como aba.
-- Histórico de sessões preservado em Início → Histórico de sessões, mantendo agrupamento, gráficos, filtros, comparação e relatórios.
-- Labs simplificado: escolhas do céu, painel solar e duração mais compactas, condições adicionais opcionais recolhidas por padrão.
-- Botão **Iniciar teste** fixo na parte inferior da configuração, com validação de duração e potência.
-- Menu do Labs mostra três testes recentes; a lista completa e a exclusão com confirmação permanecem.
-- Sem mudança em medições, permissões, Room v8 ou backup JSON v6.
+- **Integração Labs v1:** serviço AIDL local, compatível com aplicativos Android pareados, como o futuro cliente Vigia IA.
+- Comandos para iniciar testes Solar/Consumo, parar testes próprios, consultar andamento e relatório.
+- Nova seção **Configurações → Integração com aplicativos**, desativada por padrão, seleção de aplicativo e revogação; pacote/assinatura validados a cada chamada.
+- API não ativa monitoramento automaticamente e não exige internet. Consulte `docs/INTEGRACAO_VIGIA_IA.md`.
+- Barra inferior **Início / Sessões / Labs / Config.** e Labs compacto mantidos.
+- Room v8 / backup JSON v6 / Secrets e leituras inalterados. O cliente Vigia IA ainda não está integrado nesta entrega.
 
-APK esperado no GitHub Actions: `Pulso-Bateria-v0.1.0-alpha.33-debug.apk`. Este ZIP contém código-fonte, não um APK compilado.
+APK esperado no GitHub Actions: `Pulso-Bateria-v0.1.0-alpha.35-debug.apk`. ZIP inclui código-fonte, não APK.

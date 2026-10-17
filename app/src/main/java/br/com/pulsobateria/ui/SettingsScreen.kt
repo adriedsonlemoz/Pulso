@@ -1,6 +1,7 @@
 package br.com.pulsobateria.ui
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
@@ -10,6 +11,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -60,7 +62,7 @@ internal fun SettingsPage(
   "appearance" -> "Aparência"; "monitor" -> "Monitoramento"
   "reading" -> "Leituras e unidades"; "alerts" -> "Alertas inteligentes"
   "capacity" -> "Estimativa de corrente"; "diagnostic" -> "Diagnóstico de corrente"
-  "backup" -> "Backup e restauração"; "about" -> "Sobre o Pulso"
+  "backup" -> "Backup e restauração"; "integration" -> "Integração com aplicativos"; "about" -> "Sobre o Pulso"
   else -> "Configurações"
  }
  LazyColumn(modifier.fillMaxSize(),state=scrollState,contentPadding=PaddingValues(start=16.dp,end=16.dp,top=12.dp,bottom=30.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
@@ -83,6 +85,8 @@ internal fun SettingsPage(
      SettingsMenuItem(Icons.Default.Home,"Monitoramento",if(active) "Ativo em segundo plano" else if(s.continuous) "Aguardando Android" else "Desativado") { section="monitor" }
      SettingsMenuDivider()
      SettingsMenuItem(Icons.Default.Info,"Alertas inteligentes",if(s.alertsEnabled) "Ativados" else "Desativados") { section="alerts" }
+     SettingsMenuDivider()
+     SettingsMenuItem(Icons.Default.Share,"Integração com aplicativos",if(s.externalLabsEnabled) "API Labs autorizada" else "API Labs desativada") { section="integration" }
     }
    }
    item {
@@ -227,6 +231,45 @@ internal fun SettingsPage(
        }
        TextButton(onClick={vm.resetCalibration()}) { Text("Recalibrar agora") }
       }
+     } }
+    }
+    "integration" -> {
+     item { SettingsPanel("Controle dos testes Labs") {
+      Text("Autorize um aplicativo instalado, como o Vigia IA, a iniciar, consultar e encerrar somente os testes criados por ele. Funciona offline e não ativa sozinho o monitoramento.",style=MaterialTheme.typography.bodySmall)
+      var chooser by remember { mutableStateOf(false) }
+      var search by remember { mutableStateOf("") }
+      val pm = context.packageManager
+      val installed = remember(chooser) {
+       if (!chooser) emptyList() else pm.queryIntentActivities(
+        Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),0)
+        .mapNotNull { result ->
+         val packageName = result.activityInfo?.packageName ?: return@mapNotNull null
+         if(packageName == context.packageName) null
+         else (result.loadLabel(pm)?.toString() ?: packageName) to packageName
+        }.distinctBy { it.second }.sortedBy { it.first.lowercase(Locale.ROOT) }
+      }
+      Text("Aplicativo autorizado: ${s.externalLabsPackage ?: "nenhum"}",style=MaterialTheme.typography.bodySmall)
+      OutlinedButton(onClick={chooser=true},modifier=Modifier.fillMaxWidth()) { Text("Selecionar aplicativo instalado") }
+      if(chooser) AlertDialog(onDismissRequest={chooser=false},title={Text("Autorizar aplicativo")},text={
+       Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(value=search,onValueChange={search=it.take(50)},singleLine=true,
+         label={Text("Pesquisar aplicativo")},modifier=Modifier.fillMaxWidth())
+        LazyColumn(Modifier.heightIn(max=320.dp)) {
+         items(installed.filter { it.first.contains(search,true) || it.second.contains(search,true) }) { entry ->
+          TextButton(onClick={vm.pairExternalLabs(entry.second);chooser=false},modifier=Modifier.fillMaxWidth()) {
+           Column(Modifier.fillMaxWidth()) {
+            Text(entry.first,maxLines=1,overflow=TextOverflow.Ellipsis)
+            Text(entry.second,style=MaterialTheme.typography.labelSmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+           }
+          }
+         }
+        }
+       }
+      },confirmButton={TextButton(onClick={chooser=false}) { Text("Fechar") }})
+      SettingsToggleRow("Permitir controle externo","Exige seleção de aplicativo e assinatura válida",s.externalLabsEnabled,vm::externalLabsEnabled)
+      if(s.externalLabsEnabled && s.externalLabsPackage!=null) Text("Autorizado: ${s.externalLabsPackage}",style=MaterialTheme.typography.labelSmall)
+      TextButton(onClick={vm.clearExternalLabs()},enabled=s.externalLabsPackage!=null) { Text("Revogar autorização") }
+      Text("A autorização é local e desativada por padrão. Não é incluída em backups. Se a assinatura do outro aplicativo mudar, selecione-o novamente. Um teste manual não pode ser encerrado pela API.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
      } }
     }
     "backup" -> {

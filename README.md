@@ -1,9 +1,24 @@
 # Pulso Bateria
 
-**0.1.0-alpha.33 • versionCode 33** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.35 • versionCode 35** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
 
-## Novidades da alpha.33 — Labs mais compacto e navegação com quatro abas
+## Novidades da alpha.35 — API local dos Labs
+
+- API Android AIDL v1 para um app pareado (como Vigia IA) iniciar testes Solar/Consumo, consultar estado, encerrar seu próprio teste e recuperar relatório.
+- Autorize explicitamente o aplicativo em **Config. → Integração com aplicativos**, com verificação de UID/assinatura e revogação. Desativada por padrão, sem INTERNET.
+- O Pulso não ativa seu foreground service quando recebe o comando externo; requer monitoramento ativo. Contrato e exemplo do cliente em `docs/INTEGRACAO_VIGIA_IA.md`.
+- Sem alteração de Room v8, backup v6 ou cálculos de bateria. **Vigia IA ainda precisa implementar o cliente.**
+
+## Histórico da alpha.34 — Sessões restauradas na navegação
+
+- Barra inferior: **Início, Sessões, Labs e Config.**; a aba **Uso** não aparece mais.
+- A aba Sessões volta a exibir diretamente o histórico completo com agrupamento, filtros, gráficos, comparação e relatórios. O botão **Histórico de sessões** da Home agora seleciona essa aba.
+- As melhorias visuais dos Labs da alpha.33 foram preservadas integralmente.
+- O código da antiga tela Uso permanece no repositório, sem entrada na navegação, para evitar excluir funcionalidades/dados sem solicitação.
+- Alteração de UI e documentação: Room v8, backup JSON v6, dados das sessões, permissões, assinatura, medições e serviço mantidos.
+
+## Novidades da alpha.33 — Labs mais compacto e navegação com quatro abas (histórico)
 
 - Barra inferior agora tem **Início, Uso, Labs e Config.**; a aba Sessões foi removida. O histórico segue acessível por **Início → Histórico de sessões**, mantendo filtros, agrupamentos, comparação, relatórios e gráficos.
 - Labs: menu direto com Teste Solar, Teste de Consumo, três resultados recentes e acesso ao histórico completo.
@@ -134,7 +149,7 @@ Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
 
 ## Aplicativos e limites (alpha.16)
 
-Na aba **Uso**, toque em **Abrir acesso ao uso** e autorize Pulso Bateria nas configurações especiais do Android. Volte ao app e use **Atualizar** se necessário. O acesso não é obrigatório para nenhuma medição de bateria. A API `UsageStatsManager` informa eventos de primeiro plano e mudanças de estado interativo da tela, mas não mede o consumo individual em mAh, nem possui eventos históricos ilimitados. Nomes e ícones de apps iniciáveis são consultados pelo sistema com visibilidade limitada; pacotes ocultos ou sem launcher podem permanecer sem nome disponível. A análise combina eventos (últimas 24h) com amostras do Room já armazenadas, ignora pausas/lacunas superiores a 3 minutos, não conecta sessões distintas nem recupera intervalos sem observação. A classificação por tela pode ficar incompleta se os eventos não estiverem disponíveis. Os resultados são locais e não exigem Internet, root ou permissões privilegiadas.
+Nas versões anteriores com a aba **Uso**, toque em **Abrir acesso ao uso** e autorize Pulso Bateria nas configurações especiais do Android. Volte ao app e use **Atualizar** se necessário. O acesso não é obrigatório para nenhuma medição de bateria. A API `UsageStatsManager` informa eventos de primeiro plano e mudanças de estado interativo da tela, mas não mede o consumo individual em mAh, nem possui eventos históricos ilimitados. Nomes e ícones de apps iniciáveis são consultados pelo sistema com visibilidade limitada; pacotes ocultos ou sem launcher podem permanecer sem nome disponível. A análise combina eventos (últimas 24h) com amostras do Room já armazenadas, ignora pausas/lacunas superiores a 3 minutos, não conecta sessões distintas nem recupera intervalos sem observação. A classificação por tela pode ficar incompleta se os eventos não estiverem disponíveis. Os resultados são locais e não exigem Internet, root ou permissões privilegiadas.
 
 ## Histórico mais legível na alpha.15
 

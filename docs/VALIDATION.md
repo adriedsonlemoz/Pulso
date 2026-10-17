@@ -1,3 +1,57 @@
+# Validação — Pulso Bateria 0.1.0-alpha.35 / versionCode 35
+
+## Escopo alpha.35
+
+- API AIDL local (start/stop/status/report) para um cliente pareado. Verificação de UID real na thread Binder, vínculo do pacote ao certificado SHA-256 e toggle desligado por padrão.
+- Tela de pareamento/revogação em Configurações; nenhuma permissão ou serviço foreground novo.
+- Requer monitoramento já ativo; não encerra testes manuais. Room v8 e backup JSON v6 preservados.
+- A autorização externa não é incluída no backup e é revogada ao restaurar.
+
+## Verificações locais (17/10/2026)
+
+- `python3 tools/test_external_labs_contract.py`: **18/18 PASS** (contrato, identidade, revogação, proteção de testes, UI e Docs). São verificações estáticas.
+- Kotlin PSI em seis arquivos modificados: **6/6 sem erros sintáticos** (não resolve dependências Android/AIDL).
+- `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon`: **bloqueado antes dos testes** por `java.net.UnknownHostException: services.gradle.org` ao obter Gradle 8.11.1; não houve APK local.
+- `python3 tools/validate_source.py`: **PASS** (versão, Manifest, permissões originais e Wrapper oficial).
+- `python3 tools/test_storage_sql.py`: **15/15 PASS** em SQLite; o harness emite ResourceWarning de conexões não fechadas.
+- `python3 tools/test_home_compact.py`: **16/16 PASS**.
+- `python3 tools/test_navigation_contract.py`, `tools/test_labs_history.py`, `tools/test_session_grouping_ui.py`: **PASS** (histórico e Labs preservados).
+- `python3 tools/test_settings_ui.py`: **21/21 PASS**.
+- `kotlinc` 1.9.0 compilou os arquivos Kotlin puros do módulo `core`: **PASS** (não equivale a compilação do Android).
+- Instrumentação AIDL de dois apps assinados, permissões e UI de pareamento: **pendentes** em aparelho/emulador.
+
+---
+
+# Validação — Pulso Bateria 0.1.0-alpha.35 / versionCode 35
+
+## Mudanças
+
+- Barra inferior usa **Início, Sessões, Labs e Config.**. O histórico `History` aparece como aba 1, preservando agrupamento, filtros, gráficos e acessos a comparação/relatórios.
+- Atalho da Home seleciona diretamente Sessões; a rota anterior `detailPage="sessions"` foi retirada.
+- A aba Uso e seu ícone deixam de ser exibidos, mantendo módulos de leitura no código sem novos acessos de coleta ou permissões.
+- Labs mantém toda a compactação e ação fixa da alpha.33; Room v8, backup JSON v6, motor de medição, serviço, Secrets e dados históricos sem modificação.
+
+## Execução local (17/10/2026)
+
+- `python3 tools/validate_source.py`: **PASS**, 14 arquivos essenciais, 7 XML, versão, permissões e SHA-256/CRC do Gradle Wrapper.
+- `python3 tools/test_navigation_contract.py`: **19/19 PASS**, inclusive aba Sessões ativa, ausência da aba Uso, atalho da Home, histórico e páginas internas.
+- `python3 tools/test_labs_history.py`: **PASS** (contratos de interface, retenção e cinco operações SQL verificadas).
+- `python3 tools/test_home_compact.py`: **16/16 PASS**.
+- `python3 tools/test_session_grouping_ui.py`: **10/10 PASS**.
+- `python3 tools/test_settings_ui.py`: **21/21 PASS**.
+- `python3 tools/test_storage_sql.py`: **15/15 PASS** em SQLite; apresentou `ResourceWarning` de conexões não fechadas no harness, mas nenhum teste falhou.
+- `kotlinc` 1.9.0 compilou os 13 fontes Kotlin de `core`: **PASS** (não equivale a testes JUnit do Gradle).
+- Kotlin PSI de `PulsoScreen.kt` e `LabsScreen.kt`: **2 fontes, zero erros sintáticos**; não resolve APIs Android/Compose.
+- `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon`: **NÃO EXECUTOU** testes/build; o wrapper tentou baixar Gradle 8.11.1, mas `services.gradle.org` retornou `UnknownHostException`. Não foi gerado APK.
+- `python3 tools/run_local_jvm_tests.py` depende do argumento obrigatório `--toolchain-dir` e não foi utilizado: não afirmar aprovação desses testes.
+
+
+## Pendências
+
+- A compilação Android/Compose no Gradle e testes de UI no aparelho dependem de ambiente com as dependências Android/Gradle; não confundir testes estáticos e Kotlin PSI com execução de APK.
+
+---
+
 # Validação — Pulso Bateria 0.1.0-alpha.33 / versionCode 33
 
 ## Mudanças

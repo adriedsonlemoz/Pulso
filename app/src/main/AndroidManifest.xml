@@ -25,6 +25,10 @@
     <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
    </intent-filter>
   </receiver>
+  <!-- Apenas bindService, sem startService. Toda chamada AIDL autentica UID, pacote e certificado. -->
+  <service android:name=".integration.LabsBridgeService" android:exported="true">
+   <intent-filter><action android:name="br.com.pulsobateria.LABS_API_V1"/></intent-filter>
+  </service>
   <service android:name=".monitor.MonitorService" android:exported="false" android:foregroundServiceType="specialUse">
    <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
     android:value="User-enabled offline battery telemetry with visible ongoing notification and local charging/discharging session recording; no network or wake locks."/>

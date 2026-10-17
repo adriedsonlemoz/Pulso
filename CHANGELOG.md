@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.0-alpha.35 (35) — 2026-10-17
+
+- Serviço bound AIDL `ILabsRemote` (start/stop/status/report) para integração com apps locais como Vigia IA, sem rede e sem novo serviço de monitoramento.
+- Pareamento explícito por aplicativo instalado, com pinning SHA-256 do certificado e validação do UID de cada chamada Binder. Autorizações desligadas por padrão e excluídas do backup.
+- Um cliente só pode encerrar e consultar o último teste que ele próprio iniciou; os testes manuais continuam protegidos. O monitoramento deve já estar ativo.
+- Configurações incluem seleção de aplicativo, habilitar API e revogar; documentação de integração em docs/INTEGRACAO_VIGIA_IA.md.
+- Mantidos Início/Sessões/Labs/Config., Room v8, JSON v6, cálculos, Secrets, histórico e melhorias da interface Labs.
+
+## 0.1.0-alpha.34 (34) — 2026-10-17
+
+- Correção do destino da navegação: **Início, Sessões, Labs, Config.**. Reposicionada a aba Sessões e retirada a aba Uso da barra inferior.
+- Histórico original, agrupamento, gráficos, filtros, comparação e relatórios disponíveis diretamente na aba Sessões; atalho da Home redireciona à mesma aba.
+- Labs compactos da alpha.33 mantidos, incluindo condições opcionais recolhidas e botão Iniciar persistente.
+- Sem migração do banco Room v8 ou alteração de backup v6, dados, cálculos, permissões e assinatura.
+
 ## 0.1.0-alpha.33 (33) — 2026-10-17
 
 - Barra inferior com quatro abas. Histórico de sessões mantido como página secundária acessível pela Home, com controles, gráficos, comparação e relatórios preservados.

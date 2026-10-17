@@ -44,6 +44,11 @@ class LabController(
  val current = mutable.asStateFlow()
  val history = dao.observe()
 
+ suspend fun snapshot(): LabTest? { ready.await(); return mutable.value }
+ suspend fun report(id: Long): LabTest? {
+  require(id > 0L); ready.await(); return withContext(Dispatchers.IO) { dao.byId(id) }
+ }
+
  init {
   scope.launch {
    try {

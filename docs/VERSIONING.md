@@ -1,7 +1,11 @@
 # Versionamento
 
-Versão atual: **0.1.0-alpha.33**, **versionCode 33**.
-Próxima entrega: **0.1.0-alpha.34**, **versionCode 34**.
+Versão atual: **0.1.0-alpha.35**, **versionCode 35**.
+Próxima entrega: **0.1.0-alpha.36**, **versionCode 36**.
+
+Alpha.35: API AIDL local desativada por padrão, pareamento com assinatura fixada e UID verificado. Settings DataStore adiciona campos opcionais, sem migração Room v8 e sem alterar JSON v6. A autorização não é incluída em backups e é apagada na restauração. O cliente Vigia IA fica para outra entrega. Próxima alpha.36 / 36.
+
+Alpha.34: somente interface. Reposiciona a aba Sessões no lugar de Uso e preserva toda a melhoria de Labs da alpha.33. Sem alteração no banco Room v8, backup JSON v6, assinatura e permissões. Próxima alpha.35 / 35.
 
 Alpha.33: somente interface. Remove a aba Sessões da navegação inferior, mantendo a tela e os dados no acesso via Home. Compacta o Labs, com opções adicionais recolhíveis e ação Iniciar persistente. Room v8, backup JSON v6 e Secrets inalterados. Próxima alpha.34 / 34.
 

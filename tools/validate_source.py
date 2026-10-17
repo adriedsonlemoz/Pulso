@@ -26,10 +26,10 @@ assert (root/'app/src/main/java/br/com/pulsobateria/usage/UsageInsightsReader.kt
 
 gradle=(root/'app/build.gradle.kts').read_text()
 version=re.search(r'versionName = "([^"]+)"',gradle).group(1)
-assert version == '0.1.0-alpha.33'
-assert re.search(r'versionCode = 33\b',gradle)
-assert 'versionCode 33' in (root/'README.md').read_text()
-assert 'tag="apk-alpha.33-' in (root/'.github/workflows/android.yml').read_text()
+assert version == '0.1.0-alpha.35'
+assert re.search(r'versionCode = 35\b',gradle)
+assert 'versionCode 35' in (root/'README.md').read_text()
+assert 'tag="apk-alpha.35-' in (root/'.github/workflows/android.yml').read_text()
 for file in ['README.md','CHANGELOG.md','RELEASE_NOTES.md','docs/VERSIONING.md','.github/workflows/android.yml']:
  assert version in (root/file).read_text(), f'Version mismatch: {file}'
 jar=root/'gradle/wrapper/gradle-wrapper.jar'

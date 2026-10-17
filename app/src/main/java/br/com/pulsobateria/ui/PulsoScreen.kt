@@ -106,15 +106,15 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, openLabs: Boolean = false, vm: Pul
  MaterialTheme(colorScheme=colors) {
   Scaffold(containerColor=colors.background, topBar={
    TopAppBar(navigationIcon={ if(detailPage.isNotEmpty()) IconButton(onClick={detailPage=""}) { Icon(Icons.Default.ArrowBack,"Voltar") } },title={ Column {
-    Text(when(detailPage) { "analysis" -> "Análise de medições"; "sessions" -> "Histórico de sessões"; "compare" -> "Comparar recargas"; "reports" -> "Relatórios"; else -> when(tab) { 0 -> "Pulso Bateria"; 1 -> "Uso da bateria"; 2 -> "Labs"; else -> "Configurações" } },fontWeight=FontWeight.Bold)
+    Text(when(detailPage) { "analysis" -> "Análise de medições"; "compare" -> "Comparar recargas"; "reports" -> "Relatórios"; else -> when(tab) { 0 -> "Pulso Bateria"; 1 -> "Sessões"; 2 -> "Labs"; else -> "Configurações" } },fontWeight=FontWeight.Bold)
     Text(if(tab==0) "ENERGIA EM TEMPO REAL" else "PULSO • ALPHA",style=MaterialTheme.typography.labelSmall,color=colors.primary,letterSpacing=2.sp)
    } }, actions={ if(tab!=3 && detailPage.isEmpty()) IconButton(onClick={tab=3;detailPage=""}) { Icon(Icons.Default.Settings,"Configurações") } },
     colors=TopAppBarDefaults.topAppBarColors(containerColor=colors.background))
   },bottomBar={
    NavigationBar(containerColor=colors.surface) {
-    listOf("Início","Uso","Labs","Config.").forEachIndexed { index,label ->
+    listOf("Início","Sessões","Labs","Config.").forEachIndexed { index,label ->
      NavigationBarItem(selected=tab==index,onClick={tab=index;detailPage=""},icon={
-      when(index) { 1 -> UsageTabIcon(); 2 -> LabsTabIcon(); else -> Icon(if(index==0) Icons.Default.Home else Icons.Default.Settings,label) }
+      when(index) { 1 -> Icon(Icons.Default.DateRange,label); 2 -> LabsTabIcon(); else -> Icon(if(index==0) Icons.Default.Home else Icons.Default.Settings,label) }
      },label={Text(label)})
     }
    }
@@ -124,8 +124,6 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, openLabs: Boolean = false, vm: Pul
      item { Text("Corrente, temperatura e bateria",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold) }
      item { Column(verticalArrangement=Arrangement.spacedBy(12.dp)) { TelemetryPanel(telemetry,System.currentTimeMillis()) } }
     }
-   } else if(detailPage=="sessions") {
-    History(sessions,settings,reading,vm,Modifier.padding(padding),onCompare={detailPage="compare"},onReports={detailPage="reports"})
    } else if(detailPage=="compare") {
     LazyColumn(Modifier.fillMaxSize().padding(padding),contentPadding=PaddingValues(16.dp)) {
      item { ChargeCompareCard(sessions,vm) }
@@ -136,11 +134,11 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, openLabs: Boolean = false, vm: Pul
     }
    } else when(tab) {
     0 -> when(reading.mode) {
-     Mode.CHARGING -> ChargingScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),onDetails={detailPage="analysis"},onSessions={detailPage="sessions"}) { limitations=true }
-     Mode.DISCHARGING -> DischargingScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),onDetails={detailPage="analysis"},onSessions={detailPage="sessions"}) { limitations=true }
-     else -> MonitorScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),"Visão da bateria",onDetails={detailPage="analysis"},onLimitations={limitations=true},onSessions={detailPage="sessions"})
+     Mode.CHARGING -> ChargingScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),onDetails={detailPage="analysis"},onSessions={tab=1}) { limitations=true }
+     Mode.DISCHARGING -> DischargingScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),onDetails={detailPage="analysis"},onSessions={tab=1}) { limitations=true }
+     else -> MonitorScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),"Visão da bateria",onDetails={detailPage="analysis"},onLimitations={limitations=true},onSessions={tab=1})
     }
-    1 -> AppUsageScreen(Modifier.padding(padding))
+    1 -> History(sessions,settings,reading,vm,Modifier.padding(padding),onCompare={detailPage="compare"},onReports={detailPage="reports"})
     2 -> LabsScreen(vm,Modifier.padding(padding),onMonitor)
     else -> SettingsPage(settings,reading,active,error,vm,onMonitor,{limitations=true},
      onExport={exportLauncher.launch("Pulso-Bateria-backup-${System.currentTimeMillis()}.json")},
@@ -168,19 +166,6 @@ private fun LabsTabIcon() {
    lineTo(w*.55f,h*.47f); lineTo(w*.55f,h*.12f)
   }
   drawPath(path,tint,style=Stroke(width=w*.075f,cap=StrokeCap.Round))
- }
-}
-
-/** Gráfico de barras na navegação, sem depender do pacote de ícones estendidos. */
-@Composable
-private fun UsageTabIcon() {
- val tint=androidx.compose.material3.LocalContentColor.current
- Canvas(Modifier.size(24.dp)) {
-  val w=size.width
-  val h=size.height
-  drawRoundRect(tint,topLeft=Offset(w*.13f,h*.55f),size=Size(w*.18f,h*.34f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(w*.035f))
-  drawRoundRect(tint,topLeft=Offset(w*.41f,h*.26f),size=Size(w*.18f,h*.63f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(w*.035f))
-  drawRoundRect(tint,topLeft=Offset(w*.69f,h*.41f),size=Size(w*.18f,h*.48f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(w*.035f))
  }
 }
 

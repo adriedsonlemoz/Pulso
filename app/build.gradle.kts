@@ -12,10 +12,10 @@ android {
   minSdk = 26
   targetSdk = 35
   testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-  versionCode = 33
-  versionName = "0.1.0-alpha.33"
+  versionCode = 35
+  versionName = "0.1.0-alpha.35"
  }
- buildFeatures { compose = true; buildConfig = true }
+ buildFeatures { compose = true; buildConfig = true; aidl = true }
  compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
  kotlinOptions { jvmTarget = "17" }
  // A mesma chave opcional em Debug e Release mantém a identidade entre builds do CI.

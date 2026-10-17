@@ -115,6 +115,14 @@ class PulsoViewModel(application: Application): AndroidViewModel(application) {
  } }
  fun theme(value: String) { viewModelScope.launch { app.settings.theme(value) } }
  fun startOnBoot(value: Boolean) { viewModelScope.launch { app.settings.startOnBoot(value) } }
+ fun pairExternalLabs(packageName: String) { viewModelScope.launch {
+  val signature = br.com.pulsobateria.integration.TrustedPartner.signerFingerprint(app, packageName)
+  if (signature != null) app.settings.pairExternalLabs(packageName, signature)
+ } }
+ fun externalLabsEnabled(value: Boolean) { viewModelScope.launch {
+  runCatching { app.settings.enableExternalLabs(value) }
+ } }
+ fun clearExternalLabs() { viewModelScope.launch { app.settings.clearExternalLabs() } }
  fun interval(value: Int) { viewModelScope.launch { app.settings.interval(value) } }
  fun fahrenheit(value: Boolean) { viewModelScope.launch { app.settings.fahrenheit(value) } }
  fun alertsEnabled(value: Boolean) { viewModelScope.launch { app.settings.alertsEnabled(value) } }

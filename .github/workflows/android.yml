@@ -40,6 +40,7 @@ jobs:
           python3 tools/test_labs_history.py
           python3 tools/test_session_grouping_ui.py
           python3 tools/test_settings_ui.py
+          python3 tools/test_external_labs_contract.py
 
       - name: Preparar assinatura estável (Secrets)
         shell: bash
@@ -81,7 +82,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Pulso-Bateria-v0.1.0-alpha.33-validacao
+          name: Pulso-Bateria-v0.1.0-alpha.35-validacao
           path: |
             core/build/test-results/
             app/build/test-results/
@@ -94,7 +95,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          apk="Pulso-Bateria-v0.1.0-alpha.33-debug.apk"
+          apk="Pulso-Bateria-v0.1.0-alpha.35-debug.apk"
           cp app/build/outputs/apk/debug/app-debug.apk "$apk"
           sha256sum "$apk" | tee "$RUNNER_TEMP/apk-sha256.txt"
           if [[ "$PULSO_SIGNED" == true ]]; then
@@ -107,8 +108,8 @@ jobs:
       - name: Guardar APK do build, mesmo se Release falhar
         uses: actions/upload-artifact@v4
         with:
-          name: Pulso-Bateria-v0.1.0-alpha.33-debug
-          path: Pulso-Bateria-v0.1.0-alpha.33-debug.apk
+          name: Pulso-Bateria-v0.1.0-alpha.35-debug
+          path: Pulso-Bateria-v0.1.0-alpha.35-debug.apk
           retention-days: 30
           if-no-files-found: error
 
@@ -120,13 +121,13 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          apk="Pulso-Bateria-v0.1.0-alpha.33-debug.apk"
-          tag="apk-alpha.33-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          apk="Pulso-Bateria-v0.1.0-alpha.35-debug.apk"
+          tag="apk-alpha.35-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           for attempt in 1 2 3 4; do
             if gh release view "$tag" >/dev/null 2>&1; then
               if gh release upload "$tag" "$apk" --clobber; then break; fi
             elif gh release create "$tag" "$apk" --target "$GITHUB_SHA" \
-              --title 'Pulso Bateria 0.1.0-alpha.33 • APK Debug' \
+              --title 'Pulso Bateria 0.1.0-alpha.35 • APK Debug' \
               --notes-file RELEASE_NOTES.md --prerelease --latest=false; then
               break
             fi
