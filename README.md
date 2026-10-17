@@ -1,7 +1,16 @@
 # Pulso Bateria
 
-**0.1.0-alpha.32 • versionCode 32** — Android nativo, Kotlin e Jetpack Compose.
+**0.1.0-alpha.33 • versionCode 33** — Android nativo, Kotlin e Jetpack Compose.
 Android 8.0/API 26 ou superior. Identidade: `br.com.pulsobateria`.
+
+## Novidades da alpha.33 — Labs mais compacto e navegação com quatro abas
+
+- Barra inferior agora tem **Início, Uso, Labs e Config.**; a aba Sessões foi removida. O histórico segue acessível por **Início → Histórico de sessões**, mantendo filtros, agrupamentos, comparação, relatórios e gráficos.
+- Labs: menu direto com Teste Solar, Teste de Consumo, três resultados recentes e acesso ao histórico completo.
+- Configuração compacta: opções de céu, painel e duração com menos altura, preservando tempo manual, intervalos personalizados e os avisos sobre dados insuficientes.
+- Condições opcionais de tela, câmera/vídeo, Wi-Fi, gravação e observações ficam recolhidas por padrão; os valores informados não são apagados quando recolhidos.
+- **Iniciar teste** fica fixo no rodapé nas telas de configuração. Campos numéricos fora dos limites são rejeitados sem iniciar o experimento.
+- Room v8, backup JSON v6, monitoramento e cálculos preservados. APK e aparência no Android ainda dependem do build e testes reais.
 
 ## Novidades da alpha.32 — Sessões próximas reunidas na visualização
 

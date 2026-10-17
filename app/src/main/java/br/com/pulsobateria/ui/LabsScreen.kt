@@ -2,6 +2,7 @@ package br.com.pulsobateria.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -62,6 +63,7 @@ fun LabsScreen(vm: PulsoViewModel, modifier: Modifier = Modifier, onMonitor: (Bo
  var wifiReported by rememberSaveable { mutableStateOf(false) }
  var recordingReported by rememberSaveable { mutableStateOf(false) }
  var notes by rememberSaveable { mutableStateOf("") }
+ var conditionsExpanded by rememberSaveable { mutableStateOf(false) }
  var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
  var hadActive by rememberSaveable { mutableStateOf(false) }
  LaunchedEffect(active?.id) {
@@ -75,22 +77,21 @@ fun LabsScreen(vm: PulsoViewModel, modifier: Modifier = Modifier, onMonitor: (Bo
  val validWatts=selectedWatts!=null && selectedWatts in 1..200
  val validDuration=timer=="manual" || selectedMinutes!=null && selectedMinutes in 1..1440
  val completed=history.filter { it.status != "RUNNING" }
- LazyColumn(modifier.fillMaxSize(),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
-  item {
-   Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
-    Text("🔬 Labs",style=MaterialTheme.typography.titleLarge,fontWeight=FontWeight.Bold)
-    Text("Experimentos de bateria e energia, sem internet ou gravações.",
-     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-   }
-  }
+ val isConfigPage=active==null && (page=="solar" || page=="discharge")
+ Box(modifier.fillMaxSize()) {
+ LazyColumn(Modifier.fillMaxSize(),
+  contentPadding=PaddingValues(start=16.dp,top=10.dp,end=16.dp,bottom=if(isConfigPage) 108.dp else 24.dp),
+  verticalArrangement=Arrangement.spacedBy(12.dp)) {
   if(active!=null) {
    item { RunningLabCard(active!!,now,vm) }
-   item { Text("Acompanhe o teste com a tela apagada. O resultado é salvo ao concluir.",
+   item { Text("Leituras dependem do Android e do monitoramento ativo; intervalos sem observação são separados.",
     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant) }
   } else when(page) {
    "home" -> {
-    item { LabMenuCard("☀️","Teste Solar","Meça períodos de carga e corrente média do painel.") { page="solar" } }
-    item { LabMenuCard("🔋","Teste de Consumo","Descubra quantos pontos percentuais a bateria perde sem fonte externa.") { page="discharge" } }
+    item { Text("Escolha um experimento para medir a bateria em condições reais.",
+     style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant) }
+    item { LabMenuCard("☀️","Teste Solar","Carga, períodos sem carga e corrente média.") { page="solar" } }
+    item { LabMenuCard("🔋","Teste de Consumo","Queda observada da bateria, sem fonte externa.") { page="discharge" } }
     item {
      Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
       Text("Últimos testes",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
@@ -100,35 +101,39 @@ fun LabsScreen(vm: PulsoViewModel, modifier: Modifier = Modifier, onMonitor: (Bo
     if(vm.labError!=null) item { Text(vm.labError ?: "",color=MaterialTheme.colorScheme.error) }
     if(completed.isEmpty()) item { Text("Nenhum experimento concluído ainda.",style=MaterialTheme.typography.bodySmall,
      color=MaterialTheme.colorScheme.onSurfaceVariant) }
-    items(completed.take(5), key={it.id}) { test -> LabResult(test,onDelete=vm::deleteLab) }
+    items(completed.take(3), key={it.id}) { test -> LabResult(test,onDelete=vm::deleteLab) }
    }
    "solar", "discharge" -> {
     val solar=page=="solar"
     item {
-     TextButton(onClick={page="home"}) { Text("‹ Voltar aos experimentos") }
-     Text(if(solar) "☀️ Teste Solar" else "🔋 Teste de Consumo",style=MaterialTheme.typography.titleLarge,
-      fontWeight=FontWeight.SemiBold)
-     Text(if(solar) "Registre a carga fornecida pelo painel em diferentes condições do céu."
-      else "Meça a queda da bateria sem carregador, power bank ou painel conectado.",
-      style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     Column(verticalArrangement=Arrangement.spacedBy(4.dp)) {
+      TextButton(onClick={page="home"},contentPadding=PaddingValues(0.dp)) { Text("‹ Experimentos") }
+      Text(if(solar) "☀️ Teste Solar" else "🔋 Teste de Consumo",style=MaterialTheme.typography.titleLarge,
+       fontWeight=FontWeight.SemiBold)
+      Text(if(solar) "Compare a carga recebida em diferentes condições de luz."
+       else "Meça a descarga com o aparelho desconectado da alimentação.",
+       style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     }
     }
     if(solar) {
      item {
       LabPanel("Condições do céu") {
-       Text("Como está o céu?",style=MaterialTheme.typography.bodyMedium)
        skyOptions.chunked(2).forEach { row ->
-        Row(horizontalArrangement=Arrangement.spacedBy(10.dp),modifier=Modifier.fillMaxWidth()) {
+        Row(horizontalArrangement=Arrangement.spacedBy(8.dp),modifier=Modifier.fillMaxWidth()) {
          row.forEach { option ->
-          Surface(onClick={sky=option.key},modifier=Modifier.weight(1f).height(110.dp),shape=RoundedCornerShape(18.dp),
+          Surface(onClick={sky=option.key},modifier=Modifier.weight(1f).heightIn(min=76.dp),
+           shape=RoundedCornerShape(14.dp),
            color=if(sky==option.key) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
            border=BorderStroke(if(sky==option.key) 2.dp else 1.dp,
             if(sky==option.key) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)) {
-           Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center,
-            modifier=Modifier.padding(5.dp)) {
-            Text(option.emoji,style=MaterialTheme.typography.headlineMedium)
-            Text(option.title,style=MaterialTheme.typography.labelLarge,fontWeight=FontWeight.SemiBold)
-            Text(option.subtitle,style=MaterialTheme.typography.labelSmall,
-             color=MaterialTheme.colorScheme.onSurfaceVariant)
+           Row(modifier=Modifier.padding(horizontal=8.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically,
+            horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+            Text(option.emoji,style=MaterialTheme.typography.titleMedium)
+            Column(verticalArrangement=Arrangement.spacedBy(1.dp)) {
+             Text(option.title,style=MaterialTheme.typography.labelMedium,fontWeight=FontWeight.SemiBold)
+             Text(option.subtitle,style=MaterialTheme.typography.labelSmall,
+              color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
            }
           }
          }
@@ -137,7 +142,7 @@ fun LabsScreen(vm: PulsoViewModel, modifier: Modifier = Modifier, onMonitor: (Bo
       }
      }
      item {
-      LabPanel("Painel solar") {
+      LabPanel("Potência nominal do painel") {
        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
         listOf("8" to "8 W","20" to "20 W","other" to "Outro").forEach { (value,title) ->
          LabChoice(title,panel==value,Modifier.weight(1f)) { panel=value }
@@ -146,14 +151,14 @@ fun LabsScreen(vm: PulsoViewModel, modifier: Modifier = Modifier, onMonitor: (Bo
        if(panel=="other") OutlinedTextField(value=customWatts,onValueChange={customWatts=it.filter(Char::isDigit).take(3)},
         label={Text("Potência nominal (W)")},singleLine=true,
         keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.fillMaxWidth())
+       Text("É a potência anunciada do painel, não a potência medida.",style=MaterialTheme.typography.bodySmall,
+        color=MaterialTheme.colorScheme.onSurfaceVariant)
       }
      }
     } else item {
-     LabPanel("Sem alimentação externa") {
-      Text("Desconecte o USB, carregador, power bank e painel solar antes de iniciar.",
-       style=MaterialTheme.typography.bodyMedium)
-      Text("Se uma fonte externa for detectada durante o teste, o relatório será marcado como interferido.",
-       style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+     Surface(shape=RoundedCornerShape(14.dp),color=MaterialTheme.colorScheme.surfaceVariant) {
+      Text("Desconecte USB, carregador, power bank e painel solar. Fonte detectada durante o teste será marcada como interferência.",
+       modifier=Modifier.fillMaxWidth().padding(12.dp),style=MaterialTheme.typography.bodySmall)
      }
     }
     item {
@@ -168,44 +173,48 @@ fun LabsScreen(vm: PulsoViewModel, modifier: Modifier = Modifier, onMonitor: (Bo
        onValueChange={customMinutes=it.filter(Char::isDigit).take(4)},
        label={Text("Duração em minutos (1 a 1440)")},singleLine=true,
        keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.fillMaxWidth())
-      Text(if(timer=="manual") "Finalização manual." else "Finalização automática, relatório salvo e notificação.",
+      Text(if(timer=="manual") "Você finaliza quando quiser." else "Término automático com relatório e notificação (sujeito às restrições do Android).",
        style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
      }
     }
     item {
-     LabPanel("Condições do experimento (opcional)") {
-      Text("Informe como pretende usar o aparelho. Esses dados não são detectados automaticamente.",
-       style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
-      Text("Tela durante o teste",style=MaterialTheme.typography.labelLarge)
-      Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-       listOf("NAO_INFORMADA" to "Não sei", "ACESA" to "Acesa", "APAGADA" to "Apagada").forEach { (key,label) ->
-        LabChoice(label,screenCondition==key,Modifier.weight(1f)) { screenCondition=key }
+     LabPanel("Condições adicionais · opcionais") {
+      Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+       Text("Tela, câmera, Wi-Fi e observações",Modifier.weight(1f),
+        style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+       TextButton(onClick={conditionsExpanded=!conditionsExpanded}) {
+        Text(if(conditionsExpanded) "Recolher ↑" else "Configurar ↓")
        }
       }
-      Row(verticalAlignment=Alignment.CenterVertically) {
-       Checkbox(checked=cameraReported,onCheckedChange={cameraReported=it})
-       Text("Câmera ou vídeo ativo",style=MaterialTheme.typography.bodyMedium)
+      if(conditionsExpanded) {
+       Text("Informações declaradas manualmente; o app não detecta o uso de outros aplicativos.",
+        style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+       Text("Tela durante o teste",style=MaterialTheme.typography.labelLarge)
+       Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+        listOf("NAO_INFORMADA" to "Não sei", "ACESA" to "Acesa", "APAGADA" to "Apagada").forEach { (key,label) ->
+         LabChoice(label,screenCondition==key,Modifier.weight(1f)) { screenCondition=key }
+        }
+       }
+       Column(verticalArrangement=Arrangement.spacedBy(2.dp)) {
+        LabContextCheckbox("Câmera ou vídeo ativo",cameraReported) { cameraReported=it }
+        LabContextCheckbox("Transmitindo por Wi-Fi",wifiReported) { wifiReported=it }
+        LabContextCheckbox("Gravando vídeo em arquivo",recordingReported) { recordingReported=it }
+       }
+       OutlinedTextField(value=notes,onValueChange={notes=it.filter { c -> !Character.isISOControl(c) }.take(160)},
+        label={Text("Observações (opcional)")},placeholder={Text("Ex.: câmera traseira, local sombreado")},
+        maxLines=3,modifier=Modifier.fillMaxWidth(),supportingText={Text("${notes.length}/160")})
+      } else if(screenCondition!="NAO_INFORMADA" || cameraReported || wifiReported || recordingReported || notes.isNotBlank()) {
+       val selections=buildList {
+        if(screenCondition=="ACESA") add("Tela acesa") else if(screenCondition=="APAGADA") add("Tela apagada")
+        if(cameraReported) add("Câmera")
+        if(wifiReported) add("Wi-Fi")
+        if(recordingReported) add("Gravação")
+        if(notes.isNotBlank()) add("Observações")
+       }
+       Text(selections.joinToString(" · "),style=MaterialTheme.typography.labelSmall,
+        color=MaterialTheme.colorScheme.primary)
       }
-      Row(verticalAlignment=Alignment.CenterVertically) {
-       Checkbox(checked=wifiReported,onCheckedChange={wifiReported=it})
-       Text("Transmitindo por Wi-Fi",style=MaterialTheme.typography.bodyMedium)
-      }
-      Row(verticalAlignment=Alignment.CenterVertically) {
-       Checkbox(checked=recordingReported,onCheckedChange={recordingReported=it})
-       Text("Gravando vídeo em arquivo",style=MaterialTheme.typography.bodyMedium)
-      }
-      OutlinedTextField(value=notes,onValueChange={notes=it.filter { c -> !Character.isISOControl(c) }.take(160)},
-       label={Text("Observações (opcional)")},placeholder={Text("Ex.: Minha Câmera, tempo nublado")},
-       maxLines=3,modifier=Modifier.fillMaxWidth(),supportingText={Text("${notes.length}/160")})
      }
-    }
-    item {
-     Button(onClick={if(solar) vm.startLab(sky,selectedWatts,selectedMinutes,
-       screenCondition,cameraReported,wifiReported,recordingReported,notes) { onMonitor(true) }
-      else vm.startDischargeLab(selectedMinutes,screenCondition,
-       cameraReported,wifiReported,recordingReported,notes) { onMonitor(true) } },
-      enabled=validDuration && (!solar || validWatts),modifier=Modifier.fillMaxWidth(),
-      shape=RoundedCornerShape(16.dp)) { Text("▶  Iniciar teste") }
     }
     if(vm.labError!=null) item { Text(vm.labError ?: "",color=MaterialTheme.colorScheme.error) }
    }
@@ -218,6 +227,35 @@ fun LabsScreen(vm: PulsoViewModel, modifier: Modifier = Modifier, onMonitor: (Bo
    }
   }
  }
+ if(isConfigPage) {
+  Surface(modifier=Modifier.fillMaxWidth().align(Alignment.BottomCenter),
+   color=MaterialTheme.colorScheme.background,shadowElevation=8.dp) {
+   Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=10.dp),
+    verticalArrangement=Arrangement.spacedBy(4.dp)) {
+    if(!validDuration || (page=="solar" && !validWatts)) {
+     Text("Confira a duração e a potência informadas.",style=MaterialTheme.typography.labelSmall,
+      color=MaterialTheme.colorScheme.error)
+    }
+    Button(onClick={if(page=="solar") vm.startLab(sky,selectedWatts,selectedMinutes,
+      screenCondition,cameraReported,wifiReported,recordingReported,notes) { onMonitor(true) }
+     else vm.startDischargeLab(selectedMinutes,screenCondition,
+      cameraReported,wifiReported,recordingReported,notes) { onMonitor(true) } },
+     enabled=validDuration && (page!="solar" || validWatts),
+     modifier=Modifier.fillMaxWidth().heightIn(min=52.dp),
+     shape=RoundedCornerShape(16.dp)) { Text(if(page=="solar") "▶  Iniciar teste solar" else "▶  Iniciar teste de consumo") }
+   }
+  }
+ }
+ }
+}
+
+@Composable
+private fun LabContextCheckbox(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+ Row(modifier=Modifier.fillMaxWidth().heightIn(min=48.dp).clickable { onCheckedChange(!checked) },
+  verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+  Checkbox(checked=checked,onCheckedChange=null)
+  Text(label,style=MaterialTheme.typography.bodyMedium)
+ }
 }
 
 @Composable
@@ -225,7 +263,7 @@ private fun LabMenuCard(emoji: String,title: String,description: String,onClick:
  Card(onClick=onClick,shape=RoundedCornerShape(20.dp),
   colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface),
   border=BorderStroke(1.dp,MaterialTheme.colorScheme.outlineVariant)) {
-  Row(Modifier.fillMaxWidth().padding(18.dp),verticalAlignment=Alignment.CenterVertically,
+  Row(Modifier.fillMaxWidth().padding(14.dp),verticalAlignment=Alignment.CenterVertically,
    horizontalArrangement=Arrangement.spacedBy(14.dp)) {
    Text(emoji,style=MaterialTheme.typography.headlineMedium)
    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
@@ -239,7 +277,7 @@ private fun LabMenuCard(emoji: String,title: String,description: String,onClick:
 
 @Composable
 private fun LabChoice(label: String, selected: Boolean, modifier: Modifier=Modifier, onClick: () -> Unit) {
- Surface(onClick=onClick,modifier=modifier.heightIn(min=52.dp),shape=RoundedCornerShape(13.dp),
+ Surface(onClick=onClick,modifier=modifier.heightIn(min=48.dp),shape=RoundedCornerShape(13.dp),
   border=BorderStroke(if(selected) 2.dp else 1.dp,if(selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
   color=if(selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface) {
   Box(contentAlignment=Alignment.Center,modifier=Modifier.padding(horizontal=4.dp,vertical=8.dp)) {
@@ -252,7 +290,7 @@ private fun LabChoice(label: String, selected: Boolean, modifier: Modifier=Modif
 private fun LabPanel(title: String, content: @Composable ColumnScope.() -> Unit) {
  Card(shape=RoundedCornerShape(22.dp),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.surface),
   elevation=CardDefaults.cardElevation(defaultElevation=1.dp)) {
-  Column(modifier=Modifier.fillMaxWidth().padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+  Column(modifier=Modifier.fillMaxWidth().padding(14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
    Text(title,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
    content()
   }

@@ -1,7 +1,9 @@
 # Versionamento
 
-Versão atual: **0.1.0-alpha.32**, **versionCode 32**.
-Próxima entrega: **0.1.0-alpha.33**, **versionCode 33**.
+Versão atual: **0.1.0-alpha.33**, **versionCode 33**.
+Próxima entrega: **0.1.0-alpha.34**, **versionCode 34**.
+
+Alpha.33: somente interface. Remove a aba Sessões da navegação inferior, mantendo a tela e os dados no acesso via Home. Compacta o Labs, com opções adicionais recolhíveis e ação Iniciar persistente. Room v8, backup JSON v6 e Secrets inalterados. Próxima alpha.34 / 34.
 
 Fonte Android: `app/build.gradle.kts`; a tela Sobre usa BuildConfig. Sincronizar README, CHANGELOG, RELEASE_NOTES, AGENTS, este documento, validação, workflow e ZIP. Preservar `applicationId = br.com.pulsobateria` e os Secrets/keystore existentes.
 

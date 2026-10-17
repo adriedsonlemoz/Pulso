@@ -2,7 +2,7 @@
 
 - Android Kotlin/Compose, offline, sem anúncios/rastreamento/INTERNET. Não inventar medições ou capacidades do aparelho.
 - Antes de editar, ler README, docs/MEASUREMENTS.md e docs/VERSIONING.md.
-- Versão atual 0.1.0-alpha.32 / versionCode 32. Próxima 0.1.0-alpha.33 / 33. Incrementar sequencialmente cada entrega e sincronizar todos os documentos, Gradle, workflow e nome do ZIP.
+- Versão atual 0.1.0-alpha.33 / versionCode 33. Próxima 0.1.0-alpha.34 / 34. Incrementar sequencialmente cada entrega e sincronizar todos os documentos, Gradle, workflow e nome do ZIP.
 - Preservar applicationId. Keystore privada e Secrets nunca entram no ZIP de código ou repositório. Para Debug atualizável, requer Secrets estáveis; sem Secrets a chave temporária deve receber aviso.
 - Manter cálculos no módulo core, testáveis sem Android; validar nulos, sentinelas, sinal, relógio e lacunas.
 - Não iniciar foreground service fora de ação permitida; manter tipo specialUse e sua justificativa, sem simular dataSync/health. Não adicionar wake locks, permissões privilegiadas ou mecanismos de evasão.
@@ -34,3 +34,5 @@
 - Alpha.31: três cartões inferiores da Home compactados visualmente; preservar filtro 5/20/60, detalhes independentes de corrente, acessibilidade do gráfico e acesso à análise completa. Lógica, Room v8 e backup v6 inalterados. Próxima alpha.32 / 32.
 
 - Alpha.32: agrupar sessões somente na UI, com origem preservada, toggle opt-out, lacunas não somadas e badge ATUAL apenas em leitura recente. Core provê particionamento testável. Não mesclar linhas reais do Room. Próxima alpha.33 / 33.
+
+- Alpha.33: remover apenas a aba Sessões da navegação; histórico consultável a partir da Home, sem apagar registros. Labs com condições adicionais recolhíveis, CTA persistente e entradas numéricas validadas. Room v8 e backup v6 intactos. Próxima alpha.34 / 34.

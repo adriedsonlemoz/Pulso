@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0-alpha.33 (33) — 2026-10-17
+
+- Barra inferior com quatro abas. Histórico de sessões mantido como página secundária acessível pela Home, com controles, gráficos, comparação e relatórios preservados.
+- Labs redesenhado com opções compactas, condições adicionais recolhíveis e botão iniciar persistente durante a configuração.
+- Menu inicial do Labs mostra três testes recentes; histórico completo e exclusão confirmada continuam acessíveis.
+- Sem migração de Room ou mudança em backup, telemetria, serviço ou permissões.
+
 ## 0.1.0-alpha.32 (32) — 2026-10-16
 
 - Aba Sessões agrupa visualmente trechos de carga/descarga retomados no mesmo percentual em até 3 min e de fontes compatíveis, sem fundir registros Room; grupo expansível mantém gráficos, temperatura, corrente e motivo individuais.

@@ -1,3 +1,31 @@
+# Validação — Pulso Bateria 0.1.0-alpha.33 / versionCode 33
+
+## Mudanças
+
+- Barra inferior com quatro abas. Sessões continua como página interna da Home via **Histórico de sessões**, com dados e ferramentas anteriores acessíveis.
+- Laboratório com seletor de céu compacto, opções de painel/duração menores, contexto opcional recolhível, botão de início fixo no rodapé e menu com três experimentos recentes mais histórico completo.
+- UI exclusivamente: não altera Room v8, backup JSON v6, chave de assinatura, sensores, cálculos ou serviço. Nenhum arquivo de chave/Secret foi incluído.
+
+## Execução local (17/10/2026)
+
+- `python3 tools/validate_source.py`: **PASS**, estrutura, versão, permissões, XML e hash do wrapper.
+- `python3 tools/test_navigation_contract.py`: **14/14 PASS** (contratos estáticos da navegação, inclusive quatro abas e acesso ao histórico).
+- `python3 tools/test_labs_history.py`: **18 verificações estáticas + 5 casos SQL PASS** (incluindo recolhimento, CTA e persistência do histórico).
+- `python3 tools/test_home_compact.py`: **16/16 PASS** (contratos estáticos).
+- `python3 tools/test_session_grouping_ui.py`: **10/10 PASS** (contratos estáticos).
+- `python3 tools/test_settings_ui.py`: **21/21 PASS** (contratos estáticos).
+- `python3 tools/test_storage_sql.py`: **15/15 PASS** (execução SQLite das migrações e regras de retenção).
+- `kotlinc` compilou os fontes do módulo `core`: **PASS**; não houve mudança no módulo.
+- Kotlin PSI analisou `PulsoScreen.kt` e `LabsScreen.kt`: **0 erros sintáticos**; análise PSI não verifica resolução de API Compose.
+- `./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --offline --no-daemon`: **NÃO FOI POSSÍVEL**; o wrapper tenta baixar Gradle 8.11.1, indisponível por `UnknownHostException: services.gradle.org`. Nenhum APK foi gerado localmente.
+
+## Pendências
+
+- Compilar Android/Compose/KSP e executar testes Gradle e lint no GitHub Actions. Verificar a aparência e o rodapé persistente com fonte grande, tema AMOLED e teclado aberto em tela real.
+- Testar início/finalização de ambos experimentos com tela apagada e política de bateria restritiva; confirmar histórico da versão instalada e assinatura estável na atualização. Fazer backup antes de desinstalar se certificados divergirem.
+
+---
+
 # Validação — Pulso Bateria 0.1.0-alpha.32 / versionCode 32
 
 ## Implementação — alpha.32 (sessões próximas e marcador Atual)

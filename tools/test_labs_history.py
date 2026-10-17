@@ -12,6 +12,10 @@ ctrl = (root/'app/src/main/java/br/com/pulsobateria/labs/LabController.kt').read
 vm = (root/'app/src/main/java/br/com/pulsobateria/ui/PulsoViewModel.kt').read_text()
 
 checks = {
+ "Optional context collapses": 'if(conditionsExpanded)' in screen and 'onClick={conditionsExpanded=!conditionsExpanded}' in screen,
+ "Sticky test action": 'if(isConfigPage)' in screen and 'align(Alignment.BottomCenter)' in screen and 'Iniciar teste solar' in screen,
+ "Recent and complete test lists": 'completed.take(3)' in screen and 'items(completed,key={it.id})' in screen,
+ "Solar, discharge, manual remain": all(v in screen for v in ('page=="solar"','startDischargeLab','"manual" to "Manual"')),
  "Date fields share one row": 'LabDateCell("Início"' in screen and 'LabDateCell("Fim"' in screen and 'Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp))' in screen,
  "Actions paired in footer": all(fragment in screen for fragment in ('Text("Recolher ↑")','Text("Copiar")','Text("Excluir")','onClick={confirmDelete=true}')),
  "Deletion requires confirmation": 'if(confirmDelete) AlertDialog(' in screen and 'onDelete(test.id)' in screen,

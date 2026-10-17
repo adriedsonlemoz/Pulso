@@ -1,10 +1,10 @@
-# Pulso Bateria 0.1.0-alpha.32
+# Pulso Bateria 0.1.0-alpha.33
 
-- Sessões próximas do mesmo estado (carga/descarga), com fronteira de percentual igual e intervalo de até 3 minutos após interrupção, aparecem reunidas em um único cartão na aba Sessões.
-- Interruptor **Agrupar sessões próximas** permite alternar entre visualização agrupada e registros independentes; **Ver originais** revela cada trecho e seus detalhes técnicos/gráficos.
-- Hora inicial/final e tempo observado são preservados; lacunas não são contabilizadas. Nenhum dado do Room foi fundido ou removido.
-- Selo **ATUAL** no cartão da sessão que está realmente recebendo leituras recentes, com origem Android compatível.
-- Registros de carregamento com mudança de fonte ou identificação manual não são reunidos; também não agrupa estados FULL/IDLE nem atravessa sessões de outro estado.
-- Histórico, análises e Labs, backup JSON v6, Room v8, versão 31 da Home compacta, monitoramento e assinatura anteriores preservados.
+- Quatro abas inferiores: Início, Uso, Labs e Configurações. Sessões não aparece mais como aba.
+- Histórico de sessões preservado em Início → Histórico de sessões, mantendo agrupamento, gráficos, filtros, comparação e relatórios.
+- Labs simplificado: escolhas do céu, painel solar e duração mais compactas, condições adicionais opcionais recolhidas por padrão.
+- Botão **Iniciar teste** fixo na parte inferior da configuração, com validação de duração e potência.
+- Menu do Labs mostra três testes recentes; a lista completa e a exclusão com confirmação permanecem.
+- Sem mudança em medições, permissões, Room v8 ou backup JSON v6.
 
-APK esperado no GitHub Actions: `Pulso-Bateria-v0.1.0-alpha.32-debug.apk`. Este ZIP contém apenas código-fonte, não APK compilado.
+APK esperado no GitHub Actions: `Pulso-Bateria-v0.1.0-alpha.33-debug.apk`. Este ZIP contém código-fonte, não um APK compilado.

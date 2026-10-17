@@ -89,8 +89,9 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, openLabs: Boolean = false, vm: Pul
   background=Color(0xFFF3F7FC),surface=Color.White,surfaceVariant=Color(0xFFE6EEF7),
   onSurface=Color(0xFF101C2A),onSurfaceVariant=Color(0xFF526375),onBackground=Color(0xFF101C2A),
   outlineVariant=Color(0xFFD6E1EB))
- var tab by rememberSaveable { mutableIntStateOf(if(openLabs) 3 else 0) }
- LaunchedEffect(openLabs) { if(openLabs) tab=3 }
+ var tab by rememberSaveable { mutableIntStateOf(if(openLabs) 2 else 0) }
+ LaunchedEffect(openLabs) { if(openLabs) tab=2 }
+ LaunchedEffect(tab) { if(tab !in 0..3) tab=0 }
  var detailPage by rememberSaveable { mutableStateOf("") }
  var limitations by rememberSaveable { mutableStateOf(false) }
  val exportLauncher=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -105,15 +106,15 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, openLabs: Boolean = false, vm: Pul
  MaterialTheme(colorScheme=colors) {
   Scaffold(containerColor=colors.background, topBar={
    TopAppBar(navigationIcon={ if(detailPage.isNotEmpty()) IconButton(onClick={detailPage=""}) { Icon(Icons.Default.ArrowBack,"Voltar") } },title={ Column {
-    Text(when(detailPage) { "analysis" -> "Análise de medições"; "compare" -> "Comparar recargas"; "reports" -> "Relatórios"; else -> when(tab) { 0 -> "Pulso Bateria"; 1 -> "Suas sessões"; 2 -> "Uso da bateria"; 3 -> "Labs"; else -> "Configurações" } },fontWeight=FontWeight.Bold)
+    Text(when(detailPage) { "analysis" -> "Análise de medições"; "sessions" -> "Histórico de sessões"; "compare" -> "Comparar recargas"; "reports" -> "Relatórios"; else -> when(tab) { 0 -> "Pulso Bateria"; 1 -> "Uso da bateria"; 2 -> "Labs"; else -> "Configurações" } },fontWeight=FontWeight.Bold)
     Text(if(tab==0) "ENERGIA EM TEMPO REAL" else "PULSO • ALPHA",style=MaterialTheme.typography.labelSmall,color=colors.primary,letterSpacing=2.sp)
-   } }, actions={ if(tab!=4 && detailPage.isEmpty()) IconButton(onClick={tab=4;detailPage=""}) { Icon(Icons.Default.Settings,"Configurações") } },
+   } }, actions={ if(tab!=3 && detailPage.isEmpty()) IconButton(onClick={tab=3;detailPage=""}) { Icon(Icons.Default.Settings,"Configurações") } },
     colors=TopAppBarDefaults.topAppBarColors(containerColor=colors.background))
   },bottomBar={
    NavigationBar(containerColor=colors.surface) {
-    listOf("Início","Sessões","Uso","Labs","Config.").forEachIndexed { index,label ->
+    listOf("Início","Uso","Labs","Config.").forEachIndexed { index,label ->
      NavigationBarItem(selected=tab==index,onClick={tab=index;detailPage=""},icon={
-      when(index) { 2 -> UsageTabIcon(); 3 -> LabsTabIcon(); else -> Icon(when(index){0->Icons.Default.Home;1->Icons.Default.DateRange;else->Icons.Default.Settings},label) }
+      when(index) { 1 -> UsageTabIcon(); 2 -> LabsTabIcon(); else -> Icon(if(index==0) Icons.Default.Home else Icons.Default.Settings,label) }
      },label={Text(label)})
     }
    }
@@ -123,6 +124,8 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, openLabs: Boolean = false, vm: Pul
      item { Text("Corrente, temperatura e bateria",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold) }
      item { Column(verticalArrangement=Arrangement.spacedBy(12.dp)) { TelemetryPanel(telemetry,System.currentTimeMillis()) } }
     }
+   } else if(detailPage=="sessions") {
+    History(sessions,settings,reading,vm,Modifier.padding(padding),onCompare={detailPage="compare"},onReports={detailPage="reports"})
    } else if(detailPage=="compare") {
     LazyColumn(Modifier.fillMaxSize().padding(padding),contentPadding=PaddingValues(16.dp)) {
      item { ChargeCompareCard(sessions,vm) }
@@ -133,13 +136,12 @@ fun PulsoScreen(onMonitor: (Boolean) -> Unit, openLabs: Boolean = false, vm: Pul
     }
    } else when(tab) {
     0 -> when(reading.mode) {
-     Mode.CHARGING -> ChargingScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),onDetails={detailPage="analysis"}) { limitations=true }
-     Mode.DISCHARGING -> DischargingScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),onDetails={detailPage="analysis"}) { limitations=true }
-     else -> MonitorScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),"Visão da bateria",onDetails={detailPage="analysis"},onLimitations={limitations=true})
+     Mode.CHARGING -> ChargingScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),onDetails={detailPage="analysis"},onSessions={detailPage="sessions"}) { limitations=true }
+     Mode.DISCHARGING -> DischargingScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),onDetails={detailPage="analysis"},onSessions={detailPage="sessions"}) { limitations=true }
+     else -> MonitorScreen(reading,settings,telemetry,dischargeHistory,chargeHistory,Modifier.padding(padding),"Visão da bateria",onDetails={detailPage="analysis"},onLimitations={limitations=true},onSessions={detailPage="sessions"})
     }
-    1 -> History(sessions,settings,reading,vm,Modifier.padding(padding),onCompare={detailPage="compare"},onReports={detailPage="reports"})
-    2 -> AppUsageScreen(Modifier.padding(padding))
-    3 -> LabsScreen(vm,Modifier.padding(padding),onMonitor)
+    1 -> AppUsageScreen(Modifier.padding(padding))
+    2 -> LabsScreen(vm,Modifier.padding(padding),onMonitor)
     else -> SettingsPage(settings,reading,active,error,vm,onMonitor,{limitations=true},
      onExport={exportLauncher.launch("Pulso-Bateria-backup-${System.currentTimeMillis()}.json")},
      onImport={importLauncher.launch(arrayOf("application/json","application/octet-stream","*/*"))},
@@ -200,15 +202,15 @@ private fun dischargeEndText(estimatedEnd: Long, measuredAt: Long): String {
 }
 
 @Composable
-private fun ChargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, autonomy: HistoricalAutonomy?, chargeHistory: HistoricalCharging?, modifier: Modifier, onDetails: () -> Unit, onLimitations: () -> Unit) {
- MonitorScreen(r,s,telemetry,autonomy,chargeHistory,modifier,"Recarga",onDetails,onLimitations)
+private fun ChargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, autonomy: HistoricalAutonomy?, chargeHistory: HistoricalCharging?, modifier: Modifier, onDetails: () -> Unit, onSessions: () -> Unit, onLimitations: () -> Unit) {
+ MonitorScreen(r,s,telemetry,autonomy,chargeHistory,modifier,"Recarga",onDetails,onLimitations,onSessions)
 }
 @Composable
-private fun DischargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, autonomy: HistoricalAutonomy?, chargeHistory: HistoricalCharging?, modifier: Modifier, onDetails: () -> Unit, onLimitations: () -> Unit) {
- MonitorScreen(r,s,telemetry,autonomy,chargeHistory,modifier,"Autonomia",onDetails,onLimitations)
+private fun DischargingScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, autonomy: HistoricalAutonomy?, chargeHistory: HistoricalCharging?, modifier: Modifier, onDetails: () -> Unit, onSessions: () -> Unit, onLimitations: () -> Unit) {
+ MonitorScreen(r,s,telemetry,autonomy,chargeHistory,modifier,"Autonomia",onDetails,onLimitations,onSessions)
 }
 @Composable
-private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, autonomy: HistoricalAutonomy?, chargeHistory: HistoricalCharging?, modifier: Modifier, pageTitle: String, onDetails: () -> Unit, onLimitations: () -> Unit) {
+private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySample>, autonomy: HistoricalAutonomy?, chargeHistory: HistoricalCharging?, modifier: Modifier, pageTitle: String, onDetails: () -> Unit, onLimitations: () -> Unit, onSessions: () -> Unit) {
  val isDark = MaterialTheme.colorScheme.background == Color.Black
  val accent by animateColorAsState(
   if(r.mode==Mode.CHARGING) (if(isDark) Color(0xFF38E8C4) else Color(0xFF00785D)) else MaterialTheme.colorScheme.primary,
@@ -333,6 +335,13 @@ private fun MonitorScreen(r: Reading, s: Settings, telemetry: List<TelemetrySamp
   }
   item { Chart(r.points,accent) }
   item { TelemetrySummaryCard(telemetry,System.currentTimeMillis(),onDetails) }
+  item {
+   OutlinedButton(onClick=onSessions,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp)) {
+    Icon(Icons.Default.DateRange,contentDescription=null)
+    Spacer(Modifier.width(8.dp))
+    Text("Histórico de sessões")
+   }
+  }
   if(r.error!=null) item { Text(r.error,color=MaterialTheme.colorScheme.error) }
   item { TextButton(onClick=onLimitations) { Icon(Icons.Default.Info,null); Spacer(Modifier.width(8.dp)); Text("Entenda as medições") } }
  }

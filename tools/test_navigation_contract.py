@@ -8,6 +8,9 @@ telemetry=(p/'TelemetryPanel.kt').read_text()
 charge=(p/'ChargeCompareCard.kt').read_text()
 help=(p/'SectionHelp.kt').read_text()
 checks={
+ 'Only four tabs': 'listOf("Início","Uso","Labs","Config.")' in root and 'listOf("Início","Sessões"' not in root,
+ 'Sessions accessible from home': 'detailPage=="sessions"' in root and 'onSessions={detailPage="sessions"}' in root and 'Text("Histórico de sessões")' in root,
+ 'Labs opens index two': 'if(openLabs) 2 else 0' in root and 'if(openLabs) tab=2' in root,
  'Subpages and back handler': 'BackHandler(detailPage.isNotEmpty() || tab != 0)' in root and 'if(detailPage.isNotEmpty()) detailPage="" else tab=0' in root,
  'Detail actions available': all('detailPage=="'+v+'"' in root for v in ('analysis','compare','reports')),
  'Home compact + detailed graph': 'TelemetrySummaryCard(telemetry,System.currentTimeMillis(),onDetails)' in root and 'TelemetryPanel(telemetry,System.currentTimeMillis())' in root,
